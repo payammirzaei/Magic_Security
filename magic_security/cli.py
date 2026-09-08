@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 
+from magic_security.browser import BrowserUnavailableError
 from magic_security.engine import ScannerEngine
 from magic_security.models import FindingKind
 from magic_security.reporting import write_json_report
@@ -21,6 +22,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Maximum same-origin pages to crawl",
     )
     parser.add_argument(
+        "--browser",
+        action="store_true",
+        help="Use Playwright to discover runtime SPA routes, forms, and XHR/fetch calls",
+    )
+    parser.add_argument(
         "--active",
         action="store_true",
         help="Run the small non-destructive active verification set (localhost only)",
@@ -36,28 +42,42 @@ def _parser() -> argparse.ArgumentParser:
 async def _run(
     target: str,
     max_pages: int,
+    browser: bool,
     active: bool,
     json_path: str | None,
 ) -> int:
     engine = ScannerEngine(max_pages=max_pages)
 
     try:
-        crawl, findings = await engine.scan(target, active=active)
-    except ValueError as exc:
+        crawl, findings = await engine.scan(
+            target,
+            browser=browser,
+            active=active,
+        )
+    except (ValueError, BrowserUnavailableError) as exc:
         print(f"Error: {exc}")
         return 2
 
+    modes = ["http"]
+    if browser:
+        modes.append("browser")
+    if active:
+        modes.append("safe-active")
+
     print(f"\nTarget: {crawl.target}")
-    print(f"Mode:   {'passive + safe-active verification' if active else 'passive'}")
+    print(f"Mode:   {' + '.join(modes)}")
     print("\nAttack Surface")
     print("--------------")
-    print(f"Pages:       {len(crawl.pages)}")
-    print(f"Links:       {len(crawl.links)}")
-    print(f"Forms:       {len(crawl.forms)}")
-    print(f"JS assets:   {len(crawl.js_assets)}")
-    print(f"Endpoints:   {len(crawl.endpoints)}")
-    print(f"Parameters:  {len(crawl.parameters)}")
-    print(f"Source maps: {len(crawl.source_maps)}")
+    print(f"Pages:            {len(crawl.pages)}")
+    print(f"Links:            {len(crawl.links)}")
+    print(f"Forms:            {len(crawl.forms)}")
+    print(f"JS assets:        {len(crawl.js_assets)}")
+    print(f"Endpoints:        {len(crawl.endpoints)}")
+    print(f"Parameters:       {len(crawl.parameters)}")
+    print(f"Source maps:      {len(crawl.source_maps)}")
+    if browser:
+        print(f"Browser pages:    {len(crawl.browser_pages)}")
+        print(f"Browser API reqs: {crawl.browser_network_requests}")
 
     if crawl.endpoints:
         print("\nDiscovered Endpoints")
@@ -123,6 +143,7 @@ def main() -> None:
             _run(
                 args.target,
                 args.max_pages,
+                args.browser,
                 args.active,
                 args.json_path,
             )

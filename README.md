@@ -6,7 +6,8 @@ A local-first web security scanner focused on **evidence, not checklist noise**.
 
 ```
 URL
- -> Crawl
+ -> HTTP Crawl
+ -> Browser Runtime Discovery (optional)
  -> Attack Surface Map
  -> Security Checks
  -> Verification
@@ -30,13 +31,18 @@ The current milestone intentionally has no SaaS layer: no auth, billing, databas
   - `axios.get/post/put/patch/delete(...)`
   - `$.get(...)` / `$.post(...)`
   - obvious `/api`, `/graphql`, `/rest`, and versioned API strings
-- Endpoint method + discovery source tracking
+- OpenAPI / Swagger ingestion
 - JavaScript source-map discovery
-- **OpenAPI / Swagger ingestion**
-  - paths
-  - HTTP methods
-  - query/path parameters
-  - simple JSON request-body properties
+- **Playwright browser discovery**
+  - dynamically rendered links
+  - runtime forms and fields
+  - same-origin XHR / fetch requests
+  - request methods
+  - query parameters
+  - JSON/form body field names
+  - same-origin scripts loaded at runtime
+
+Browser mode does **not** click buttons or submit forms. It renders discovered pages and observes runtime network behavior.
 
 ### Passive security checks
 
@@ -57,14 +63,8 @@ The current milestone intentionally has no SaaS layer: no auth, billing, databas
 
 Run with `--active`.
 
-- **CORS arbitrary-origin reflection**
-  - verifies the server actually reflects a controlled untrusted Origin
-  - detects credential-enabled reflection separately
-  - reports this as an **Exposure**, not fake proof of data theft
-- **Open Redirect**
-  - tests only discovered redirect-like parameters such as `next`, `return_url`, or `redirect_uri`
-  - requires a real 3xx response pointing at the scanner-controlled test origin
-  - reports only after reproduction
+- CORS arbitrary-origin reflection
+- Open Redirect
 
 The core rule is:
 
@@ -72,25 +72,54 @@ The core rule is:
 
 Findings are separated into Vulnerability / Exposure / Hardening.
 
-## JSON report
-
-```bash
-magic-security http://localhost:3000 --active --json reports/scan.json
-```
-
-The JSON contains attack-surface counts, normalized endpoints, parameters, findings, severity, confidence, and verified status.
-
-## Safety default
-
-Remote targets are blocked by default. The MVP is intentionally localhost/loopback only.
-
 ## Install
+
+Base scanner:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
+
+Browser mode:
+
+```bash
+pip install -e ".[dev,browser]"
+playwright install chromium
+```
+
+## Run
+
+HTTP-only:
+
+```bash
+magic-security http://localhost:3000
+```
+
+HTTP + browser discovery:
+
+```bash
+magic-security http://localhost:3000 --browser
+```
+
+Full current local scan:
+
+```bash
+magic-security http://localhost:3000 --browser --active --json reports/scan.json
+```
+
+## Browser safety behavior
+
+The browser crawler is still local-first:
+
+- target must be localhost/loopback
+- browser requests outside the target origin are blocked
+- no button clicking
+- no automatic form submission
+- no state-changing workflow exploration
+
+This keeps runtime discovery useful without turning the crawler into an uncontrolled browser bot.
 
 ## Run the intentionally vulnerable demo
 
@@ -103,10 +132,24 @@ python examples/vulnerable_app.py
 Terminal 2:
 
 ```bash
-magic-security http://127.0.0.1:8000 --active --json reports/demo.json
+magic-security http://127.0.0.1:8000 --browser --active --json reports/demo.json
 ```
 
 The demo intentionally contains **fake-only** security problems.
+
+## JSON report
+
+The JSON report contains:
+
+- attack-surface counts
+- browser-rendered pages
+- normalized endpoints
+- discovery source
+- parameters
+- findings
+- severity
+- confidence
+- verified status
 
 ## Test
 
@@ -121,6 +164,7 @@ Tests also run automatically through GitHub Actions on pushes and pull requests.
 ```
 magic_security/
 ├── active.py
+├── browser.py
 ├── crawler.py
 ├── discovery.py
 ├── engine.py
@@ -133,9 +177,9 @@ magic_security/
 
 ## Next milestone
 
-- browser crawler (Playwright) for JS-heavy SPAs
 - richer JavaScript route extraction
-- response fingerprinting / deduplication
+- response fingerprinting + finding deduplication
+- browser-discovered source maps
 - authenticated/test-account mode later
 
 The MVP remains local-first until the scanner core is trustworthy.

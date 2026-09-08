@@ -46,6 +46,8 @@ class CrawlResult:
     endpoints: set[EndpointCandidate] = field(default_factory=set)
     parameters: set[str] = field(default_factory=set)
     source_maps: set[str] = field(default_factory=set)
+    browser_pages: set[str] = field(default_factory=set)
+    browser_network_requests: int = 0
 
 
 @dataclass(slots=True)

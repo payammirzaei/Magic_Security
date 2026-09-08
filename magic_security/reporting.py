@@ -18,7 +18,10 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "endpoints": len(crawl.endpoints),
             "parameters": len(crawl.parameters),
             "source_maps": len(crawl.source_maps),
+            "browser_pages": len(crawl.browser_pages),
+            "browser_network_requests": crawl.browser_network_requests,
         },
+        "browser_pages": sorted(crawl.browser_pages),
         "endpoints": [
             {
                 "url": endpoint.url,

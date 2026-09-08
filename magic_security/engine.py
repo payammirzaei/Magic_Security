@@ -5,6 +5,7 @@ import socket
 from urllib.parse import urlparse
 
 from magic_security.active import run_safe_active_checks
+from magic_security.browser import BrowserCrawler
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.crawler import HttpCrawler
 from magic_security.models import CrawlResult, Finding, Severity
@@ -57,6 +58,7 @@ class ScannerEngine:
         target: str,
         *,
         active: bool = False,
+        browser: bool = False,
         allow_remote: bool = False,
     ) -> tuple[CrawlResult, list[Finding]]:
         if not allow_remote and not _is_local_target(target):
@@ -65,6 +67,11 @@ class ScannerEngine:
             )
 
         crawl = await self.crawler.crawl(target)
+
+        if browser:
+            observation = await BrowserCrawler().enrich(crawl)
+            crawl.browser_pages.update(observation.pages_rendered)
+            crawl.browser_network_requests += observation.network_requests
 
         openapi_endpoints = await discover_openapi_endpoints(crawl.target)
         crawl.endpoints.update(openapi_endpoints)
