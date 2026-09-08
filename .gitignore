@@ -8,3 +8,5 @@ dist/
 build/
 *.egg-info/
 .env
+auth_contexts.local.json
+.magic-security-auth.json

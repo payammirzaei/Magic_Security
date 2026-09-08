@@ -4,6 +4,7 @@ import argparse
 import asyncio
 from collections import Counter
 
+from magic_security.auth import AuthConfigError, load_auth_contexts
 from magic_security.browser import BrowserUnavailableError
 from magic_security.engine import ScannerEngine
 from magic_security.models import FindingKind
@@ -33,6 +34,10 @@ def _parser() -> argparse.ArgumentParser:
         help="Run endpoint classification and non-destructive verification checks",
     )
     parser.add_argument(
+        "--auth-contexts",
+        help="Local JSON file containing at least two test-user header/cookie contexts",
+    )
+    parser.add_argument(
         "--json",
         dest="json_path",
         help="Write the complete scan report to a JSON file",
@@ -45,17 +50,24 @@ async def _run(
     max_pages: int,
     browser: bool,
     active: bool,
+    auth_context_path: str | None,
     json_path: str | None,
 ) -> int:
     engine = ScannerEngine(max_pages=max_pages)
 
     try:
+        auth_contexts = (
+            load_auth_contexts(auth_context_path)
+            if auth_context_path
+            else None
+        )
         crawl, findings = await engine.scan(
             target,
             browser=browser,
             active=active,
+            auth_contexts=auth_contexts,
         )
-    except (ValueError, BrowserUnavailableError) as exc:
+    except (ValueError, BrowserUnavailableError, AuthConfigError) as exc:
         print(f"Error: {exc}")
         return 2
 
@@ -64,6 +76,8 @@ async def _run(
         modes.append("browser")
     if active:
         modes.append("safe-active")
+    if auth_contexts:
+        modes.append("auth-boundary")
 
     print(f"\nTarget: {crawl.target}")
     print(f"Mode:   {' + '.join(modes)}")
@@ -90,6 +104,20 @@ async def _run(
             f"{key}={value}" for key, value in sorted(counts.items())
         )
         print(f"Endpoint classes:      {summary}")
+
+    if auth_contexts and crawl.auth_comparisons:
+        counts = Counter(item.boundary for item in crawl.auth_comparisons)
+        summary = ", ".join(
+            f"{key}={value}" for key, value in sorted(counts.items())
+        )
+        print(f"Auth boundaries:       {summary}")
+
+        differing = sum(
+            1
+            for item in crawl.auth_comparisons
+            if item.authenticated_responses_differ
+        )
+        print(f"User-specific replies: {differing}")
 
     if crawl.normalized_endpoints:
         print("\nNormalized Endpoints")
@@ -163,6 +191,7 @@ def main() -> None:
                 args.max_pages,
                 args.browser,
                 args.active,
+                args.auth_contexts,
                 args.json_path,
             )
         )

@@ -6,45 +6,35 @@ A local-first web security scanner focused on **evidence, not checklist noise**.
 
 ```
 URL
- -> HTTP Crawl
- -> Browser Runtime Discovery (optional)
- -> OpenAPI / JS Discovery
+ -> HTTP / Browser / OpenAPI Discovery
  -> Normalize Attack Surface
- -> Endpoint Response Classification
+ -> Anonymous Endpoint Classification
+ -> Test-Account Auth Boundary Mapping
  -> Security Checks
  -> Safe-Active Verification
  -> Fingerprint + Deduplicate
  -> Evidence Report
 ```
 
-The current milestone intentionally has no SaaS layer: no auth, billing, database, queue, or frontend.
+The current milestone intentionally has no SaaS layer: no auth UI, billing, database, queue, or frontend.
 
-## Attack-surface discovery
+## What it can do now
 
-Magic_Security currently combines:
+### Discovery
 
-- same-origin HTTP crawling
+- same-origin HTTP crawl
 - HTML links/forms/parameters
 - frontend JavaScript API extraction
 - OpenAPI / Swagger ingestion
-- JavaScript source-map discovery
-- optional Playwright runtime discovery for SPAs
+- source-map discovery
+- optional Playwright runtime discovery
+- endpoint normalization across HTTP / JS / browser / OpenAPI sources
 
-Multiple discoveries of the same route are normalized into one endpoint while raw provenance is preserved.
+### Anonymous response classification
 
-Example:
+With `--active`, GET endpoints are requested without auth and classified as:
 
-```
-GET /api/users
-parameters: include, limit
-sources: browser:network, javascript:fetch, openapi
-```
-
-## Endpoint response classification
-
-When `--active` is enabled, GET endpoints without unresolved path templates are requested **without authentication or session cookies** and classified as:
-
-- `auth_required` — HTTP 401/403
+- `auth_required`
 - `json`
 - `html`
 - `redirect`
@@ -54,85 +44,136 @@ When `--active` is enabled, GET endpoints without unresolved path templates are 
 - `empty`
 - `other`
 
-This gives later authorization checks a real map of the API surface instead of blindly attacking every route.
+The scanner can also verify sensitive-looking JSON fields exposed without authentication. Field **names** are reported; values are not stored.
 
-### Verified unauthenticated data exposure
+### Test-account auth boundary mapping
 
-For HTTP 200 JSON responses, the scanner inspects **field names only**.
+Magic_Security can now compare the same endpoint in three contexts:
 
-Examples of security-relevant fields include:
+```
+Anonymous
+User A
+User B
+```
 
-- email / phone / address
-- DOB
-- IBAN / bank-account fields
-- password / secret / API-key / token-like fields
-
-If such fields are returned without auth, Magic_Security emits a verified **Exposure**.
-
-Response values are never stored in the finding evidence.
+The user supplies two local test contexts through a JSON file. A context can contain test headers and/or cookies.
 
 Example:
 
+```json
+{
+  "contexts": [
+    {
+      "name": "user_a",
+      "headers": {"X-Demo-User": "A"},
+      "cookies": {}
+    },
+    {
+      "name": "user_b",
+      "headers": {"X-Demo-User": "B"},
+      "cookies": {}
+    }
+  ]
+}
 ```
-MEDIUM
-Unauthenticated JSON exposes sensitive-looking fields
-Verified: YES
 
-Endpoint:
-GET /api/users
+A ready-to-copy fake example is included at:
 
-Evidence:
-users.email
-users.phone
-
-Values stored:
-NO
+```
+examples/auth_contexts.example.json
 ```
 
-Secret-like fields receive higher severity than ordinary personal-data-looking fields.
+Run:
 
-This is intentionally not promoted to a stronger exploit claim until authenticated/contextual testing proves the actual authorization impact.
+```bash
+magic-security http://127.0.0.1:8000 \
+  --active \
+  --auth-contexts examples/auth_contexts.example.json \
+  --json reports/demo.json
+```
 
-## Existing security checks
+### Boundary classifications
+
+For every eligible GET endpoint the report can mark:
+
+- `protected`
+  - anonymous is denied
+  - at least one test user is allowed
+
+- `public_or_unprotected`
+  - anonymous and test users are all allowed
+
+- `denied_for_all`
+  - anonymous and test users are denied
+
+- `inconsistent`
+  - access behavior differs in an unexpected way
+
+- `unknown`
+
+It also records whether the authenticated users receive different response fingerprints:
+
+```
+authenticated_responses_differ: true
+```
+
+That is useful for finding **user-specific endpoints** to inspect in the next IDOR/BOLA phase.
+
+## Important privacy behavior
+
+Auth credentials are local input only.
+
+Magic_Security does **not** write these into the scan report:
+
+- cookie values
+- authorization tokens
+- custom header values
+- response bodies from authenticated contexts
+
+The JSON report contains only:
+
+- context names
+- endpoint
+- status codes
+- boundary classification
+- whether authenticated response fingerprints differ
+
+Suggested local filenames are already gitignored:
+
+```
+auth_contexts.local.json
+.magic-security-auth.json
+```
+
+## Current checks
 
 ### Passive
 
-- Security headers
-- Cookie flags
-- Directory listing
+- security headers
+- cookie flags
+- directory listing
 - Swagger/OpenAPI exposure
-- Debug/stack traces
+- debug/stack traces
 - exposed `.env`
 - exposed `.git/HEAD`
-- source maps
+- public source maps
 - secret redaction
 
 ### Safe-active
 
 - CORS arbitrary-origin reflection
 - Open Redirect
-- endpoint response classification
+- anonymous endpoint classification
 - unauthenticated sensitive-looking JSON exposure
+- auth-boundary mapping with explicit test contexts
 
-The core rule remains:
+The rule remains:
 
-**Discover -> Normalize -> Detect -> Verify -> Deduplicate -> Report.**
-
-## Response fingerprinting and deduplication
-
-Repeated root issues are merged while preserving:
-
-- representative evidence
-- all affected URLs
-- occurrence count
-- stable finding fingerprint
-- highest observed severity/confidence
-
-HTTP responses are also fingerprinted for grouping. Response similarity alone never creates a vulnerability.
+**Discover -> Normalize -> Compare -> Verify -> Deduplicate -> Report.**
 
 ## Install
 
-Base scanner:
+Base:
 
 ```bash
 python -m venv .venv
@@ -140,20 +181,14 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-Browser mode:
+Browser support:
 
 ```bash
 pip install -e ".[dev,browser]"
 playwright install chromium
 ```
 
-## Full local scan
-
-```bash
-magic-security http://localhost:3000 --browser --active --json reports/scan.json
-```
-
-## Vulnerable demo
+## Demo
 
 Terminal 1:
 
@@ -164,36 +199,40 @@ python examples/vulnerable_app.py
 Terminal 2:
 
 ```bash
-magic-security http://127.0.0.1:8000 --active --json reports/demo.json
+magic-security http://127.0.0.1:8000 \
+  --active \
+  --auth-contexts examples/auth_contexts.example.json \
+  --json reports/demo.json
 ```
 
-The demo uses fake data only. It contains:
+The demo uses fake data and fake auth headers only.
 
-- exposed fake `.env`
-- fake Git metadata
-- public source map
-- directory listing
-- OpenAPI docs
-- open redirect
-- unsafe CORS
-- unauthenticated fake personal-data JSON
-- a separate API endpoint returning HTTP 401
+It now includes:
+
+- `/api/me`
+  - anonymous -> 401
+  - User A -> 200 with A-specific response
+  - User B -> 200 with B-specific response
+  - expected boundary: `protected`
+  - authenticated responses differ: `true`
+
+- `/api/public`
+  - all contexts -> 200
+  - expected boundary: `public_or_unprotected`
 
 ## JSON report
 
 The report contains:
 
-- normalized endpoints
-- raw endpoint discovery provenance
-- endpoint response classifications
-- sensitive/secret field names only
+- normalized + raw endpoints
+- anonymous endpoint observations
+- auth boundary comparisons
 - response fingerprint groups
 - finding fingerprints
-- affected URLs
-- occurrence counts
-- severity
-- confidence
-- verified status
+- affected URLs / occurrence counts
+- severity / confidence / verified status
+
+No test-account secret values are serialized.
 
 ## Safety default
 
@@ -201,19 +240,12 @@ The MVP remains localhost/loopback only.
 
 Browser mode blocks cross-origin requests and does not click buttons or submit forms.
 
-## Test
-
-```bash
-pytest
-```
-
-Tests also run automatically through GitHub Actions.
-
 ## Architecture
 
 ```
 magic_security/
 ├── active.py
+├── auth.py
 ├── browser.py
 ├── classifier.py
 ├── crawler.py
@@ -230,12 +262,14 @@ magic_security/
 
 ## Next milestone
 
-The next major jump in real security coverage is an **authenticated test-account mode**:
+Next comes the first **IDOR / BOLA candidate engine**:
 
-- Session A / Session B
-- auth-boundary mapping
-- object-ID candidate discovery
-- cross-account access comparison
-- IDOR / BOLA verification
+1. identify protected, user-specific endpoints
+2. discover object-ID parameters / path candidates
+3. learn a resource belonging to User A
+4. replay only that resource identifier using User B's test context
+5. report a vulnerability only if User B receives User A's resource
 
-That is where Magic_Security starts proving broken authorization instead of only mapping unauthenticated behavior.
+That will follow the same rule as the rest of the scanner:
+
+**No proof -> no vulnerability.**

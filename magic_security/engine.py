@@ -5,6 +5,7 @@ import socket
 from urllib.parse import urlparse
 
 from magic_security.active import run_safe_active_checks
+from magic_security.auth import map_auth_boundaries
 from magic_security.browser import BrowserCrawler
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.classifier import classify_endpoints
@@ -13,7 +14,7 @@ from magic_security.fingerprints import (
     deduplicate_findings,
     group_response_fingerprints,
 )
-from magic_security.models import CrawlResult, Finding, Severity
+from magic_security.models import AuthContext, CrawlResult, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
 from magic_security.surface import normalize_endpoints
@@ -65,6 +66,7 @@ class ScannerEngine:
         *,
         active: bool = False,
         browser: bool = False,
+        auth_contexts: list[AuthContext] | None = None,
         allow_remote: bool = False,
     ) -> tuple[CrawlResult, list[Finding]]:
         if not allow_remote and not _is_local_target(target):
@@ -107,6 +109,12 @@ class ScannerEngine:
                     page_urls=(page.url for page in crawl.pages),
                     endpoints=crawl.endpoints,
                 )
+            )
+
+        if auth_contexts:
+            crawl.auth_comparisons = await map_auth_boundaries(
+                crawl.normalized_endpoints,
+                auth_contexts,
             )
 
         findings = deduplicate_findings(findings)

@@ -55,6 +55,23 @@ class EndpointObservation:
     secret_fields: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class AuthContext:
+    name: str
+    headers: dict[str, str] = field(default_factory=dict)
+    cookies: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class AuthComparison:
+    url: str
+    method: str
+    boundary: str
+    anonymous_status: int | None
+    context_statuses: tuple[tuple[str, int], ...] = ()
+    authenticated_responses_differ: bool = False
+
+
 @dataclass(slots=True)
 class CrawlResult:
     target: str
@@ -65,6 +82,7 @@ class CrawlResult:
     endpoints: set[EndpointCandidate] = field(default_factory=set)
     normalized_endpoints: list[NormalizedEndpoint] = field(default_factory=list)
     endpoint_observations: list[EndpointObservation] = field(default_factory=list)
+    auth_comparisons: list[AuthComparison] = field(default_factory=list)
     parameters: set[str] = field(default_factory=set)
     source_maps: set[str] = field(default_factory=set)
     browser_pages: set[str] = field(default_factory=set)

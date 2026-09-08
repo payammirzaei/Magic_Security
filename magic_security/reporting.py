@@ -23,6 +23,7 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "raw_endpoints": len(crawl.endpoints),
             "normalized_endpoints": len(crawl.normalized_endpoints),
             "classified_endpoints": len(crawl.endpoint_observations),
+            "auth_compared_endpoints": len(crawl.auth_comparisons),
             "parameters": len(crawl.parameters),
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
@@ -58,6 +59,22 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 "secret_fields": list(item.secret_fields),
             }
             for item in crawl.endpoint_observations
+        ],
+        "auth_comparisons": [
+            {
+                "url": item.url,
+                "method": item.method,
+                "boundary": item.boundary,
+                "anonymous_status": item.anonymous_status,
+                "context_statuses": [
+                    {"context": name, "status_code": status}
+                    for name, status in item.context_statuses
+                ],
+                "authenticated_responses_differ": (
+                    item.authenticated_responses_differ
+                ),
+            }
+            for item in crawl.auth_comparisons
         ],
         "raw_endpoints": [
             {

@@ -91,6 +91,7 @@ class DemoHandler(BaseHTTPRequestHandler):
         if path == "/static/app.js":
             self._send(
                 """fetch('/api/users?limit=20');
+fetch('/api/me');
 axios.post('/api/orders', {item: 1});
 const graph = "/graphql";
 //# sourceMappingURL=app.js.map
@@ -205,6 +206,12 @@ RuntimeError: demo exception
                             },
                             "/api/private": {
                                 "get": {}
+                            },
+                            "/api/me": {
+                                "get": {}
+                            },
+                            "/api/public": {
+                                "get": {}
                             }
                         },
                     }
@@ -248,6 +255,35 @@ RuntimeError: demo exception
             self._send(
                 json.dumps({"detail": "authentication required"}),
                 status=401,
+                content_type="application/json",
+            )
+            return
+
+        if path == "/api/me":
+            user = self.headers.get("X-Demo-User")
+            if user not in {"A", "B"}:
+                self._send(
+                    json.dumps({"detail": "authentication required"}),
+                    status=401,
+                    content_type="application/json",
+                )
+                return
+            self._send(
+                json.dumps(
+                    {
+                        "user": {
+                            "id": user,
+                            "display_name": f"Demo User {user}"
+                        }
+                    }
+                ),
+                content_type="application/json",
+            )
+            return
+
+        if path == "/api/public":
+            self._send(
+                json.dumps({"service": "magic-demo", "public": True}),
                 content_type="application/json",
             )
             return
