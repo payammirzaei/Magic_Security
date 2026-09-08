@@ -2,7 +2,7 @@
 
 Local-first black-box web security scanner focused on **verified evidence, not checklist noise**.
 
-## v0.8 — Professional Browser + External Security Pack
+## v0.9 — Black-Box Verification Pack
 
 Magic_Security now combines:
 
@@ -133,6 +133,38 @@ HTML pages are checked for anti-framing protection:
 
 CSP policies using `'unsafe-inline'` or `'unsafe-eval'` are also surfaced as hardening weaknesses.
 
+## Parameter + Protocol Verification
+
+v0.9 adds another black-box layer for user-controlled inputs and HTTP behavior:
+
+- database-error trigger detection using a harmless apostrophe probe
+- server-side template evaluation verification using arithmetic-only `{{1337*7}}`
+- CRLF / response-header injection verification with an inert response header
+- duplicate-parameter / HTTP parameter pollution behavior mapping
+- TRACE reflection detection
+- OPTIONS / dangerous-method exposure
+- Server / X-Powered-By fingerprint leakage
+
+Important distinction:
+
+- a triggered database error is reported as an **Exposure**, not falsely promoted to proven SQL injection
+- SSTI is a **Vulnerability** only when the arithmetic expression is actually evaluated
+- CRLF is a **Vulnerability** only when the controlled response header appears
+- parameter-pollution differences remain observations until exploit impact is demonstrated
+
+## 42-Category Coverage Registry
+
+Every report now includes the original 42 security categories with an explicit status:
+
+- `Fully Tested`
+- `Partial`
+- `Passive Only`
+- `Requires Auth`
+- `Requires Config`
+- `Requires Repo Access`
+
+This is intentionally honest. Black-box scanning cannot reliably prove every business-logic, cloud/IAM, supply-chain, file-upload, race-condition, or SSRF issue without extra configuration or source/infrastructure context.
+
 ## Existing external verification
 
 v0.8 keeps the existing v0.7 pack:
@@ -203,6 +235,12 @@ authenticated_cache_tests
 risky_shared_cache
 rate_limit_endpoints_tested
 rate_limit_throttled
+parameter_security_tests
+database_error_triggers
+ssti_verified
+crlf_verified
+parameter_pollution_observations
+protocol_observations
 ```
 
 ### Auth Security
@@ -280,6 +318,10 @@ The demo uses fake-only credentials and data. It intentionally contains examples
 - weak session cookies
 - CSRF posture candidate
 - missing anti-clickjacking headers
+- SSTI arithmetic evaluation
+- database error triggering
+- CRLF response-header injection
+- TRACE reflection / method exposure
 
 ## Safety defaults
 
@@ -336,6 +378,9 @@ magic_security/
 ├── injection.py
 ├── models.py
 ├── openapi.py
+├── parameter_security.py
+├── protocol_security.py
+├── coverage_registry.py
 ├── probes.py
 ├── reporting.py
 ├── session_security.py

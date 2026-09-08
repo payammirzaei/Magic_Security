@@ -199,6 +199,23 @@ class RateLimitObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class ParameterSecurityObservation:
+    url: str
+    parameter: str
+    category: str
+    verified: bool
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProtocolSecurityObservation:
+    category: str
+    method: str
+    status_code: int
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
 class ExternalSecurityCoverage:
     injection_tests: int = 0
     html_injection_verified: int = 0
@@ -215,6 +232,12 @@ class ExternalSecurityCoverage:
     risky_shared_cache: int = 0
     rate_limit_endpoints_tested: int = 0
     rate_limit_throttled: int = 0
+    parameter_security_tests: int = 0
+    database_error_triggers: int = 0
+    ssti_verified: int = 0
+    crlf_verified: int = 0
+    parameter_pollution_observations: int = 0
+    protocol_observations: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,6 +285,9 @@ class CrawlResult:
     cors_impact_observations: list[CorsImpactObservation] = field(default_factory=list)
     cache_observations: list[CacheObservation] = field(default_factory=list)
     rate_limit_observations: list[RateLimitObservation] = field(default_factory=list)
+    parameter_security_observations: list[ParameterSecurityObservation] = field(default_factory=list)
+    protocol_security_observations: list[ProtocolSecurityObservation] = field(default_factory=list)
+    coverage_registry: list[dict[str, str]] = field(default_factory=list)
     external_security_coverage: ExternalSecurityCoverage | None = None
 
     browser_security_observations: list[BrowserSecurityObservation] = field(default_factory=list)

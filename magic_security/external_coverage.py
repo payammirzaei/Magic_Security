@@ -8,6 +8,8 @@ from magic_security.models import (
     GraphqlObservation,
     InjectionObservation,
     RateLimitObservation,
+    ParameterSecurityObservation,
+    ProtocolSecurityObservation,
 )
 
 
@@ -18,6 +20,8 @@ def build_external_security_coverage(
     cors: list[CorsImpactObservation],
     cache: list[CacheObservation],
     rate_limits: list[RateLimitObservation],
+    parameter_security: list[ParameterSecurityObservation],
+    protocol_security: list[ProtocolSecurityObservation],
 ) -> ExternalSecurityCoverage:
     return ExternalSecurityCoverage(
         injection_tests=len(injection),
@@ -55,4 +59,26 @@ def build_external_security_coverage(
         rate_limit_throttled=sum(
             1 for item in rate_limits if item.throttled
         ),
+        parameter_security_tests=len(parameter_security),
+        database_error_triggers=sum(
+            1
+            for item in parameter_security
+            if item.category == "database_error" and item.verified
+        ),
+        ssti_verified=sum(
+            1
+            for item in parameter_security
+            if item.category == "ssti" and item.verified
+        ),
+        crlf_verified=sum(
+            1
+            for item in parameter_security
+            if item.category == "crlf_header_injection" and item.verified
+        ),
+        parameter_pollution_observations=sum(
+            1
+            for item in parameter_security
+            if item.category == "parameter_pollution"
+        ),
+        protocol_observations=len(protocol_security),
     )

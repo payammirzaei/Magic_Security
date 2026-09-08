@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 class DemoHandler(BaseHTTPRequestHandler):
-    server_version = "MagicDemo/0.8"
+    server_version = "MagicDemo/0.9"
 
     def log_message(self, format: str, *args) -> None:
         print(f"[demo] {self.address_string()} - {format % args}")
@@ -108,6 +108,9 @@ class DemoHandler(BaseHTTPRequestHandler):
     <li><a href="/go?next=/products">Redirect helper</a></li>
     <li><a href="/cors">CORS demo</a></li>
     <li><a href="/reflect?q=hello">Reflected input</a></li>
+    <li><a href="/ssti?name=hello">SSTI demo</a></li>
+    <li><a href="/sql?q=hello">SQL error demo</a></li>
+    <li><a href="/crlf?value=hello">CRLF demo</a></li>
     {authenticated_link}
   </ul>
   <form action="/search" method="GET">
@@ -139,6 +142,40 @@ class DemoHandler(BaseHTTPRequestHandler):
   <div id="result">{reflected}</div>
 </body>
 </html>"""
+            )
+            return
+
+        if path == "/ssti":
+            value = query.get("name", [""])[0]
+            if value == "{{1337*7}}":
+                value = "9359"
+            self._send(
+                f"<html><body>{value}</body></html>"
+            )
+            return
+
+        if path == "/sql":
+            value = query.get("q", [""])[0]
+            if "'" in value:
+                self._send(
+                    "PostgreSQL ERROR: syntax error at or near quote",
+                    status=500,
+                    content_type="text/plain; charset=utf-8",
+                )
+                return
+            self._send(
+                "<html><body>search ok</body></html>"
+            )
+            return
+
+        if path == "/crlf":
+            value = query.get("value", [""])[0]
+            headers: dict[str, str] = {}
+            if "X-Magic-Security-Probe: verified" in value:
+                headers["X-Magic-Security-Probe"] = "verified"
+            self._send(
+                "<html><body>redirect helper</body></html>",
+                headers=headers,
             )
             return
 
@@ -326,6 +363,36 @@ RuntimeError: demo exception
                                     "parameters": [
                                         {
                                             "name": "q",
+                                            "in": "query",
+                                        }
+                                    ]
+                                }
+                            },
+                            "/ssti": {
+                                "get": {
+                                    "parameters": [
+                                        {
+                                            "name": "name",
+                                            "in": "query",
+                                        }
+                                    ]
+                                }
+                            },
+                            "/sql": {
+                                "get": {
+                                    "parameters": [
+                                        {
+                                            "name": "q",
+                                            "in": "query",
+                                        }
+                                    ]
+                                }
+                            },
+                            "/crlf": {
+                                "get": {
+                                    "parameters": [
+                                        {
+                                            "name": "value",
                                             "in": "query",
                                         }
                                     ]
@@ -621,6 +688,20 @@ RuntimeError: demo exception
             "not found",
             status=404,
             content_type="text/plain; charset=utf-8",
+        )
+
+    def do_TRACE(self) -> None:
+        marker = self.headers.get("X-Magic-Security-Trace", "")
+        self._send(
+            f"TRACE / HTTP/1.1\nX-Magic-Security-Trace: {marker}\n",
+            content_type="message/http",
+        )
+
+    def do_OPTIONS(self) -> None:
+        self._send(
+            "",
+            status=204,
+            headers={"Allow": "GET, POST, OPTIONS, TRACE"},
         )
 
     def do_POST(self) -> None:

@@ -62,6 +62,12 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "rate_limit_observations": len(
                 crawl.rate_limit_observations
             ),
+            "parameter_security_observations": len(
+                crawl.parameter_security_observations
+            ),
+            "protocol_security_observations": len(
+                crawl.protocol_security_observations
+            ),
             "parameters": len(crawl.parameters),
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
@@ -78,6 +84,7 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "auth_security": auth_coverage,
             "external_security": external_coverage,
             "browser_security": browser_coverage,
+            "categories": crawl.coverage_registry,
         },
         "browser_security": {
             "websockets": sorted(crawl.websocket_endpoints),
@@ -141,6 +148,14 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                     ),
                 }
                 for item in crawl.rate_limit_observations
+            ],
+            "parameter_security": [
+                asdict(item)
+                for item in crawl.parameter_security_observations
+            ],
+            "protocol_security": [
+                asdict(item)
+                for item in crawl.protocol_security_observations
             ],
         },
         "browser_pages": sorted(crawl.browser_pages),

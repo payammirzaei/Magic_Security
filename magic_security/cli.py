@@ -268,6 +268,35 @@ async def _run(
             f"Observed throttling:      "
             f"{ext.rate_limit_throttled}"
         )
+        print(
+            f"Parameter security tests: "
+            f"{ext.parameter_security_tests}"
+        )
+        print(
+            f"DB error triggers:        "
+            f"{ext.database_error_triggers}"
+        )
+        print(
+            f"SSTI verified:            "
+            f"{ext.ssti_verified}"
+        )
+        print(
+            f"CRLF verified:            "
+            f"{ext.crlf_verified}"
+        )
+        print(
+            f"Protocol observations:    "
+            f"{ext.protocol_observations}"
+        )
+
+    if crawl.coverage_registry:
+        statuses = Counter(
+            item["status"] for item in crawl.coverage_registry
+        )
+        print("\n42-Category Coverage")
+        print("--------------------")
+        for status, count in sorted(statuses.items()):
+            print(f"{status:22} {count}")
 
     groups = (
         (

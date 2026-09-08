@@ -22,6 +22,7 @@ from magic_security.checks import DEFAULT_CHECKS
 from magic_security.classifier import classify_endpoints
 from magic_security.client_artifacts import analyze_client_artifacts
 from magic_security.coverage import build_auth_security_coverage
+from magic_security.coverage_registry import build_coverage_registry
 from magic_security.csrf import map_csrf_posture
 from magic_security.crawler import HttpCrawler
 from magic_security.external_coverage import build_external_security_coverage
@@ -35,6 +36,8 @@ from magic_security.injection import (
     verify_reflected_html_injection,
     verify_reflected_xss_browser,
 )
+from magic_security.parameter_security import verify_parameter_security
+from magic_security.protocol_security import analyze_protocol_security
 from magic_security.models import AuthContext, CrawlResult, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
@@ -223,6 +226,20 @@ class ScannerEngine:
                 crawl.normalized_endpoints
             )
 
+            (
+                crawl.parameter_security_observations,
+                parameter_findings,
+            ) = await verify_parameter_security(
+                crawl.normalized_endpoints
+            )
+            findings.extend(parameter_findings)
+
+            (
+                crawl.protocol_security_observations,
+                protocol_findings,
+            ) = await analyze_protocol_security(crawl.target)
+            findings.extend(protocol_findings)
+
             if browser:
                 page_urls = [
                     page.url
@@ -325,6 +342,15 @@ class ScannerEngine:
             crawl.cors_impact_observations,
             crawl.cache_observations,
             crawl.rate_limit_observations,
+            crawl.parameter_security_observations,
+            crawl.protocol_security_observations,
+        )
+
+        crawl.coverage_registry = build_coverage_registry(
+            crawl,
+            active=active,
+            browser=browser,
+            auth_enabled=bool(auth_contexts),
         )
 
         findings = deduplicate_findings(findings)
