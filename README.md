@@ -10,6 +10,7 @@ URL
  -> Normalize Attack Surface
  -> Anonymous Endpoint Classification
  -> Test-Account Auth Boundary Mapping
+ -> Read-only IDOR / BOLA Verification
  -> Security Checks
  -> Safe-Active Verification
  -> Fingerprint + Deduplicate
@@ -46,9 +47,9 @@ With `--active`, GET endpoints are requested without auth and classified as:
 
 The scanner can also verify sensitive-looking JSON fields exposed without authentication. Field **names** are reported; values are not stored.
 
-### Test-account auth boundary mapping
+## Test-account auth boundary mapping
 
-Magic_Security can now compare the same endpoint in three contexts:
+Magic_Security can compare the same endpoint in three contexts:
 
 ```
 Anonymous
@@ -56,7 +57,7 @@ User A
 User B
 ```
 
-The user supplies two local test contexts through a JSON file. A context can contain test headers and/or cookies.
+The test contexts are provided through a local JSON file containing headers and/or cookies.
 
 Example:
 
@@ -77,73 +78,69 @@ Example:
 }
 ```
 
-A ready-to-copy fake example is included at:
+A fake ready-to-use example lives at:
 
 ```
 examples/auth_contexts.example.json
 ```
 
-Run:
+Credentials are local input only and are not written into scan reports.
 
-```bash
-magic-security http://127.0.0.1:8000 \
-  --active \
-  --auth-contexts examples/auth_contexts.example.json \
-  --json reports/demo.json
-```
+## Verified read-only IDOR / BOLA
 
-### Boundary classifications
+The first object-level authorization verifier is now implemented.
 
-For every eligible GET endpoint the report can mark:
+It does **not** brute-force IDs.
 
-- `protected`
-  - anonymous is denied
-  - at least one test user is allowed
+It works like this:
 
-- `public_or_unprotected`
-  - anonymous and test users are all allowed
-
-- `denied_for_all`
-  - anonymous and test users are denied
-
-- `inconsistent`
-  - access behavior differs in an unexpected way
-
-- `unknown`
-
-It also records whether the authenticated users receive different response fingerprints:
+1. Use the first two explicit test-account contexts.
+2. Request authenticated concrete GET endpoints.
+3. Learn IDs that the application itself returns, such as:
+   - `account_id`
+   - `user_id`
+   - `order_id`
+   - `invoice_id`
+4. Match those IDs to discovered path templates such as:
 
 ```
-authenticated_responses_differ: true
+GET /api/accounts/{account_id}
 ```
 
-That is useful for finding **user-specific endpoints** to inspect in the next IDOR/BOLA phase.
+5. Establish an owner baseline:
+   - User A -> User A object
+   - User B -> User B object
+6. Cross-test:
+   - User B -> User A object
+   - User A -> User B object
+7. Report a vulnerability only if the cross-account HTTP 200 JSON is identical to the owner's baseline for that object.
 
-## Important privacy behavior
+Example:
 
-Auth credentials are local input only.
+```
+HIGH
+Cross-account object access verified
+VERIFIED
 
-Magic_Security does **not** write these into the scan report:
+Endpoint:
+GET /api/accounts/{account_id}
 
-- cookie values
-- authorization tokens
-- custom header values
-- response bodies from authenticated contexts
+Evidence:
+User B retrieved User A's object.
+Cross-account HTTP 200 JSON matched the owner's baseline.
 
-The JSON report contains only:
-
-- context names
-- endpoint
+Stored:
+- endpoint template
+- parameter name
 - status codes
-- boundary classification
-- whether authenticated response fingerprints differ
+- verification result
 
-Suggested local filenames are already gitignored:
+Not stored:
+- authentication credentials
+- raw object identifiers
+```
 
-```
-auth_contexts.local.json
-.magic-security-auth.json
-```
+This is intended to be actual authorization proof, not a heuristic OWASP label.
 
 ## Current checks
 
@@ -165,7 +162,15 @@ auth_contexts.local.json
 - Open Redirect
 - anonymous endpoint classification
 - unauthenticated sensitive-looking JSON exposure
-- auth-boundary mapping with explicit test contexts
+
+### Authenticated read-only
+
+- auth boundary mapping
+- user-specific response detection
+- owned-ID discovery from authenticated JSON
+- path-template matching
+- cross-account object-read verification
+- verified IDOR/BOLA finding
 
 The rule remains:
 
@@ -207,36 +212,51 @@ magic-security http://127.0.0.1:8000 \
 
 The demo uses fake data and fake auth headers only.
 
-It now includes:
+It includes:
 
 - `/api/me`
   - anonymous -> 401
-  - User A -> 200 with A-specific response
-  - User B -> 200 with B-specific response
-  - expected boundary: `protected`
-  - authenticated responses differ: `true`
+  - User A -> own `account_id`
+  - User B -> different own `account_id`
 
-- `/api/public`
-  - all contexts -> 200
-  - expected boundary: `public_or_unprotected`
+- `/api/accounts/{account_id}`
+  - requires authentication
+  - intentionally fails object ownership checks
+  - either demo user can read either account
+  - expected scanner result: **verified cross-account object access**
 
 ## JSON report
 
 The report contains:
 
-- normalized + raw endpoints
+- normalized and raw endpoints
 - anonymous endpoint observations
-- auth boundary comparisons
-- response fingerprint groups
+- auth-boundary comparisons
+- IDOR template observations
+- owner/cross-account status codes
+- `cross_account_verified`
 - finding fingerprints
 - affected URLs / occurrence counts
 - severity / confidence / verified status
 
-No test-account secret values are serialized.
+It does **not** serialize:
+
+- auth header values
+- cookie values
+- raw object identifiers used for IDOR verification
+- authenticated response bodies
 
 ## Safety default
 
 The MVP remains localhost/loopback only.
+
+The IDOR/BOLA verifier:
+
+- requires explicit test contexts
+- performs GET requests only
+- does not mutate application state
+- does not brute-force object identifiers
+- only reuses IDs discovered from the test users' own authenticated responses
 
 Browser mode blocks cross-origin requests and does not click buttons or submit forms.
 
@@ -252,6 +272,7 @@ magic_security/
 ├── discovery.py
 ├── engine.py
 ├── fingerprints.py
+├── idor.py
 ├── models.py
 ├── openapi.py
 ├── probes.py
@@ -260,16 +281,22 @@ magic_security/
 └── checks/
 ```
 
+## Test
+
+```bash
+pytest
+```
+
+Tests run automatically through GitHub Actions.
+
 ## Next milestone
 
-Next comes the first **IDOR / BOLA candidate engine**:
+The next useful coverage jump is to make authenticated discovery richer:
 
-1. identify protected, user-specific endpoints
-2. discover object-ID parameters / path candidates
-3. learn a resource belonging to User A
-4. replay only that resource identifier using User B's test context
-5. report a vulnerability only if User B receives User A's resource
+- authenticated browser crawl for each test user
+- collect user-specific API routes that only appear after login
+- nested ownership relationships
+- multiple test-role pairs
+- safe session / CSRF checks
 
-That will follow the same rule as the rest of the scanner:
-
-**No proof -> no vulnerability.**
+State-changing authorization tests remain out of scope until the read-only verifier is mature.

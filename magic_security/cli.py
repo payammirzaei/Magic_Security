@@ -35,7 +35,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--auth-contexts",
-        help="Local JSON file containing at least two test-user header/cookie contexts",
+        help=(
+            "Local JSON file containing at least two test-user header/cookie contexts; "
+            "enables auth-boundary and read-only IDOR/BOLA verification"
+        ),
     )
     parser.add_argument(
         "--json",
@@ -77,7 +80,7 @@ async def _run(
     if active:
         modes.append("safe-active")
     if auth_contexts:
-        modes.append("auth-boundary")
+        modes.append("authz-read-only")
 
     print(f"\nTarget: {crawl.target}")
     print(f"Mode:   {' + '.join(modes)}")
@@ -118,6 +121,17 @@ async def _run(
             if item.authenticated_responses_differ
         )
         print(f"User-specific replies: {differing}")
+
+    if auth_contexts:
+        verified_idor = sum(
+            1
+            for item in crawl.idor_observations
+            if item.cross_account_verified
+        )
+        print(
+            f"IDOR templates:        {len(crawl.idor_observations)} "
+            f"(verified: {verified_idor})"
+        )
 
     if crawl.normalized_endpoints:
         print("\nNormalized Endpoints")

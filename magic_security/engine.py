@@ -14,6 +14,7 @@ from magic_security.fingerprints import (
     deduplicate_findings,
     group_response_fingerprints,
 )
+from magic_security.idor import verify_idor_read_access
 from magic_security.models import AuthContext, CrawlResult, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
@@ -116,6 +117,12 @@ class ScannerEngine:
                 crawl.normalized_endpoints,
                 auth_contexts,
             )
+            idor_observations, idor_findings = await verify_idor_read_access(
+                crawl.normalized_endpoints,
+                auth_contexts,
+            )
+            crawl.idor_observations = idor_observations
+            findings.extend(idor_findings)
 
         findings = deduplicate_findings(findings)
         findings.sort(key=lambda f: (_SEVERITY_ORDER[f.severity], f.title, f.url))

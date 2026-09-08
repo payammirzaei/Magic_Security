@@ -212,6 +212,13 @@ RuntimeError: demo exception
                             },
                             "/api/public": {
                                 "get": {}
+                            },
+                            "/api/accounts/{account_id}": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "account_id", "in": "path"}
+                                    ]
+                                }
                             }
                         },
                     }
@@ -268,12 +275,14 @@ RuntimeError: demo exception
                     content_type="application/json",
                 )
                 return
+            account_id = 101 if user == "A" else 202
             self._send(
                 json.dumps(
                     {
                         "user": {
                             "id": user,
-                            "display_name": f"Demo User {user}"
+                            "display_name": f"Demo User {user}",
+                            "account_id": account_id
                         }
                     }
                 ),
@@ -284,6 +293,47 @@ RuntimeError: demo exception
         if path == "/api/public":
             self._send(
                 json.dumps({"service": "magic-demo", "public": True}),
+                content_type="application/json",
+            )
+            return
+
+        if path.startswith("/api/accounts/"):
+            user = self.headers.get("X-Demo-User")
+            if user not in {"A", "B"}:
+                self._send(
+                    json.dumps({"detail": "authentication required"}),
+                    status=401,
+                    content_type="application/json",
+                )
+                return
+
+            try:
+                account_id = int(path.rsplit("/", 1)[-1])
+            except ValueError:
+                self._send(
+                    json.dumps({"detail": "not found"}),
+                    status=404,
+                    content_type="application/json",
+                )
+                return
+
+            if account_id not in {101, 202}:
+                self._send(
+                    json.dumps({"detail": "not found"}),
+                    status=404,
+                    content_type="application/json",
+                )
+                return
+
+            # Intentionally vulnerable: authenticated users can read either account.
+            self._send(
+                json.dumps(
+                    {
+                        "account_id": account_id,
+                        "email": f"demo-{account_id}@example.test",
+                        "plan": "demo",
+                    }
+                ),
                 content_type="application/json",
             )
             return

@@ -72,6 +72,17 @@ class AuthComparison:
     authenticated_responses_differ: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class IdorObservation:
+    endpoint_template: str
+    parameter: str
+    user_a_own_status: int
+    user_b_own_status: int
+    user_b_to_a_status: int
+    user_a_to_b_status: int
+    cross_account_verified: bool
+
+
 @dataclass(slots=True)
 class CrawlResult:
     target: str
@@ -83,6 +94,7 @@ class CrawlResult:
     normalized_endpoints: list[NormalizedEndpoint] = field(default_factory=list)
     endpoint_observations: list[EndpointObservation] = field(default_factory=list)
     auth_comparisons: list[AuthComparison] = field(default_factory=list)
+    idor_observations: list[IdorObservation] = field(default_factory=list)
     parameters: set[str] = field(default_factory=set)
     source_maps: set[str] = field(default_factory=set)
     browser_pages: set[str] = field(default_factory=set)

@@ -24,6 +24,7 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "normalized_endpoints": len(crawl.normalized_endpoints),
             "classified_endpoints": len(crawl.endpoint_observations),
             "auth_compared_endpoints": len(crawl.auth_comparisons),
+            "idor_templates_tested": len(crawl.idor_observations),
             "parameters": len(crawl.parameters),
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
@@ -75,6 +76,18 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 ),
             }
             for item in crawl.auth_comparisons
+        ],
+        "idor_observations": [
+            {
+                "endpoint_template": item.endpoint_template,
+                "parameter": item.parameter,
+                "user_a_own_status": item.user_a_own_status,
+                "user_b_own_status": item.user_b_own_status,
+                "user_b_to_a_status": item.user_b_to_a_status,
+                "user_a_to_b_status": item.user_a_to_b_status,
+                "cross_account_verified": item.cross_account_verified,
+            }
+            for item in crawl.idor_observations
         ],
         "raw_endpoints": [
             {
