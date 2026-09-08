@@ -1,30 +1,60 @@
 # Magic_Security
 
-A local-first web security scanner focused on evidence, not checklist noise.
+A local-first web security scanner focused on **evidence, not checklist noise**.
 
-## MVP goal
+## MVP pipeline
 
 ```
-URL -> Crawl -> Discover -> Check -> Verify -> Evidence
+URL
+ -> Crawl
+ -> Attack Surface Map
+ -> Security Checks
+ -> Verification
+ -> Evidence
 ```
 
-The first milestone intentionally has no SaaS layer: no auth, billing, database, queue, or frontend.
+The current milestone intentionally has no SaaS layer: no auth, billing, database, queue, or frontend.
 
-### Current capabilities
+## Current capabilities
 
-- Same-origin HTTP crawler
-- Security header hardening checks
+### Attack-surface discovery
+
+- Same-origin HTTP crawl
+- Pages and links
+- HTML forms + methods
+- Input/select/textarea parameter names
+- Query-string parameter discovery
+- JavaScript asset discovery
+- API extraction from:
+  - `fetch(...)`
+  - `axios.get/post/put/patch/delete(...)`
+  - `$.get(...)` / `$.post(...)`
+  - obvious `/api`, `/graphql`, `/rest`, and versioned API strings
+- Endpoint method + discovery source tracking
+- JavaScript source-map discovery
+
+### Security checks
+
+- Security-header hardening checks
 - Cookie flag checks
-- Directory-listing exposure detection
-- Swagger/OpenAPI exposure detection from crawled pages
+- Directory-listing exposure
+- Swagger/OpenAPI exposure
 - Debug/stack-trace exposure heuristics
-- Local-only probes for exposed `.env`, `.git/HEAD`, `openapi.json`, and `swagger.json`
-- Findings separated into Vulnerability / Exposure / Hardening
-- Evidence and confidence attached to every finding
+- Local probes for exposed:
+  - `.env`
+  - `.git/HEAD`
+  - `openapi.json`
+  - `swagger.json`
+- Verified public source-map exposure
+- Secret values are redacted from findings
+- Findings are separated into:
+  - Vulnerability
+  - Exposure
+  - Hardening
 
 ## Safety default
 
-Remote targets are blocked by default. The MVP is meant for localhost testing.
+Remote targets are blocked by default. The MVP is intentionally localhost/loopback only.
 
 ## Install
 
@@ -60,7 +90,17 @@ Terminal 2:
 magic-security http://127.0.0.1:8000
 ```
 
-The demo uses fake credentials only. It intentionally exposes weak headers/cookies, a directory index, debug output, API docs, a fake `.env`, and fake Git metadata so the scanner has deterministic findings to verify.
+The demo intentionally contains **fake-only** security problems. The scanner should discover surfaces such as:
+
+```
+GET  /api/users?limit=20
+POST /api/orders
+GET  /graphql
+GET  /search          params=q,category
+GET  /products        params=page,sort
+```
+
+It should also verify exposures including the fake `.env`, fake Git metadata, debug output, directory listing, OpenAPI docs, and a public source map.
 
 ## Test
 
@@ -68,11 +108,14 @@ The demo uses fake credentials only. It intentionally exposes weak headers/cooki
 pytest
 ```
 
+Tests also run automatically through GitHub Actions on pushes and pull requests.
+
 ## Architecture
 
 ```
 magic_security/
 ├── crawler.py
+├── discovery.py
 ├── engine.py
 ├── models.py
 ├── probes.py
@@ -83,4 +126,14 @@ magic_security/
     └── headers.py
 ```
 
-Next milestone: richer attack-surface discovery (forms, parameters, JS/API endpoints) and verified safe-active checks.
+## Next milestone
+
+First safe-active verification modules:
+
+- CORS behavior
+- Open redirect
+- low-risk rate-limit observation
+
+The rule stays the same:
+
+**Detect -> Verify -> Report.**
