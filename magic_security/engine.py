@@ -8,6 +8,7 @@ from magic_security.active import run_safe_active_checks
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.crawler import HttpCrawler
 from magic_security.models import CrawlResult, Finding, Severity
+from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
 
 
@@ -64,6 +65,12 @@ class ScannerEngine:
             )
 
         crawl = await self.crawler.crawl(target)
+
+        openapi_endpoints = await discover_openapi_endpoints(crawl.target)
+        crawl.endpoints.update(openapi_endpoints)
+        for endpoint in openapi_endpoints:
+            crawl.parameters.update(endpoint.parameters)
+
         findings: list[Finding] = []
 
         for page in crawl.pages:

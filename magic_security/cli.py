@@ -5,6 +5,7 @@ import asyncio
 
 from magic_security.engine import ScannerEngine
 from magic_security.models import FindingKind
+from magic_security.reporting import write_json_report
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -24,10 +25,20 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run the small non-destructive active verification set (localhost only)",
     )
+    parser.add_argument(
+        "--json",
+        dest="json_path",
+        help="Write the complete scan report to a JSON file",
+    )
     return parser
 
 
-async def _run(target: str, max_pages: int, active: bool) -> int:
+async def _run(
+    target: str,
+    max_pages: int,
+    active: bool,
+    json_path: str | None,
+) -> int:
     engine = ScannerEngine(max_pages=max_pages)
 
     try:
@@ -98,9 +109,22 @@ async def _run(target: str, max_pages: int, active: bool) -> int:
                 )
                 print(f"  Ref: {refs}")
 
+    if json_path:
+        destination = write_json_report(json_path, crawl, findings)
+        print(f"\nJSON report: {destination}")
+
     return 0
 
 
 def main() -> None:
     args = _parser().parse_args()
-    raise SystemExit(asyncio.run(_run(args.target, args.max_pages, args.active)))
+    raise SystemExit(
+        asyncio.run(
+            _run(
+                args.target,
+                args.max_pages,
+                args.active,
+                args.json_path,
+            )
+        )
+    )

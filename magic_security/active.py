@@ -146,6 +146,8 @@ async def verify_open_redirects(
                 break
             if endpoint.method.upper() != "GET":
                 continue
+            if "{" in endpoint.url or "}" in endpoint.url:
+                continue
 
             candidate_parameters = _redirect_parameter_names(endpoint)
             if not candidate_parameters:
@@ -222,6 +224,8 @@ async def run_safe_active_checks(
         endpoint.url
         for endpoint in endpoints
         if endpoint.method.upper() == "GET"
+        and "{" not in endpoint.url
+        and "}" not in endpoint.url
     )
 
     findings: list[Finding] = []

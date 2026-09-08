@@ -172,7 +172,38 @@ RuntimeError: demo exception
                     {
                         "openapi": "3.1.0",
                         "info": {"title": "Magic Demo API", "version": "0.3"},
-                        "paths": {"/demo": {"get": {}}},
+                        "paths": {
+                            "/api/users": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "limit", "in": "query"}
+                                    ]
+                                }
+                            },
+                            "/api/orders": {
+                                "post": {
+                                    "requestBody": {
+                                        "content": {
+                                            "application/json": {
+                                                "schema": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "item": {"type": "integer"}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "/go": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "next", "in": "query"}
+                                    ]
+                                }
+                            }
+                        },
                     }
                 ),
                 content_type="application/json",

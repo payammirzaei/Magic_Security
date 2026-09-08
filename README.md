@@ -32,6 +32,11 @@ The current milestone intentionally has no SaaS layer: no auth, billing, databas
   - obvious `/api`, `/graphql`, `/rest`, and versioned API strings
 - Endpoint method + discovery source tracking
 - JavaScript source-map discovery
+- **OpenAPI / Swagger ingestion**
+  - paths
+  - HTTP methods
+  - query/path parameters
+  - simple JSON request-body properties
 
 ### Passive security checks
 
@@ -65,11 +70,15 @@ The core rule is:
 
 **Detect -> Verify -> Report.**
 
-Findings are separated into:
+Findings are separated into Vulnerability / Exposure / Hardening.
 
-- Vulnerability
-- Exposure
-- Hardening
+## JSON report
+
+```bash
+magic-security http://localhost:3000 --active --json reports/scan.json
+```
+
+The JSON contains attack-surface counts, normalized endpoints, parameters, findings, severity, confidence, and verified status.
 
 ## Safety default
 
@@ -83,20 +92,6 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-## Run against your local app
-
-Passive:
-
-```bash
-magic-security http://localhost:3000
-```
-
-Passive + safe-active verification:
-
-```bash
-magic-security http://localhost:3000 --active
-```
-
 ## Run the intentionally vulnerable demo
 
 Terminal 1:
@@ -108,10 +103,10 @@ python examples/vulnerable_app.py
 Terminal 2:
 
 ```bash
-magic-security http://127.0.0.1:8000 --active
+magic-security http://127.0.0.1:8000 --active --json reports/demo.json
 ```
 
-The demo intentionally contains **fake-only** security problems. It includes a reproducible CORS misconfiguration and open redirect so the active verifier has deterministic findings.
+The demo intentionally contains **fake-only** security problems.
 
 ## Test
 
@@ -130,19 +125,17 @@ magic_security/
 ├── discovery.py
 ├── engine.py
 ├── models.py
+├── openapi.py
 ├── probes.py
+├── reporting.py
 └── checks/
-    ├── base.py
-    ├── cookies.py
-    ├── exposures.py
-    └── headers.py
 ```
 
 ## Next milestone
 
-- richer API/OpenAPI ingestion
-- JSON report export
 - browser crawler (Playwright) for JS-heavy SPAs
+- richer JavaScript route extraction
+- response fingerprinting / deduplication
 - authenticated/test-account mode later
 
 The MVP remains local-first until the scanner core is trustworthy.
