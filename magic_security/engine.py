@@ -4,6 +4,7 @@ import ipaddress
 import socket
 from urllib.parse import urlparse
 
+from magic_security.active import run_safe_active_checks
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.crawler import HttpCrawler
 from magic_security.models import CrawlResult, Finding, Severity
@@ -50,7 +51,13 @@ class ScannerEngine:
     def __init__(self, max_pages: int = 100) -> None:
         self.crawler = HttpCrawler(max_pages=max_pages)
 
-    async def scan(self, target: str, *, allow_remote: bool = False) -> tuple[CrawlResult, list[Finding]]:
+    async def scan(
+        self,
+        target: str,
+        *,
+        active: bool = False,
+        allow_remote: bool = False,
+    ) -> tuple[CrawlResult, list[Finding]]:
         if not allow_remote and not _is_local_target(target):
             raise ValueError(
                 "Remote targets are disabled in the local MVP. Scan localhost/loopback only."
@@ -65,5 +72,14 @@ class ScannerEngine:
 
         findings.extend(await probe_common_exposures(crawl.target))
         findings.extend(await probe_source_maps(crawl.source_maps))
+
+        if active:
+            findings.extend(
+                await run_safe_active_checks(
+                    page_urls=(page.url for page in crawl.pages),
+                    endpoints=crawl.endpoints,
+                )
+            )
+
         findings.sort(key=lambda f: (_SEVERITY_ORDER[f.severity], f.title, f.url))
         return crawl, findings

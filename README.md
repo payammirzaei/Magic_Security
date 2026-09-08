@@ -33,7 +33,7 @@ The current milestone intentionally has no SaaS layer: no auth, billing, databas
 - Endpoint method + discovery source tracking
 - JavaScript source-map discovery
 
-### Security checks
+### Passive security checks
 
 - Security-header hardening checks
 - Cookie flag checks
@@ -47,10 +47,29 @@ The current milestone intentionally has no SaaS layer: no auth, billing, databas
   - `swagger.json`
 - Verified public source-map exposure
 - Secret values are redacted from findings
-- Findings are separated into:
-  - Vulnerability
-  - Exposure
-  - Hardening
+
+### Safe-active verification
+
+Run with `--active`.
+
+- **CORS arbitrary-origin reflection**
+  - verifies the server actually reflects a controlled untrusted Origin
+  - detects credential-enabled reflection separately
+  - reports this as an **Exposure**, not fake proof of data theft
+- **Open Redirect**
+  - tests only discovered redirect-like parameters such as `next`, `return_url`, or `redirect_uri`
+  - requires a real 3xx response pointing at the scanner-controlled test origin
+  - reports only after reproduction
+
+The core rule is:
+
+**Detect -> Verify -> Report.**
+
+Findings are separated into:
+
+- Vulnerability
+- Exposure
+- Hardening
 
 ## Safety default
 
@@ -66,14 +85,16 @@ pip install -e ".[dev]"
 
 ## Run against your local app
 
+Passive:
+
 ```bash
 magic-security http://localhost:3000
 ```
 
-or:
+Passive + safe-active verification:
 
 ```bash
-python -m magic_security http://127.0.0.1:8000
+magic-security http://localhost:3000 --active
 ```
 
 ## Run the intentionally vulnerable demo
@@ -87,20 +108,10 @@ python examples/vulnerable_app.py
 Terminal 2:
 
 ```bash
-magic-security http://127.0.0.1:8000
+magic-security http://127.0.0.1:8000 --active
 ```
 
-The demo intentionally contains **fake-only** security problems. The scanner should discover surfaces such as:
-
-```
-GET  /api/users?limit=20
-POST /api/orders
-GET  /graphql
-GET  /search          params=q,category
-GET  /products        params=page,sort
-```
-
-It should also verify exposures including the fake `.env`, fake Git metadata, debug output, directory listing, OpenAPI docs, and a public source map.
+The demo intentionally contains **fake-only** security problems. It includes a reproducible CORS misconfiguration and open redirect so the active verifier has deterministic findings.
 
 ## Test
 
@@ -114,6 +125,7 @@ Tests also run automatically through GitHub Actions on pushes and pull requests.
 
 ```
 magic_security/
+├── active.py
 ├── crawler.py
 ├── discovery.py
 ├── engine.py
@@ -128,12 +140,9 @@ magic_security/
 
 ## Next milestone
 
-First safe-active verification modules:
+- richer API/OpenAPI ingestion
+- JSON report export
+- browser crawler (Playwright) for JS-heavy SPAs
+- authenticated/test-account mode later
 
-- CORS behavior
-- Open redirect
-- low-risk rate-limit observation
-
-The rule stays the same:
-
-**Detect -> Verify -> Report.**
+The MVP remains local-first until the scanner core is trustworthy.
