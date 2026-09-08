@@ -15,6 +15,11 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "links": len(crawl.links),
             "forms": len(crawl.forms),
             "js_assets": len(crawl.js_assets),
+            "endpoints": (
+                len(crawl.normalized_endpoints)
+                if crawl.normalized_endpoints
+                else len(crawl.endpoints)
+            ),
             "raw_endpoints": len(crawl.endpoints),
             "normalized_endpoints": len(crawl.normalized_endpoints),
             "parameters": len(crawl.parameters),
