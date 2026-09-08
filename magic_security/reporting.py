@@ -8,9 +8,14 @@ from magic_security.models import CrawlResult, Finding
 
 
 def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
-    coverage = (
+    auth_coverage = (
         asdict(crawl.auth_security_coverage)
         if crawl.auth_security_coverage is not None
+        else None
+    )
+    external_coverage = (
+        asdict(crawl.external_security_coverage)
+        if crawl.external_security_coverage is not None
         else None
     )
 
@@ -36,6 +41,18 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "session_cookie_observations": len(
                 crawl.session_cookie_observations
             ),
+            "injection_observations": len(crawl.injection_observations),
+            "graphql_observations": len(crawl.graphql_observations),
+            "client_artifacts_scanned": len(
+                crawl.client_artifact_observations
+            ),
+            "protected_cors_observations": len(
+                crawl.cors_impact_observations
+            ),
+            "cache_observations": len(crawl.cache_observations),
+            "rate_limit_observations": len(
+                crawl.rate_limit_observations
+            ),
             "parameters": len(crawl.parameters),
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
@@ -48,52 +65,65 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             ),
             "response_fingerprint_groups": len(crawl.response_groups),
         },
+        "coverage": {
+            "auth_security": auth_coverage,
+            "external_security": external_coverage,
+        },
         "auth_security": {
-            "coverage": coverage,
             "ownership": [
-                {
-                    "context": item.context,
-                    "parameter": item.parameter,
-                    "discovered_values": item.discovered_values,
-                    "source_endpoints": list(item.source_endpoints),
-                }
+                asdict(item)
                 for item in crawl.ownership_observations
             ],
             "pairwise_idor": [
-                {
-                    "endpoint": item.endpoint,
-                    "parameter": item.parameter,
-                    "parameter_location": item.parameter_location,
-                    "owner_context": item.owner_context,
-                    "requester_context": item.requester_context,
-                    "owner_status": item.owner_status,
-                    "requester_status": item.requester_status,
-                    "cross_account_verified": item.cross_account_verified,
-                }
+                asdict(item)
                 for item in crawl.pairwise_idor_observations
             ],
             "session_cookies": [
-                {
-                    "context": item.context,
-                    "source_url": item.source_url,
-                    "cookie_name": item.cookie_name,
-                    "auth_like": item.auth_like,
-                    "secure": item.secure,
-                    "httponly": item.httponly,
-                    "same_site": item.same_site,
-                }
+                asdict(item)
                 for item in crawl.session_cookie_observations
             ],
             "csrf_posture": [
                 {
-                    "url": item.url,
-                    "method": item.method,
+                    **asdict(item),
                     "parameters": list(item.parameters),
-                    "auth_style": item.auth_style,
-                    "token_signal_present": item.token_signal_present,
-                    "posture": item.posture,
                 }
                 for item in crawl.csrf_candidates
+            ],
+        },
+        "external_security": {
+            "injection": [
+                asdict(item)
+                for item in crawl.injection_observations
+            ],
+            "graphql": [
+                asdict(item)
+                for item in crawl.graphql_observations
+            ],
+            "client_artifacts": [
+                {
+                    **asdict(item),
+                    "secret_like_names": list(item.secret_like_names),
+                    "token_shapes": list(item.token_shapes),
+                }
+                for item in crawl.client_artifact_observations
+            ],
+            "protected_cors": [
+                asdict(item)
+                for item in crawl.cors_impact_observations
+            ],
+            "authenticated_cache": [
+                asdict(item)
+                for item in crawl.cache_observations
+            ],
+            "rate_limits": [
+                {
+                    **asdict(item),
+                    "statuses": list(item.statuses),
+                    "rate_limit_headers": list(
+                        item.rate_limit_headers
+                    ),
+                }
+                for item in crawl.rate_limit_observations
             ],
         },
         "browser_pages": sorted(crawl.browser_pages),
@@ -101,7 +131,10 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             {
                 "context": context,
                 "pages": sorted(
-                    crawl.authenticated_browser_pages.get(context, set())
+                    crawl.authenticated_browser_pages.get(
+                        context,
+                        set(),
+                    )
                 ),
                 "network_requests": (
                     crawl.authenticated_browser_network_requests.get(
@@ -110,7 +143,9 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                     )
                 ),
             }
-            for context in sorted(crawl.authenticated_browser_pages)
+            for context in sorted(
+                crawl.authenticated_browser_pages
+            )
         ],
         "response_groups": [
             {
@@ -118,7 +153,9 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 "urls": list(urls),
                 "count": len(urls),
             }
-            for fingerprint, urls in sorted(crawl.response_groups.items())
+            for fingerprint, urls in sorted(
+                crawl.response_groups.items()
+            )
         ],
         "normalized_endpoints": [
             {
@@ -148,7 +185,10 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 "boundary": item.boundary,
                 "anonymous_status": item.anonymous_status,
                 "context_statuses": [
-                    {"context": name, "status_code": status}
+                    {
+                        "context": name,
+                        "status_code": status,
+                    }
                     for name, status in item.context_statuses
                 ],
                 "authenticated_responses_differ": (
@@ -166,7 +206,11 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             }
             for endpoint in sorted(
                 crawl.endpoints,
-                key=lambda item: (item.url, item.method, item.source),
+                key=lambda item: (
+                    item.url,
+                    item.method,
+                    item.source,
+                ),
             )
         ],
         "findings": [
@@ -174,7 +218,9 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 **asdict(finding),
                 "severity": finding.severity.value,
                 "kind": finding.kind.value,
-                "affected_urls": list(finding.affected_urls),
+                "affected_urls": list(
+                    finding.affected_urls
+                ),
                 "verified": finding.verified,
             }
             for finding in findings
@@ -188,9 +234,16 @@ def write_json_report(
     findings: list[Finding],
 ) -> Path:
     destination = Path(path)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
     destination.write_text(
-        json.dumps(build_report(crawl, findings), indent=2, ensure_ascii=False),
+        json.dumps(
+            build_report(crawl, findings),
+            indent=2,
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
     return destination

@@ -1,6 +1,6 @@
 """Intentionally vulnerable local demo target for Magic_Security.
 
-Run only on localhost. All secrets and identities are fake test values.
+Run only on localhost. All credentials, identities, and data are fake test values.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 class DemoHandler(BaseHTTPRequestHandler):
-    server_version = "MagicDemo/0.6"
+    server_version = "MagicDemo/0.7"
 
     def log_message(self, format: str, *args) -> None:
         print(f"[demo] {self.address_string()} - {format % args}")
@@ -48,10 +48,13 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
+
         if cookie:
             self.send_header("Set-Cookie", cookie)
+
         for key, value in (headers or {}).items():
             self.send_header(key, value)
+
         self.end_headers()
         self.wfile.write(payload)
 
@@ -65,8 +68,13 @@ class DemoHandler(BaseHTTPRequestHandler):
             )
         return user
 
-    def _account_id_for_user(self, user: str) -> int:
-        return {"A": 101, "B": 202, "ADMIN": 303}[user]
+    @staticmethod
+    def _account_id_for_user(user: str) -> int:
+        return {
+            "A": 101,
+            "B": 202,
+            "ADMIN": 303,
+        }[user]
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -85,6 +93,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 if user
                 else "session=fake-local-session; Path=/"
             )
+
             self._send(
                 f"""<!doctype html>
 <html>
@@ -98,6 +107,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     <li><a href="/products?page=2&sort=name">Products</a></li>
     <li><a href="/go?next=/products">Redirect helper</a></li>
     <li><a href="/cors">CORS demo</a></li>
+    <li><a href="/reflect?q=hello">Reflected input</a></li>
     {authenticated_link}
   </ul>
   <form action="/search" method="GET">
@@ -118,12 +128,26 @@ class DemoHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        if path == "/reflect":
+            reflected = query.get("q", [""])[0]
+            self._send(
+                f"""<!doctype html>
+<html>
+<body>
+  <h1>Search preview</h1>
+  <div id="result">{reflected}</div>
+</body>
+</html>"""
+            )
+            return
+
         if path == "/cors":
             origin = self.headers.get("Origin")
-            headers = {}
+            headers: dict[str, str] = {}
             if origin:
                 headers["Access-Control-Allow-Origin"] = origin
                 headers["Access-Control-Allow-Credentials"] = "true"
+
             self._send(
                 '{"demo":"cors","private":"fake-profile-data"}',
                 content_type="application/json",
@@ -133,7 +157,9 @@ class DemoHandler(BaseHTTPRequestHandler):
 
         if path == "/static/app.js":
             self._send(
-                """fetch('/api/users?limit=20');
+                """const API_SECRET = "fake-client-secret-value";
+const INTERNAL_API = "http://10.10.0.5/private";
+fetch('/api/users?limit=20');
 fetch('/api/me');
 axios.post('/api/orders', {item: 1});
 const graph = "/graphql";
@@ -151,7 +177,12 @@ const graph = "/graphql";
                         "file": "app.js",
                         "sources": ["src/app.ts"],
                         "sourcesContent": [
-                            "export async function load(){ return fetch('/api/users?limit=20') }"
+                            (
+                                'const API_SECRET = "fake-client-secret-value";\n'
+                                'const INTERNAL_API = "http://10.10.0.5/private";\n'
+                                "export async function load(){ "
+                                "return fetch('/api/users?limit=20') }"
+                            )
                         ],
                         "names": [],
                         "mappings": "",
@@ -215,12 +246,18 @@ RuntimeError: demo exception
                 json.dumps(
                     {
                         "openapi": "3.1.0",
-                        "info": {"title": "Magic Demo API", "version": "0.6"},
+                        "info": {
+                            "title": "Magic Demo API",
+                            "version": "0.7",
+                        },
                         "paths": {
                             "/api/users": {
                                 "get": {
                                     "parameters": [
-                                        {"name": "limit", "in": "query"}
+                                        {
+                                            "name": "limit",
+                                            "in": "query",
+                                        }
                                     ]
                                 }
                             },
@@ -232,8 +269,10 @@ RuntimeError: demo exception
                                                 "schema": {
                                                     "type": "object",
                                                     "properties": {
-                                                        "item": {"type": "integer"}
-                                                    }
+                                                        "item": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
                                                 }
                                             }
                                         }
@@ -251,20 +290,34 @@ RuntimeError: demo exception
                                                         "display_name": {
                                                             "type": "string"
                                                         }
-                                                    }
+                                                    },
                                                 }
                                             }
                                         }
                                     }
                                 }
                             },
-                            "/go": {
+                            "/reflect": {
                                 "get": {
                                     "parameters": [
-                                        {"name": "next", "in": "query"}
+                                        {
+                                            "name": "q",
+                                            "in": "query",
+                                        }
                                     ]
                                 }
                             },
+                            "/go": {
+                                "get": {
+                                    "parameters": [
+                                        {
+                                            "name": "next",
+                                            "in": "query",
+                                        }
+                                    ]
+                                }
+                            },
+                            "/graphql": {"post": {}},
                             "/api/private": {"get": {}},
                             "/api/me": {"get": {}},
                             "/api/public": {"get": {}},
@@ -272,17 +325,23 @@ RuntimeError: demo exception
                             "/api/accounts/{account_id}": {
                                 "get": {
                                     "parameters": [
-                                        {"name": "account_id", "in": "path"}
+                                        {
+                                            "name": "account_id",
+                                            "in": "path",
+                                        }
                                     ]
                                 }
                             },
                             "/api/account-detail": {
                                 "get": {
                                     "parameters": [
-                                        {"name": "account_id", "in": "query"}
+                                        {
+                                            "name": "account_id",
+                                            "in": "query",
+                                        }
                                     ]
                                 }
-                            }
+                            },
                         },
                     }
                 ),
@@ -295,7 +354,10 @@ RuntimeError: demo exception
                 json.dumps(
                     {
                         "swagger": "2.0",
-                        "info": {"title": "Magic Demo API", "version": "0.6"},
+                        "info": {
+                            "title": "Magic Demo API",
+                            "version": "0.7",
+                        },
                         "paths": {},
                     }
                 ),
@@ -323,7 +385,9 @@ RuntimeError: demo exception
 
         if path == "/api/private":
             self._send(
-                json.dumps({"detail": "authentication required"}),
+                json.dumps(
+                    {"detail": "authentication required"}
+                ),
                 status=401,
                 content_type="application/json",
             )
@@ -332,13 +396,23 @@ RuntimeError: demo exception
         if path == "/api/me":
             if not user:
                 self._send(
-                    json.dumps({"detail": "authentication required"}),
+                    json.dumps(
+                        {"detail": "authentication required"}
+                    ),
                     status=401,
                     content_type="application/json",
                 )
                 return
 
             account_id = self._account_id_for_user(user)
+            headers = {
+                "Cache-Control": "public, max-age=120",
+            }
+            origin = self.headers.get("Origin")
+            if origin:
+                headers["Access-Control-Allow-Origin"] = origin
+                headers["Access-Control-Allow-Credentials"] = "true"
+
             self._send(
                 json.dumps(
                     {
@@ -351,12 +425,18 @@ RuntimeError: demo exception
                 ),
                 content_type="application/json",
                 cookie=f"demo_session={user}; Path=/",
+                headers=headers,
             )
             return
 
         if path == "/api/public":
             self._send(
-                json.dumps({"service": "magic-demo", "public": True}),
+                json.dumps(
+                    {
+                        "service": "magic-demo",
+                        "public": True,
+                    }
+                ),
                 content_type="application/json",
             )
             return
@@ -390,7 +470,9 @@ RuntimeError: demo exception
         if path == "/api/user-settings":
             if not user:
                 self._send(
-                    json.dumps({"detail": "authentication required"}),
+                    json.dumps(
+                        {"detail": "authentication required"}
+                    ),
                     status=401,
                     content_type="application/json",
                 )
@@ -399,7 +481,11 @@ RuntimeError: demo exception
             self._send(
                 json.dumps(
                     {
-                        "theme": "dark" if user == "A" else "light",
+                        "theme": (
+                            "dark"
+                            if user == "A"
+                            else "light"
+                        ),
                         "notifications": True,
                     }
                 ),
@@ -410,14 +496,18 @@ RuntimeError: demo exception
         if path.startswith("/api/accounts/"):
             if not user:
                 self._send(
-                    json.dumps({"detail": "authentication required"}),
+                    json.dumps(
+                        {"detail": "authentication required"}
+                    ),
                     status=401,
                     content_type="application/json",
                 )
                 return
 
             try:
-                account_id = int(path.rsplit("/", 1)[-1])
+                account_id = int(
+                    path.rsplit("/", 1)[-1]
+                )
             except ValueError:
                 self._send(
                     json.dumps({"detail": "not found"}),
@@ -434,12 +524,13 @@ RuntimeError: demo exception
                 )
                 return
 
-            # Intentionally vulnerable: no object ownership check.
             self._send(
                 json.dumps(
                     {
                         "account_id": account_id,
-                        "email": f"demo-{account_id}@example.test",
+                        "email": (
+                            f"demo-{account_id}@example.test"
+                        ),
                         "plan": "demo",
                     }
                 ),
@@ -450,15 +541,25 @@ RuntimeError: demo exception
         if path == "/api/account-detail":
             if not user:
                 self._send(
-                    json.dumps({"detail": "authentication required"}),
+                    json.dumps(
+                        {"detail": "authentication required"}
+                    ),
                     status=401,
                     content_type="application/json",
                 )
                 return
 
-            raw_account = query.get("account_id", [None])[0]
+            raw_account = query.get(
+                "account_id",
+                [None],
+            )[0]
+
             try:
-                account_id = int(raw_account) if raw_account else None
+                account_id = (
+                    int(raw_account)
+                    if raw_account
+                    else None
+                )
             except ValueError:
                 account_id = None
 
@@ -470,7 +571,6 @@ RuntimeError: demo exception
                 )
                 return
 
-            # Intentionally vulnerable query-parameter BOLA.
             self._send(
                 json.dumps(
                     {
@@ -482,8 +582,14 @@ RuntimeError: demo exception
             )
             return
 
-        if path in {"/search", "/products", "/graphql", "/settings"}:
-            self._send("<html><body>demo response</body></html>")
+        if path in {
+            "/search",
+            "/products",
+            "/settings",
+        }:
+            self._send(
+                "<html><body>demo response</body></html>"
+            )
             return
 
         self._send(
@@ -495,16 +601,84 @@ RuntimeError: demo exception
     def do_POST(self) -> None:
         path = urlparse(self.path).path
 
+        if path == "/graphql":
+            length = int(
+                self.headers.get(
+                    "Content-Length",
+                    "0",
+                )
+                or "0"
+            )
+            raw = self.rfile.read(length)
+
+            try:
+                payload = json.loads(
+                    raw.decode("utf-8")
+                )
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = {}
+
+            query = str(payload.get("query") or "")
+
+            if "__schema" in query:
+                self._send(
+                    json.dumps(
+                        {
+                            "data": {
+                                "__schema": {
+                                    "queryType": {
+                                        "name": "Query"
+                                    },
+                                    "mutationType": {
+                                        "name": "Mutation"
+                                    },
+                                }
+                            }
+                        }
+                    ),
+                    content_type="application/json",
+                )
+                return
+
+            self._send(
+                json.dumps(
+                    {
+                        "errors": [
+                            {
+                                "message": "demo GraphQL error",
+                                "extensions": {
+                                    "stacktrace": [
+                                        "resolver.py:42"
+                                    ]
+                                },
+                            }
+                        ]
+                    }
+                ),
+                status=400,
+                content_type="application/json",
+            )
+            return
+
         if path == "/api/orders":
-            self._send('{"ok": true}', content_type="application/json")
+            self._send(
+                '{"ok": true}',
+                content_type="application/json",
+            )
             return
 
         if path == "/api/profile":
             user = self._require_user()
             if not user:
                 return
+
             self._send(
-                json.dumps({"ok": True, "user": user}),
+                json.dumps(
+                    {
+                        "ok": True,
+                        "user": user,
+                    }
+                ),
                 content_type="application/json",
             )
             return
@@ -517,13 +691,25 @@ RuntimeError: demo exception
 
 
 def main() -> None:
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    server = ThreadingHTTPServer(("127.0.0.1", port), DemoHandler)
+    port = (
+        int(sys.argv[1])
+        if len(sys.argv) > 1
+        else 8000
+    )
+
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", port),
+        DemoHandler,
+    )
+
     print(
-        f"Intentionally vulnerable demo running at "
+        "Intentionally vulnerable demo running at "
         f"http://127.0.0.1:{port}"
     )
-    print("All credentials and data are fake. Stop with Ctrl+C.")
+    print(
+        "All credentials and data are fake. "
+        "Stop with Ctrl+C."
+    )
     server.serve_forever()
 
 

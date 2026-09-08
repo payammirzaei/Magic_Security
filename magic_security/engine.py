@@ -6,17 +6,29 @@ from urllib.parse import urlparse
 
 from magic_security.active import run_safe_active_checks
 from magic_security.auth import map_auth_boundaries
+from magic_security.behavior_security import (
+    analyze_authenticated_cache,
+    classify_rate_limits,
+    verify_protected_cors,
+)
 from magic_security.browser import BrowserCrawler
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.classifier import classify_endpoints
+from magic_security.client_artifacts import analyze_client_artifacts
 from magic_security.coverage import build_auth_security_coverage
 from magic_security.csrf import map_csrf_posture
 from magic_security.crawler import HttpCrawler
+from magic_security.external_coverage import build_external_security_coverage
 from magic_security.fingerprints import (
     deduplicate_findings,
     group_response_fingerprints,
 )
+from magic_security.graphql_security import analyze_graphql
 from magic_security.idor import verify_pairwise_idor_read_access
+from magic_security.injection import (
+    verify_reflected_html_injection,
+    verify_reflected_xss_browser,
+)
 from magic_security.models import AuthContext, CrawlResult, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
@@ -117,17 +129,61 @@ class ScannerEngine:
         findings.extend(await probe_common_exposures(crawl.target))
         findings.extend(await probe_source_maps(crawl.source_maps))
 
+        (
+            crawl.client_artifact_observations,
+            artifact_findings,
+        ) = await analyze_client_artifacts(
+            crawl.js_assets,
+            crawl.source_maps,
+        )
+        findings.extend(artifact_findings)
+
         if active:
             observations, classification_findings = await classify_endpoints(
                 crawl.normalized_endpoints
             )
             crawl.endpoint_observations = observations
             findings.extend(classification_findings)
+
             findings.extend(
                 await run_safe_active_checks(
                     page_urls=(page.url for page in crawl.pages),
                     endpoints=crawl.endpoints,
                 )
+            )
+
+            xss_urls: set[str] = set()
+            if browser:
+                xss_observations, xss_findings = await verify_reflected_xss_browser(
+                    crawl.normalized_endpoints
+                )
+                crawl.injection_observations.extend(xss_observations)
+                findings.extend(xss_findings)
+                xss_urls = {
+                    item.url
+                    for item in xss_observations
+                    if item.script_execution_verified
+                }
+
+            html_candidates = [
+                endpoint
+                for endpoint in crawl.normalized_endpoints
+                if endpoint.url not in xss_urls
+            ]
+            html_observations, html_findings = await verify_reflected_html_injection(
+                html_candidates
+            )
+            crawl.injection_observations.extend(html_observations)
+            findings.extend(html_findings)
+
+            (
+                crawl.graphql_observations,
+                graphql_findings,
+            ) = await analyze_graphql(crawl.normalized_endpoints)
+            findings.extend(graphql_findings)
+
+            crawl.rate_limit_observations = await classify_rate_limits(
+                crawl.normalized_endpoints
             )
 
         if auth_contexts:
@@ -161,6 +217,24 @@ class ScannerEngine:
                 auth_contexts,
             )
 
+            (
+                crawl.cors_impact_observations,
+                protected_cors_findings,
+            ) = await verify_protected_cors(
+                crawl.auth_comparisons,
+                auth_contexts,
+            )
+            findings.extend(protected_cors_findings)
+
+            (
+                crawl.cache_observations,
+                cache_findings,
+            ) = await analyze_authenticated_cache(
+                crawl.auth_comparisons,
+                auth_contexts,
+            )
+            findings.extend(cache_findings)
+
             crawl.auth_security_coverage = build_auth_security_coverage(
                 crawl.normalized_endpoints,
                 crawl.auth_comparisons,
@@ -170,6 +244,21 @@ class ScannerEngine:
                 crawl.session_cookie_observations,
             )
 
+        crawl.external_security_coverage = build_external_security_coverage(
+            crawl.injection_observations,
+            crawl.graphql_observations,
+            crawl.client_artifact_observations,
+            crawl.cors_impact_observations,
+            crawl.cache_observations,
+            crawl.rate_limit_observations,
+        )
+
         findings = deduplicate_findings(findings)
-        findings.sort(key=lambda f: (_SEVERITY_ORDER[f.severity], f.title, f.url))
+        findings.sort(
+            key=lambda f: (
+                _SEVERITY_ORDER[f.severity],
+                f.title,
+                f.url,
+            )
+        )
         return crawl, findings

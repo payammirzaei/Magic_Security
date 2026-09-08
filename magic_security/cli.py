@@ -16,7 +16,10 @@ def _parser() -> argparse.ArgumentParser:
         prog="magic-security",
         description="Local-first evidence-driven web security scanner.",
     )
-    parser.add_argument("target", help="Local target URL, e.g. http://localhost:3000")
+    parser.add_argument(
+        "target",
+        help="Local target URL, e.g. http://localhost:3000",
+    )
     parser.add_argument(
         "--max-pages",
         type=int,
@@ -27,19 +30,23 @@ def _parser() -> argparse.ArgumentParser:
         "--browser",
         action="store_true",
         help=(
-            "Use Playwright for anonymous and authenticated runtime discovery"
+            "Use Playwright for anonymous/authenticated runtime discovery "
+            "and browser XSS verification"
         ),
     )
     parser.add_argument(
         "--active",
         action="store_true",
-        help="Run non-destructive active verification checks",
+        help=(
+            "Run non-destructive external verification checks "
+            "(injection, GraphQL, CORS, redirects, rate behavior)"
+        ),
     )
     parser.add_argument(
         "--auth-contexts",
         help=(
-            "Local JSON file with two or more test-user header/cookie contexts; "
-            "enables the authorization/session security suite"
+            "Local JSON file with two or more test-user contexts; "
+            "enables authorization/session security checks"
         ),
     )
     parser.add_argument(
@@ -72,7 +79,11 @@ async def _run(
             active=active,
             auth_contexts=auth_contexts,
         )
-    except (ValueError, BrowserUnavailableError, AuthConfigError) as exc:
+    except (
+        ValueError,
+        BrowserUnavailableError,
+        AuthConfigError,
+    ) as exc:
         print(f"Error: {exc}")
         return 2
 
@@ -80,12 +91,13 @@ async def _run(
     if browser:
         modes.append("browser")
     if active:
-        modes.append("safe-active")
+        modes.append("external-verification")
     if auth_contexts:
         modes.append("auth-security-suite")
 
     print(f"\nTarget: {crawl.target}")
     print(f"Mode:   {' + '.join(modes)}")
+
     print("\nAttack Surface")
     print("--------------")
     print(f"Pages:                 {len(crawl.pages)}")
@@ -102,11 +114,17 @@ async def _run(
         print(f"Browser API reqs:      {crawl.browser_network_requests}")
 
     if browser and auth_contexts:
-        for context in sorted(crawl.authenticated_browser_pages):
-            pages = len(crawl.authenticated_browser_pages[context])
-            requests = crawl.authenticated_browser_network_requests.get(
-                context,
-                0,
+        for context in sorted(
+            crawl.authenticated_browser_pages
+        ):
+            pages = len(
+                crawl.authenticated_browser_pages[context]
+            )
+            requests = (
+                crawl.authenticated_browser_network_requests.get(
+                    context,
+                    0,
+                )
             )
             print(
                 f"Auth browser {context}: "
@@ -115,74 +133,129 @@ async def _run(
 
     if active and crawl.endpoint_observations:
         counts = Counter(
-            item.classification for item in crawl.endpoint_observations
+            item.classification
+            for item in crawl.endpoint_observations
         )
         summary = ", ".join(
-            f"{key}={value}" for key, value in sorted(counts.items())
+            f"{key}={value}"
+            for key, value in sorted(counts.items())
         )
         print(f"Endpoint classes:      {summary}")
 
-    coverage = crawl.auth_security_coverage
-    if coverage is not None:
+    auth_coverage = crawl.auth_security_coverage
+    if auth_coverage is not None:
         print("\nAuth Security Coverage")
         print("----------------------")
         print(
-            f"Auth compared:         {coverage.auth_compared_endpoints}"
+            f"Auth compared:         "
+            f"{auth_coverage.auth_compared_endpoints}"
         )
         print(
-            f"Protected endpoints:   {coverage.protected_endpoints}"
+            f"Protected endpoints:   "
+            f"{auth_coverage.protected_endpoints}"
         )
         print(
-            f"User-specific:         {coverage.user_specific_endpoints}"
+            f"User-specific:         "
+            f"{auth_coverage.user_specific_endpoints}"
         )
         print(
-            f"Ownership signals:     {coverage.ownership_signals}"
+            f"Ownership signals:     "
+            f"{auth_coverage.ownership_signals}"
         )
         print(
-            f"IDOR pairwise tests:   {coverage.idor_pairwise_tests}"
+            f"IDOR pairwise tests:   "
+            f"{auth_coverage.idor_pairwise_tests}"
         )
         print(
-            f"Verified IDOR/BOLA:    {coverage.idor_verified}"
+            f"Verified IDOR/BOLA:    "
+            f"{auth_coverage.idor_verified}"
         )
         print(
-            f"State-changing APIs:   {coverage.state_changing_endpoints}"
+            f"State-changing APIs:   "
+            f"{auth_coverage.state_changing_endpoints}"
         )
         print(
-            f"CSRF needs verify:     {coverage.csrf_needs_verification}"
-        )
-        print(
-            f"Session cookies seen:  {coverage.session_cookies_observed}"
+            f"CSRF needs verify:     "
+            f"{auth_coverage.csrf_needs_verification}"
         )
         print(
             f"Weak session cookies:  "
-            f"{coverage.weak_session_cookie_observations}"
+            f"{auth_coverage.weak_session_cookie_observations}"
         )
 
-    if crawl.normalized_endpoints:
-        print("\nNormalized Endpoints")
-        print("--------------------")
-        for endpoint in crawl.normalized_endpoints:
-            params = (
-                f" params={','.join(endpoint.parameters)}"
-                if endpoint.parameters
-                else ""
-            )
-            sources = ",".join(endpoint.sources)
-            print(
-                f"{endpoint.method:7} {endpoint.url} "
-                f"[sources={sources}]{params}"
-            )
+    ext = crawl.external_security_coverage
+    if ext is not None:
+        print("\nExternal Security Coverage")
+        print("--------------------------")
+        print(
+            f"Injection observations:  "
+            f"{ext.injection_tests}"
+        )
+        print(
+            f"HTML injection verified: "
+            f"{ext.html_injection_verified}"
+        )
+        print(
+            f"XSS execution verified:  "
+            f"{ext.xss_execution_verified}"
+        )
+        print(
+            f"GraphQL tested:           "
+            f"{ext.graphql_endpoints_tested}"
+        )
+        print(
+            f"GraphQL introspection:    "
+            f"{ext.graphql_introspection_exposed}"
+        )
+        print(
+            f"Client artifacts scanned: "
+            f"{ext.client_artifacts_scanned}"
+        )
+        print(
+            f"Secret-like artifacts:    "
+            f"{ext.secret_like_artifacts}"
+        )
+        print(
+            f"Protected CORS exposed:   "
+            f"{ext.protected_cors_exposed}"
+        )
+        print(
+            f"Risky shared cache:       "
+            f"{ext.risky_shared_cache}"
+        )
+        print(
+            f"Rate-limit endpoints:     "
+            f"{ext.rate_limit_endpoints_tested}"
+        )
+        print(
+            f"Observed throttling:      "
+            f"{ext.rate_limit_throttled}"
+        )
 
     groups = (
-        (FindingKind.VULNERABILITY, "Vulnerabilities"),
-        (FindingKind.EXPOSURE, "Exposures"),
-        (FindingKind.HARDENING, "Hardening"),
+        (
+            FindingKind.VULNERABILITY,
+            "Vulnerabilities",
+        ),
+        (
+            FindingKind.EXPOSURE,
+            "Exposures",
+        ),
+        (
+            FindingKind.HARDENING,
+            "Hardening",
+        ),
     )
 
     for kind, heading in groups:
-        items = [f for f in findings if f.kind is kind]
+        items = [
+            finding
+            for finding in findings
+            if finding.kind is kind
+        ]
         print(f"\n{heading}")
         print("-" * len(heading))
+
         if not items:
             print("None")
             continue
@@ -191,31 +264,54 @@ async def _run(
             verified = (
                 "VERIFIED"
                 if finding.verified
-                else f"confidence {finding.confidence:.0%}"
+                else (
+                    f"confidence "
+                    f"{finding.confidence:.0%}"
+                )
             )
-            affected_count = len(finding.affected_urls) or 1
+            affected_count = (
+                len(finding.affected_urls) or 1
+            )
             suffix = (
                 f", {affected_count} affected URLs"
                 if affected_count > 1
                 else ""
             )
+
             print(
                 f"[{finding.severity.value.upper()}] "
-                f"{finding.title} ({verified}{suffix})"
+                f"{finding.title} "
+                f"({verified}{suffix})"
             )
             print(f"  URL: {finding.url}")
-            print(f"  Evidence: {finding.evidence}")
+            print(
+                f"  Evidence: {finding.evidence}"
+            )
             print(f"  Fix: {finding.remediation}")
+
             if finding.fingerprint:
-                print(f"  Fingerprint: {finding.fingerprint}")
+                print(
+                    f"  Fingerprint: "
+                    f"{finding.fingerprint}"
+                )
+
             if finding.cwe or finding.owasp:
                 refs = " | ".join(
-                    value for value in (finding.cwe, finding.owasp) if value
+                    value
+                    for value in (
+                        finding.cwe,
+                        finding.owasp,
+                    )
+                    if value
                 )
                 print(f"  Ref: {refs}")
 
     if json_path:
-        destination = write_json_report(json_path, crawl, findings)
+        destination = write_json_report(
+            json_path,
+            crawl,
+            findings,
+        )
         print(f"\nJSON report: {destination}")
 
     return 0

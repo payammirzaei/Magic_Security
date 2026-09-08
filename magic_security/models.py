@@ -144,6 +144,79 @@ class AuthSecurityCoverage:
     weak_session_cookie_observations: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class InjectionObservation:
+    url: str
+    parameter: str
+    raw_reflected: bool
+    html_injection_verified: bool
+    script_execution_verified: bool
+
+
+@dataclass(frozen=True, slots=True)
+class GraphqlObservation:
+    url: str
+    status_code: int
+    anonymous_introspection: bool
+    detailed_errors: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ClientArtifactObservation:
+    url: str
+    artifact_type: str
+    secret_like_names: tuple[str, ...]
+    token_shapes: tuple[str, ...]
+    internal_url_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class CorsImpactObservation:
+    url: str
+    context: str
+    status_code: int
+    origin_reflected: bool
+    credentials_allowed: bool
+    protected_response_exposed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class CacheObservation:
+    url: str
+    context: str
+    cache_control: str
+    risky_shared_cache: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RateLimitObservation:
+    url: str
+    method: str
+    requests_sent: int
+    statuses: tuple[int, ...]
+    throttled: bool
+    rate_limit_headers: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalSecurityCoverage:
+    injection_tests: int = 0
+    html_injection_verified: int = 0
+    xss_execution_verified: int = 0
+    graphql_endpoints_tested: int = 0
+    graphql_introspection_exposed: int = 0
+    graphql_detailed_errors: int = 0
+    client_artifacts_scanned: int = 0
+    secret_like_artifacts: int = 0
+    internal_topology_artifacts: int = 0
+    protected_cors_tests: int = 0
+    protected_cors_exposed: int = 0
+    authenticated_cache_tests: int = 0
+    risky_shared_cache: int = 0
+    rate_limit_endpoints_tested: int = 0
+    rate_limit_throttled: int = 0
+
+
 @dataclass(slots=True)
 class CrawlResult:
     target: str
@@ -161,6 +234,15 @@ class CrawlResult:
     session_cookie_observations: list[SessionCookieObservation] = field(default_factory=list)
     csrf_candidates: list[CsrfCandidate] = field(default_factory=list)
     auth_security_coverage: AuthSecurityCoverage | None = None
+
+    injection_observations: list[InjectionObservation] = field(default_factory=list)
+    graphql_observations: list[GraphqlObservation] = field(default_factory=list)
+    client_artifact_observations: list[ClientArtifactObservation] = field(default_factory=list)
+    cors_impact_observations: list[CorsImpactObservation] = field(default_factory=list)
+    cache_observations: list[CacheObservation] = field(default_factory=list)
+    rate_limit_observations: list[RateLimitObservation] = field(default_factory=list)
+    external_security_coverage: ExternalSecurityCoverage | None = None
+
     parameters: set[str] = field(default_factory=set)
     source_maps: set[str] = field(default_factory=set)
     browser_pages: set[str] = field(default_factory=set)
