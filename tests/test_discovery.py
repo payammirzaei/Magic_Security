@@ -25,6 +25,7 @@ def test_js_endpoint_discovery_extracts_methods_and_params():
     assert ("POST", "http://localhost/api/orders", ()) in compact
     assert ("GET", "http://localhost/api/search?q=magic", ("q",)) in compact
     assert ("GET", "http://localhost/graphql", ()) in compact
+    assert ("GET", "http://localhost/api/orders", ()) not in compact
     assert all("example.com" not in item.url for item in endpoints)
 
 
