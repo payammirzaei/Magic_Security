@@ -12,6 +12,12 @@ from magic_security.behavior_security import (
     verify_protected_cors,
 )
 from magic_security.browser import BrowserCrawler
+from magic_security.browser_security import (
+    analyze_browser_artifacts,
+    build_browser_security_coverage,
+    storage_findings,
+    verify_dom_xss_browser,
+)
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.classifier import classify_endpoints
 from magic_security.client_artifacts import analyze_client_artifacts
@@ -87,7 +93,8 @@ class ScannerEngine:
     ) -> tuple[CrawlResult, list[Finding]]:
         if not allow_remote and not _is_local_target(target):
             raise ValueError(
-                "Remote targets are disabled in the local MVP. Scan localhost/loopback only."
+                "Remote targets are disabled in the local MVP. "
+                "Scan localhost/loopback only."
             )
 
         crawl = await self.crawler.crawl(target)
@@ -99,6 +106,10 @@ class ScannerEngine:
             observation = await browser_crawler.enrich(crawl)
             crawl.browser_pages.update(observation.pages_rendered)
             crawl.browser_network_requests += observation.network_requests
+            crawl.browser_security_observations.extend(
+                observation.security_observations
+            )
+            crawl.websocket_endpoints.update(observation.websockets)
 
             if auth_contexts:
                 for auth_context in auth_contexts:
@@ -112,6 +123,12 @@ class ScannerEngine:
                     crawl.authenticated_browser_network_requests[
                         auth_context.name
                     ] = auth_observation.network_requests
+                    crawl.browser_security_observations.extend(
+                        auth_observation.security_observations
+                    )
+                    crawl.websocket_endpoints.update(
+                        auth_observation.websockets
+                    )
 
         openapi_endpoints = await discover_openapi_endpoints(crawl.target)
         crawl.endpoints.update(openapi_endpoints)
@@ -138,6 +155,20 @@ class ScannerEngine:
         )
         findings.extend(artifact_findings)
 
+        (
+            browser_static_observations,
+            static_websockets,
+            browser_static_findings,
+        ) = await analyze_browser_artifacts(
+            crawl.js_assets,
+            crawl.source_maps,
+        )
+        crawl.browser_security_observations.extend(
+            browser_static_observations
+        )
+        crawl.websocket_endpoints.update(static_websockets)
+        findings.extend(browser_static_findings)
+
         if active:
             observations, classification_findings = await classify_endpoints(
                 crawl.normalized_endpoints
@@ -154,7 +185,10 @@ class ScannerEngine:
 
             xss_urls: set[str] = set()
             if browser:
-                xss_observations, xss_findings = await verify_reflected_xss_browser(
+                (
+                    xss_observations,
+                    xss_findings,
+                ) = await verify_reflected_xss_browser(
                     crawl.normalized_endpoints
                 )
                 crawl.injection_observations.extend(xss_observations)
@@ -170,7 +204,10 @@ class ScannerEngine:
                 for endpoint in crawl.normalized_endpoints
                 if endpoint.url not in xss_urls
             ]
-            html_observations, html_findings = await verify_reflected_html_injection(
+            (
+                html_observations,
+                html_findings,
+            ) = await verify_reflected_html_injection(
                 html_candidates
             )
             crawl.injection_observations.extend(html_observations)
@@ -185,6 +222,28 @@ class ScannerEngine:
             crawl.rate_limit_observations = await classify_rate_limits(
                 crawl.normalized_endpoints
             )
+
+            if browser:
+                page_urls = [
+                    page.url
+                    for page in crawl.pages
+                    if "text/html" in page.content_type
+                ]
+                page_urls.extend(sorted(crawl.browser_pages))
+                for values in crawl.authenticated_browser_pages.values():
+                    page_urls.extend(sorted(values))
+
+                (
+                    dom_observations,
+                    dom_findings,
+                ) = await verify_dom_xss_browser(
+                    page_urls,
+                    auth_contexts=auth_contexts,
+                )
+                crawl.browser_security_observations.extend(
+                    dom_observations
+                )
+                findings.extend(dom_findings)
 
         if auth_contexts:
             crawl.auth_comparisons = await map_auth_boundaries(
@@ -243,6 +302,21 @@ class ScannerEngine:
                 crawl.csrf_candidates,
                 crawl.session_cookie_observations,
             )
+
+        findings.extend(
+            storage_findings(crawl.browser_security_observations)
+        )
+
+        crawl.browser_security_coverage = (
+            build_browser_security_coverage(
+                crawl.browser_security_observations,
+                crawl.websocket_endpoints,
+                artifacts_scanned=(
+                    len(crawl.js_assets)
+                    + len(crawl.source_maps)
+                ),
+            )
+        )
 
         crawl.external_security_coverage = build_external_security_coverage(
             crawl.injection_observations,

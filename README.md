@@ -2,9 +2,9 @@
 
 Local-first black-box web security scanner focused on **verified evidence, not checklist noise**.
 
-## v0.7 — External Security Verification Pack
+## v0.8 — Professional Browser + External Security Pack
 
-Magic_Security now combines browser-visible attack-surface discovery, authenticated authorization testing, and a broader external verification pack.
+Magic_Security now combines:
 
 ```
 HTTP / JS / OpenAPI Discovery
@@ -13,14 +13,22 @@ Anonymous + Authenticated Browser Discovery
         ↓
 Attack Surface Normalization
         ↓
+Browser Security Pack
+        ├─ Reflected XSS
+        ├─ DOM XSS runtime verification
+        ├─ Browser storage inspection
+        ├─ Web Messaging / postMessage review
+        ├─ Client-side redirect analysis
+        ├─ WebSocket discovery
+        └─ Clickjacking / CSP posture
+        ↓
 External Verification Pack
-        ├─ Reflected HTML injection
-        ├─ Browser-verified reflected XSS
+        ├─ HTML injection
         ├─ GraphQL introspection / debug exposure
         ├─ Client JS + source-map secret analysis
         ├─ Internal topology leakage
         ├─ CORS verification
-        ├─ Protected credentialed CORS impact
+        ├─ Protected credentialed CORS
         ├─ Authenticated cache behavior
         └─ Rate-limit behavior classification
         ↓
@@ -40,143 +48,144 @@ Evidence + Coverage Report
 
 **No proof -> no vulnerability.**
 
-Results are separated into:
+Results remain separated into:
 
 - **Vulnerability** — reproduced security failure
-- **Exposure** — verified dangerous public/browser-visible surface
+- **Exposure** — dangerous observable surface
 - **Hardening** — defensive configuration problem
-- **Observation / posture** — tested behavior that is not strong enough to call a vulnerability
+- **Observation / posture** — a signal that still needs stronger verification
 
-That last category matters: for example, not observing a rate limit after a few requests is recorded as behavior, not falsely promoted to “brute force vulnerability”.
+## Browser Security Pack
 
----
+### DOM-based XSS
 
-## External Security Pack
+Static JavaScript analysis looks for browser-controlled sources such as:
 
-### Reflected HTML injection
+- `location.search`
+- `location.hash`
+- `document.URL`
+- `document.referrer`
+- `window.name`
 
-For discovered GET parameters, Magic_Security uses a random inert custom HTML element as a canary.
+and unsafe sinks such as:
 
-It reports a vulnerability only if the response parser confirms that the supplied value became actual markup.
+- `innerHTML`
+- `outerHTML`
+- `insertAdjacentHTML`
+- `document.write`
+- `eval`
+- `new Function`
 
-### Browser-verified reflected XSS
+When `--browser --active` is enabled, Magic_Security performs a stronger browser proof using a harmless fragment canary.
 
-When `--browser` is enabled, Playwright can perform a stronger proof.
+The canary only sets a DOM attribute. It does not read cookies, storage, or application data and it performs no callback.
 
-The XSS canary:
+A vulnerability is reported only when code execution is actually observed.
 
-- only changes a DOM attribute
-- performs no network callback
-- reads no cookies
-- reads no local/session storage
-- sends no application data anywhere
+### Browser storage
 
-If the DOM marker is executed, Magic_Security reports:
+Playwright inspects **storage key names only** from:
 
-```
-Reflected XSS execution verified
-```
+- `localStorage`
+- `sessionStorage`
 
-### GraphQL
+Security-relevant names such as token/auth/session/JWT/secret/password keys are surfaced.
 
-GraphQL endpoints are tested with a minimal anonymous introspection query.
+Stored values are never read into the report.
 
-The scanner records:
+### Web Messaging
 
-- endpoint status
-- anonymous introspection availability
-- detailed debug/error extensions
+Browser-delivered JavaScript is inspected for:
 
-Introspection is classified as an exposure, not automatically a vulnerability.
+- `addEventListener("message", ...)`
+- `onmessage = ...`
+- obvious `event.origin` validation signals
 
-### Client JavaScript and source maps
+A missing origin-validation signal is an **Exposure candidate**, not automatically a vulnerability.
 
-Browser-downloadable JS and `sourcesContent` are inspected for:
+### Client-side redirects
 
-- secret/password/token/API-key style assignments
-- JWT-like token shapes
-- private-key material
-- private/internal network URLs
+Magic_Security looks for browser-controlled URL sources flowing near:
 
-Values are redacted and never written into reports.
+- `location.href = ...`
+- `location.assign(...)`
+- `location.replace(...)`
 
-### Protected CORS impact
+These remain candidates until runtime control is proven.
 
-With test accounts, Magic_Security revisits endpoints already proven to be protected.
+### WebSockets
 
-If an authenticated HTTP 200 response:
+WebSocket endpoints are collected from:
 
-- reflects the scanner-controlled untrusted Origin
-- enables `Access-Control-Allow-Credentials: true`
+- JavaScript references
+- runtime Playwright WebSocket events
 
-the report records a high-confidence protected CORS exposure.
+An HTTPS application referencing plaintext `ws://` is reported as an exposure.
 
-### Authenticated cache behavior
+Full WebSocket authorization / CSWSH verification is a later pack.
 
-For protected endpoints whose responses differ between users, Magic_Security inspects caching policy.
+### Clickjacking and CSP
 
-Explicit shared-cache directives such as:
+HTML pages are checked for anti-framing protection:
 
-```
-Cache-Control: public
-s-maxage=...
-```
+- `X-Frame-Options`
+- CSP `frame-ancestors`
 
-on user-specific authenticated responses are reported as exposures.
+CSP policies using `'unsafe-inline'` or `'unsafe-eval'` are also surfaced as hardening weaknesses.
 
-### Rate-limit behavior
+## Existing external verification
 
-A small bounded GET-only request series records:
+v0.8 keeps the existing v0.7 pack:
 
-- statuses
-- 429 behavior
-- Retry-After
-- RateLimit / X-RateLimit headers
-
-No vulnerability is declared simply because throttling was not seen in a tiny sample.
-
----
+- reflected HTML injection
+- browser-verified reflected XSS
+- GraphQL anonymous introspection
+- GraphQL detailed error exposure
+- frontend/source-map secret-like material
+- internal/private network URL leakage
+- Open Redirect
+- CORS reflection
+- protected credentialed CORS
+- user-specific shared-cache exposure
+- bounded rate-limit behavior classification
+- unauthenticated sensitive-looking JSON exposure
 
 ## Auth Security Suite
 
-The existing authenticated suite remains integrated:
+Authenticated testing supports:
 
 - multiple test contexts
 - optional role metadata
 - authenticated browser discovery
-- anonymous-vs-auth boundary matrix
+- anonymous-vs-auth boundary mapping
 - user-specific response detection
 - ownership-ID discovery from the app itself
 - same-role pairwise authorization testing
-- path-based IDOR/BOLA
-- query-based IDOR/BOLA
+- path IDOR/BOLA
+- query IDOR/BOLA
 - weak session-cookie analysis
 - CSRF posture mapping
 
-Magic_Security does not brute-force object IDs. It only reuses IDs discovered from each test account's own authenticated responses.
-
----
+Magic_Security does not brute-force object IDs. It only reuses IDs learned from each test account's own authenticated responses.
 
 ## Coverage reporting
 
-The JSON report now includes two explicit coverage sections.
+The JSON report exposes three explicit coverage sections:
 
-### Auth Security coverage
+### Browser Security
 
 ```
-auth_compared_endpoints
-protected_endpoints
-user_specific_endpoints
-ownership_signals
-idor_pairwise_tests
-idor_verified
-state_changing_endpoints
-csrf_needs_verification
-session_cookies_observed
-weak_session_cookie_observations
+artifacts_scanned
+dom_source_sink_candidates
+dom_xss_verified
+message_handlers
+message_handlers_missing_origin
+client_redirect_candidates
+sensitive_storage_keys
+websocket_endpoints
 ```
 
-### External Security coverage
+### External Security
 
 ```
 injection_tests
@@ -196,9 +205,22 @@ rate_limit_endpoints_tested
 rate_limit_throttled
 ```
 
-This prevents “40+ categories” marketing from pretending that every class was fully tested.
+### Auth Security
 
----
+```
+auth_compared_endpoints
+protected_endpoints
+user_specific_endpoints
+ownership_signals
+idor_pairwise_tests
+idor_verified
+state_changing_endpoints
+csrf_needs_verification
+session_cookies_observed
+weak_session_cookie_observations
+```
+
+This prevents the scanner from pretending a security class was fully tested when it was only partially observable.
 
 ## Install
 
@@ -235,43 +257,61 @@ magic-security http://127.0.0.1:8000 \
   --json reports/demo.json
 ```
 
-The demo contains fake-only vulnerabilities/exposures including:
+The demo uses fake-only credentials and data. It intentionally contains examples for:
 
 - reflected XSS
-- exposed fake client secret
-- internal network URL leakage
-- source maps
+- DOM XSS
+- frontend/source-map fake secrets
+- internal URL leakage
+- unsafe postMessage handling
+- client-side redirect signal
+- WebSocket discovery
+- sensitive-looking browser storage
 - GraphQL introspection
 - Open Redirect
 - unsafe CORS
 - credentialed CORS on a protected endpoint
-- user-specific response marked publicly cacheable
+- risky authenticated shared caching
 - exposed fake `.env`
 - exposed fake Git metadata
 - unauthenticated fake personal data
 - path IDOR/BOLA
 - query IDOR/BOLA
-- weak session-cookie attributes
+- weak session cookies
 - CSRF posture candidate
-- authenticated-only browser routes/APIs
-
----
+- missing anti-clickjacking headers
 
 ## Safety defaults
 
-The current MVP is intentionally constrained:
+The current scanner remains intentionally constrained:
 
-- localhost / loopback targets only
-- browser cross-origin requests blocked
+- localhost / loopback only
+- browser cross-origin HTTP requests blocked
 - no object-ID brute force
 - no arbitrary button clicking
 - no automatic form submission
 - authorization exploitation limited to GET
 - bounded rate-behavior requests
-- XSS proof uses a DOM-only canary
+- reflected/DOM XSS proof uses DOM-only canaries
 - no secret values written into reports
 
----
+## What black-box testing still cannot reliably prove
+
+A strong external scanner can cover a lot, but not literally every security flaw can be proven from the user side alone.
+
+Examples that need later verification packs or repo/cloud context:
+
+- complex business-logic abuse
+- race conditions / double-spend
+- deep SSRF confirmation
+- file-upload-to-code-execution chains
+- backend dependency vulnerabilities
+- cloud/IAM mistakes invisible from the app
+- server-only secrets
+- source-code-only authorization flaws
+- destructive state-changing CSRF/BOLA scenarios
+
+Those will stay explicitly marked as untested or partially tested instead of being guessed.
 
 ## Architecture
 
@@ -281,6 +321,7 @@ magic_security/
 ├── auth.py
 ├── behavior_security.py
 ├── browser.py
+├── browser_security.py
 ├── classifier.py
 ├── client_artifacts.py
 ├── coverage.py
@@ -302,32 +343,13 @@ magic_security/
 └── checks/
 ```
 
-## Tests
+## Test
 
 ```bash
 pytest
 ```
 
 GitHub Actions runs tests on pushes and pull requests.
-
-## What is still outside pure black-box/browser coverage?
-
-A professional external scanner can get very far, but it cannot reliably prove every security class from the user side alone.
-
-Examples that later need more context or explicitly configured destructive-safe workflows:
-
-- complex business-logic abuse
-- race conditions / double-spend
-- deep server-side SSRF confirmation
-- arbitrary file-upload execution
-- backend dependency vulnerabilities
-- cloud/IAM mistakes invisible from the public app
-- server-only secret leakage
-- source-code-only authorization flaws
-- state-changing CSRF proof
-- state-changing BOLA proof
-
-Those belong in later verification packs or repo/cloud integrations.
 
 The principle stays the same:
 

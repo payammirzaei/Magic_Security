@@ -183,6 +183,43 @@ async def _run(
             f"{auth_coverage.weak_session_cookie_observations}"
         )
 
+    browser_cov = crawl.browser_security_coverage
+    if browser_cov is not None:
+        print("\nBrowser Security Coverage")
+        print("-------------------------")
+        print(
+            f"Artifacts scanned:        "
+            f"{browser_cov.artifacts_scanned}"
+        )
+        print(
+            f"DOM source/sink:          "
+            f"{browser_cov.dom_source_sink_candidates}"
+        )
+        print(
+            f"DOM XSS verified:         "
+            f"{browser_cov.dom_xss_verified}"
+        )
+        print(
+            f"Message handlers:         "
+            f"{browser_cov.message_handlers}"
+        )
+        print(
+            f"Missing origin signal:    "
+            f"{browser_cov.message_handlers_missing_origin}"
+        )
+        print(
+            f"Client redirects:         "
+            f"{browser_cov.client_redirect_candidates}"
+        )
+        print(
+            f"Sensitive storage keys:   "
+            f"{browser_cov.sensitive_storage_keys}"
+        )
+        print(
+            f"WebSocket endpoints:      "
+            f"{browser_cov.websocket_endpoints}"
+        )
+
     ext = crawl.external_security_coverage
     if ext is not None:
         print("\nExternal Security Coverage")

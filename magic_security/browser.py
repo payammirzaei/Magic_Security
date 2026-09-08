@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from urllib.parse import parse_qsl
+from urllib.parse import parse_qsl, urlparse
 
+from magic_security.browser_security import storage_observations_from_keys
 from magic_security.discovery import parameter_names, same_origin
-from magic_security.models import AuthContext, CrawlResult, EndpointCandidate
+from magic_security.models import (
+    AuthContext,
+    BrowserSecurityObservation,
+    CrawlResult,
+    EndpointCandidate,
+)
 
 
 class BrowserUnavailableError(RuntimeError):
@@ -16,6 +22,8 @@ class BrowserUnavailableError(RuntimeError):
 class BrowserObservation:
     pages_rendered: set[str] = field(default_factory=set)
     network_requests: int = 0
+    security_observations: list[BrowserSecurityObservation] = field(default_factory=list)
+    websockets: set[str] = field(default_factory=set)
 
 
 def request_parameters(
@@ -53,6 +61,16 @@ def browser_source(
     if auth_context is None:
         return f"browser:{kind}"
     return f"browser:{auth_context.name}:{kind}"
+
+
+def _same_target_host(candidate: str, target: str) -> bool:
+    a = urlparse(candidate)
+    b = urlparse(target)
+    return (
+        a.hostname == b.hostname
+        and (a.port or (443 if a.scheme == "wss" else 80))
+        == (b.port or (443 if b.scheme == "https" else 80))
+    )
 
 
 def merge_rendered_surface(
@@ -148,6 +166,7 @@ class BrowserCrawler:
             ) from exc
 
         observation = BrowserObservation()
+        context_name = auth_context.name if auth_context else "anonymous"
 
         candidates: list[str] = [crawl.target]
         candidates.extend(
@@ -229,7 +248,12 @@ class BrowserCrawler:
                 )
                 crawl.parameters.update(params)
 
+            def on_websocket(websocket) -> None:
+                if _same_target_host(websocket.url, crawl.target):
+                    observation.websockets.add(websocket.url)
+
             page.on("request", on_request)
+            page.on("websocket", on_websocket)
 
             visited: set[str] = set()
             queue = list(unique_candidates)
@@ -268,7 +292,9 @@ class BrowserCrawler:
                                 parameters: Array.from(form.elements)
                                     .map(el => el.name)
                                     .filter(Boolean)
-                            }))
+                            })),
+                            localKeys: Object.keys(window.localStorage || {}),
+                            sessionKeys: Object.keys(window.sessionStorage || {})
                         })"""
                     )
                 except Exception:
@@ -282,6 +308,15 @@ class BrowserCrawler:
                     scripts=list(surface.get("scripts", [])),
                     forms=list(surface.get("forms", [])),
                     auth_context=auth_context,
+                )
+
+                observation.security_observations.extend(
+                    storage_observations_from_keys(
+                        page_url=final_url,
+                        context_name=context_name,
+                        local_keys=list(surface.get("localKeys", [])),
+                        session_keys=list(surface.get("sessionKeys", [])),
+                    )
                 )
 
                 for link in links:

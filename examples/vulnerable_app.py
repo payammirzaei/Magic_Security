@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 class DemoHandler(BaseHTTPRequestHandler):
-    server_version = "MagicDemo/0.7"
+    server_version = "MagicDemo/0.8"
 
     def log_message(self, format: str, *args) -> None:
         print(f"[demo] {self.address_string()} - {format % args}")
@@ -114,6 +114,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     <input name="q">
     <select name="category"><option>all</option></select>
   </form>
+  <div id="output"></div>
   <script src="/static/app.js"></script>
 </body>
 </html>""",
@@ -163,6 +164,29 @@ fetch('/api/users?limit=20');
 fetch('/api/me');
 axios.post('/api/orders', {item: 1});
 const graph = "/graphql";
+
+if (location.hash && document.getElementById('output')) {
+  document.getElementById('output').innerHTML =
+    decodeURIComponent(location.hash.slice(1));
+}
+
+window.addEventListener('message', (event) => {
+  if (document.getElementById('output')) {
+    document.getElementById('output').innerHTML = event.data;
+  }
+});
+
+function clientRedirectCandidate() {
+  const target = location.search;
+  if (false) {
+    location.href = target;
+  }
+}
+
+if (false) {
+  new WebSocket('ws://127.0.0.1:8000/ws');
+}
+
 //# sourceMappingURL=app.js.map
 """,
                 content_type="application/javascript",
@@ -248,7 +272,7 @@ RuntimeError: demo exception
                         "openapi": "3.1.0",
                         "info": {
                             "title": "Magic Demo API",
-                            "version": "0.7",
+                            "version": "0.8",
                         },
                         "paths": {
                             "/api/users": {
@@ -459,6 +483,7 @@ RuntimeError: demo exception
     <input name="display_name">
   </form>
   <script>
+    localStorage.setItem('access_token', 'fake-browser-token');
     fetch('/api/user-settings');
   </script>
 </body>

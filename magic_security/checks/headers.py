@@ -36,13 +36,76 @@ class SecurityHeaderCheck:
                         kind=FindingKind.HARDENING,
                         url=page.url,
                         description=description,
-                        evidence=f"Response did not contain the {header} header.",
+                        evidence=(
+                            f"Response did not contain the {header} header."
+                        ),
                         remediation=remediation,
                         confidence=1.0,
                     )
                 )
 
-        if urlparse(page.url).scheme == "https" and "strict-transport-security" not in headers:
+        csp = headers.get("content-security-policy", "")
+
+        if (
+            "text/html" in page.content_type
+            and "x-frame-options" not in headers
+            and "frame-ancestors" not in csp.lower()
+        ):
+            findings.append(
+                Finding(
+                    title="Page lacks clickjacking frame protection",
+                    severity=Severity.LOW,
+                    kind=FindingKind.HARDENING,
+                    url=page.url,
+                    description=(
+                        "The HTML response has no observed anti-framing policy."
+                    ),
+                    evidence=(
+                        "Neither X-Frame-Options nor CSP frame-ancestors was present."
+                    ),
+                    remediation=(
+                        "Set CSP frame-ancestors to the intended embedding policy "
+                        "and optionally X-Frame-Options for legacy clients."
+                    ),
+                    confidence=1.0,
+                    cwe="CWE-1021",
+                )
+            )
+
+        if csp:
+            weak_tokens = [
+                token
+                for token in ("'unsafe-inline'", "'unsafe-eval'")
+                if token in csp.lower()
+            ]
+            if weak_tokens:
+                findings.append(
+                    Finding(
+                        title="CSP allows risky script execution modes",
+                        severity=Severity.LOW,
+                        kind=FindingKind.HARDENING,
+                        url=page.url,
+                        description=(
+                            "The Content Security Policy weakens script-injection "
+                            "defenses."
+                        ),
+                        evidence=(
+                            "Observed CSP token(s): "
+                            + ", ".join(weak_tokens)
+                            + "."
+                        ),
+                        remediation=(
+                            "Remove unsafe-inline/unsafe-eval where practical and "
+                            "prefer nonces or hashes."
+                        ),
+                        confidence=1.0,
+                    )
+                )
+
+        if (
+            urlparse(page.url).scheme == "https"
+            and "strict-transport-security" not in headers
+        ):
             findings.append(
                 Finding(
                     title="Missing Strict-Transport-Security",
@@ -51,7 +114,9 @@ class SecurityHeaderCheck:
                     url=page.url,
                     description="HTTPS is in use but HSTS is not configured.",
                     evidence="Strict-Transport-Security header was absent.",
-                    remediation="Enable HSTS after confirming the domain is HTTPS-only.",
+                    remediation=(
+                        "Enable HSTS after confirming the domain is HTTPS-only."
+                    ),
                     confidence=1.0,
                 )
             )

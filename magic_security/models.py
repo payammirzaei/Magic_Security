@@ -217,6 +217,27 @@ class ExternalSecurityCoverage:
     rate_limit_throttled: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class BrowserSecurityObservation:
+    category: str
+    url: str
+    status: str
+    evidence: str
+    context: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BrowserSecurityCoverage:
+    artifacts_scanned: int = 0
+    dom_source_sink_candidates: int = 0
+    dom_xss_verified: int = 0
+    message_handlers: int = 0
+    message_handlers_missing_origin: int = 0
+    client_redirect_candidates: int = 0
+    sensitive_storage_keys: int = 0
+    websocket_endpoints: int = 0
+
+
 @dataclass(slots=True)
 class CrawlResult:
     target: str
@@ -242,6 +263,10 @@ class CrawlResult:
     cache_observations: list[CacheObservation] = field(default_factory=list)
     rate_limit_observations: list[RateLimitObservation] = field(default_factory=list)
     external_security_coverage: ExternalSecurityCoverage | None = None
+
+    browser_security_observations: list[BrowserSecurityObservation] = field(default_factory=list)
+    browser_security_coverage: BrowserSecurityCoverage | None = None
+    websocket_endpoints: set[str] = field(default_factory=set)
 
     parameters: set[str] = field(default_factory=set)
     source_maps: set[str] = field(default_factory=set)

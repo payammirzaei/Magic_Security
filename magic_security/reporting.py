@@ -18,6 +18,11 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
         if crawl.external_security_coverage is not None
         else None
     )
+    browser_coverage = (
+        asdict(crawl.browser_security_coverage)
+        if crawl.browser_security_coverage is not None
+        else None
+    )
 
     return {
         "target": crawl.target,
@@ -46,6 +51,10 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "client_artifacts_scanned": len(
                 crawl.client_artifact_observations
             ),
+            "browser_security_observations": len(
+                crawl.browser_security_observations
+            ),
+            "websocket_endpoints": len(crawl.websocket_endpoints),
             "protected_cors_observations": len(
                 crawl.cors_impact_observations
             ),
@@ -68,6 +77,14 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
         "coverage": {
             "auth_security": auth_coverage,
             "external_security": external_coverage,
+            "browser_security": browser_coverage,
+        },
+        "browser_security": {
+            "websockets": sorted(crawl.websocket_endpoints),
+            "observations": [
+                asdict(item)
+                for item in crawl.browser_security_observations
+            ],
         },
         "auth_security": {
             "ownership": [
