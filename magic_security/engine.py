@@ -8,6 +8,10 @@ from magic_security.active import run_safe_active_checks
 from magic_security.browser import BrowserCrawler
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.crawler import HttpCrawler
+from magic_security.fingerprints import (
+    deduplicate_findings,
+    group_response_fingerprints,
+)
 from magic_security.models import CrawlResult, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
@@ -67,6 +71,7 @@ class ScannerEngine:
             )
 
         crawl = await self.crawler.crawl(target)
+        crawl.response_groups = group_response_fingerprints(crawl.pages)
 
         if browser:
             observation = await BrowserCrawler().enrich(crawl)
@@ -95,5 +100,6 @@ class ScannerEngine:
                 )
             )
 
+        findings = deduplicate_findings(findings)
         findings.sort(key=lambda f: (_SEVERITY_ORDER[f.severity], f.title, f.url))
         return crawl, findings

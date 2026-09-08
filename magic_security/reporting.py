@@ -20,8 +20,17 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
             "browser_network_requests": crawl.browser_network_requests,
+            "response_fingerprint_groups": len(crawl.response_groups),
         },
         "browser_pages": sorted(crawl.browser_pages),
+        "response_groups": [
+            {
+                "fingerprint": fingerprint,
+                "urls": list(urls),
+                "count": len(urls),
+            }
+            for fingerprint, urls in sorted(crawl.response_groups.items())
+        ],
         "endpoints": [
             {
                 "url": endpoint.url,
@@ -39,6 +48,7 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 **asdict(finding),
                 "severity": finding.severity.value,
                 "kind": finding.kind.value,
+                "affected_urls": list(finding.affected_urls),
                 "verified": finding.verified,
             }
             for finding in findings

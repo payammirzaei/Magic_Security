@@ -11,6 +11,7 @@ URL
  -> Attack Surface Map
  -> Security Checks
  -> Verification
+ -> Fingerprint + Deduplicate
  -> Evidence
 ```
 
@@ -21,28 +22,45 @@ The current milestone intentionally has no SaaS layer: no auth, billing, databas
 ### Attack-surface discovery
 
 - Same-origin HTTP crawl
-- Pages and links
-- HTML forms + methods
-- Input/select/textarea parameter names
-- Query-string parameter discovery
-- JavaScript asset discovery
-- API extraction from:
-  - `fetch(...)`
-  - `axios.get/post/put/patch/delete(...)`
-  - `$.get(...)` / `$.post(...)`
-  - obvious `/api`, `/graphql`, `/rest`, and versioned API strings
+- Pages, links, forms, parameters, and JavaScript assets
+- API extraction from frontend JavaScript
 - OpenAPI / Swagger ingestion
 - JavaScript source-map discovery
-- **Playwright browser discovery**
-  - dynamically rendered links
-  - runtime forms and fields
-  - same-origin XHR / fetch requests
-  - request methods
-  - query parameters
-  - JSON/form body field names
-  - same-origin scripts loaded at runtime
+- Optional Playwright runtime discovery for SPAs
 
-Browser mode does **not** click buttons or submit forms. It renders discovered pages and observes runtime network behavior.
+### Response fingerprinting
+
+Every HTTP page response gets a stable fingerprint based on:
+
+- HTTP status
+- normalized content type
+- normalized response body
+
+Obvious volatile UUIDs and long numeric IDs are normalized first. Response fingerprints are **only used for grouping/analysis**; they do not by themselves create a vulnerability finding.
+
+### Finding deduplication
+
+Repeated root issues are merged before reporting.
+
+Example:
+
+```
+Missing Content-Security-Policy
+Affected URLs: 37
+Occurrences: 37
+Fingerprint: 7f...
+```
+
+instead of 37 separate findings.
+
+The report keeps:
+
+- one root finding
+- representative evidence
+- all affected URLs
+- occurrence count
+- stable finding fingerprint
+- highest observed severity/confidence
 
 ### Passive security checks
 
@@ -51,11 +69,7 @@ Browser mode does **not** click buttons or submit forms. It renders discovered p
 - Directory-listing exposure
 - Swagger/OpenAPI exposure
 - Debug/stack-trace exposure heuristics
-- Local probes for exposed:
-  - `.env`
-  - `.git/HEAD`
-  - `openapi.json`
-  - `swagger.json`
+- Local probes for exposed `.env`, `.git/HEAD`, OpenAPI specs
 - Verified public source-map exposure
 - Secret values are redacted from findings
 
@@ -68,7 +82,7 @@ Run with `--active`.
 
 The core rule is:
 
-**Detect -> Verify -> Report.**
+**Detect -> Verify -> Deduplicate -> Report.**
 
 Findings are separated into Vulnerability / Exposure / Hardening.
 
@@ -91,65 +105,35 @@ playwright install chromium
 
 ## Run
 
-HTTP-only:
-
-```bash
-magic-security http://localhost:3000
-```
-
-HTTP + browser discovery:
-
-```bash
-magic-security http://localhost:3000 --browser
-```
-
-Full current local scan:
-
 ```bash
 magic-security http://localhost:3000 --browser --active --json reports/scan.json
 ```
 
-## Browser safety behavior
-
-The browser crawler is still local-first:
-
-- target must be localhost/loopback
-- browser requests outside the target origin are blocked
-- no button clicking
-- no automatic form submission
-- no state-changing workflow exploration
-
-This keeps runtime discovery useful without turning the crawler into an uncontrolled browser bot.
-
-## Run the intentionally vulnerable demo
-
-Terminal 1:
-
-```bash
-python examples/vulnerable_app.py
-```
-
-Terminal 2:
-
-```bash
-magic-security http://127.0.0.1:8000 --browser --active --json reports/demo.json
-```
-
-The demo intentionally contains **fake-only** security problems.
-
 ## JSON report
 
-The JSON report contains:
+The JSON report now includes:
 
 - attack-surface counts
+- response fingerprint groups
 - browser-rendered pages
 - normalized endpoints
-- discovery source
-- parameters
-- findings
+- finding fingerprints
+- affected URL lists
+- occurrence counts
 - severity
 - confidence
 - verified status
+
+## Safety default
+
+The MVP remains localhost/loopback only.
+
+Browser mode:
+
+- blocks cross-origin requests
+- does not click buttons
+- does not submit forms
+- does not explore state-changing workflows
 
 ## Test
 
@@ -157,7 +141,7 @@ The JSON report contains:
 pytest
 ```
 
-Tests also run automatically through GitHub Actions on pushes and pull requests.
+Tests also run automatically through GitHub Actions.
 
 ## Architecture
 
@@ -168,6 +152,7 @@ magic_security/
 ├── crawler.py
 ├── discovery.py
 ├── engine.py
+├── fingerprints.py
 ├── models.py
 ├── openapi.py
 ├── probes.py
@@ -178,8 +163,6 @@ magic_security/
 ## Next milestone
 
 - richer JavaScript route extraction
-- response fingerprinting + finding deduplication
 - browser-discovered source maps
+- attack-surface normalization across HTTP/browser/OpenAPI sources
 - authenticated/test-account mode later
-
-The MVP remains local-first until the scanner core is trustworthy.

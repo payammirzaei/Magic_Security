@@ -48,6 +48,7 @@ class CrawlResult:
     source_maps: set[str] = field(default_factory=set)
     browser_pages: set[str] = field(default_factory=set)
     browser_network_requests: int = 0
+    response_groups: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -62,6 +63,9 @@ class Finding:
     confidence: float = 1.0
     owasp: str | None = None
     cwe: str | None = None
+    affected_urls: tuple[str, ...] = ()
+    occurrences: int = 1
+    fingerprint: str | None = None
 
     @property
     def verified(self) -> bool:

@@ -75,6 +75,7 @@ async def _run(
     print(f"Endpoints:        {len(crawl.endpoints)}")
     print(f"Parameters:       {len(crawl.parameters)}")
     print(f"Source maps:      {len(crawl.source_maps)}")
+    print(f"Response groups:  {len(crawl.response_groups)}")
     if browser:
         print(f"Browser pages:    {len(crawl.browser_pages)}")
         print(f"Browser API reqs: {crawl.browser_network_requests}")
@@ -116,13 +117,21 @@ async def _run(
                 if finding.verified
                 else f"confidence {finding.confidence:.0%}"
             )
+            affected_count = len(finding.affected_urls) or 1
+            suffix = (
+                f", {affected_count} affected URLs"
+                if affected_count > 1
+                else ""
+            )
             print(
                 f"[{finding.severity.value.upper()}] "
-                f"{finding.title} ({verified})"
+                f"{finding.title} ({verified}{suffix})"
             )
             print(f"  URL: {finding.url}")
             print(f"  Evidence: {finding.evidence}")
             print(f"  Fix: {finding.remediation}")
+            if finding.fingerprint:
+                print(f"  Fingerprint: {finding.fingerprint}")
             if finding.cwe or finding.owasp:
                 refs = " | ".join(
                     value for value in (finding.cwe, finding.owasp) if value
