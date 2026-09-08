@@ -68,33 +68,32 @@ async def _run(
     print(f"Mode:   {' + '.join(modes)}")
     print("\nAttack Surface")
     print("--------------")
-    print(f"Pages:            {len(crawl.pages)}")
-    print(f"Links:            {len(crawl.links)}")
-    print(f"Forms:            {len(crawl.forms)}")
-    print(f"JS assets:        {len(crawl.js_assets)}")
-    print(f"Endpoints:        {len(crawl.endpoints)}")
-    print(f"Parameters:       {len(crawl.parameters)}")
-    print(f"Source maps:      {len(crawl.source_maps)}")
-    print(f"Response groups:  {len(crawl.response_groups)}")
+    print(f"Pages:                 {len(crawl.pages)}")
+    print(f"Links:                 {len(crawl.links)}")
+    print(f"Forms:                 {len(crawl.forms)}")
+    print(f"JS assets:             {len(crawl.js_assets)}")
+    print(f"Raw endpoints:         {len(crawl.endpoints)}")
+    print(f"Normalized endpoints:  {len(crawl.normalized_endpoints)}")
+    print(f"Parameters:            {len(crawl.parameters)}")
+    print(f"Source maps:           {len(crawl.source_maps)}")
+    print(f"Response groups:       {len(crawl.response_groups)}")
     if browser:
-        print(f"Browser pages:    {len(crawl.browser_pages)}")
-        print(f"Browser API reqs: {crawl.browser_network_requests}")
+        print(f"Browser pages:         {len(crawl.browser_pages)}")
+        print(f"Browser API reqs:      {crawl.browser_network_requests}")
 
-    if crawl.endpoints:
-        print("\nDiscovered Endpoints")
+    if crawl.normalized_endpoints:
+        print("\nNormalized Endpoints")
         print("--------------------")
-        for endpoint in sorted(
-            crawl.endpoints,
-            key=lambda item: (item.url, item.method, item.source),
-        ):
+        for endpoint in crawl.normalized_endpoints:
             params = (
                 f" params={','.join(endpoint.parameters)}"
                 if endpoint.parameters
                 else ""
             )
+            sources = ",".join(endpoint.sources)
             print(
                 f"{endpoint.method:7} {endpoint.url} "
-                f"[{endpoint.source}]{params}"
+                f"[sources={sources}]{params}"
             )
 
     groups = (

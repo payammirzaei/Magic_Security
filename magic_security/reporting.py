@@ -15,7 +15,8 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "links": len(crawl.links),
             "forms": len(crawl.forms),
             "js_assets": len(crawl.js_assets),
-            "endpoints": len(crawl.endpoints),
+            "raw_endpoints": len(crawl.endpoints),
+            "normalized_endpoints": len(crawl.normalized_endpoints),
             "parameters": len(crawl.parameters),
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
@@ -31,7 +32,16 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             }
             for fingerprint, urls in sorted(crawl.response_groups.items())
         ],
-        "endpoints": [
+        "normalized_endpoints": [
+            {
+                "url": endpoint.url,
+                "method": endpoint.method,
+                "parameters": list(endpoint.parameters),
+                "sources": list(endpoint.sources),
+            }
+            for endpoint in crawl.normalized_endpoints
+        ],
+        "raw_endpoints": [
             {
                 "url": endpoint.url,
                 "method": endpoint.method,

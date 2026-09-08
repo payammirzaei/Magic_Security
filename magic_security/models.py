@@ -36,6 +36,14 @@ class EndpointCandidate:
     parameters: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class NormalizedEndpoint:
+    url: str
+    method: str = "GET"
+    parameters: tuple[str, ...] = ()
+    sources: tuple[str, ...] = ()
+
+
 @dataclass(slots=True)
 class CrawlResult:
     target: str
@@ -44,6 +52,7 @@ class CrawlResult:
     js_assets: set[str] = field(default_factory=set)
     forms: list[dict[str, str]] = field(default_factory=list)
     endpoints: set[EndpointCandidate] = field(default_factory=set)
+    normalized_endpoints: list[NormalizedEndpoint] = field(default_factory=list)
     parameters: set[str] = field(default_factory=set)
     source_maps: set[str] = field(default_factory=set)
     browser_pages: set[str] = field(default_factory=set)

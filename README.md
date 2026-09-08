@@ -9,6 +9,7 @@ URL
  -> HTTP Crawl
  -> Browser Runtime Discovery (optional)
  -> Attack Surface Map
+ -> Normalize Surface
  -> Security Checks
  -> Verification
  -> Fingerprint + Deduplicate
@@ -28,34 +29,44 @@ The current milestone intentionally has no SaaS layer: no auth, billing, databas
 - JavaScript source-map discovery
 - Optional Playwright runtime discovery for SPAs
 
+### Attack-surface normalization
+
+The same endpoint can be discovered several ways:
+
+```
+javascript:fetch   GET /api/users?limit=20
+browser:network    GET /api/users?limit=50
+openapi            GET /api/users
+```
+
+Magic_Security now reports one normalized endpoint:
+
+```
+GET /api/users
+parameters: include, limit
+sources: browser:network, javascript:fetch, openapi
+```
+
+Raw discoveries are still kept in the JSON report for traceability.
+
+Normalization is intentionally conservative:
+
+- query values are removed
+- parameter names are merged
+- discovery sources are merged
+- HTTP methods remain separate
+- path segments are not guessed or rewritten yet
+
 ### Response fingerprinting
 
-Every HTTP page response gets a stable fingerprint based on:
+Every HTTP page response gets a stable fingerprint based on status, normalized content type, and normalized response body. Obvious volatile UUIDs and long numeric IDs are normalized first.
 
-- HTTP status
-- normalized content type
-- normalized response body
-
-Obvious volatile UUIDs and long numeric IDs are normalized first. Response fingerprints are **only used for grouping/analysis**; they do not by themselves create a vulnerability finding.
+Response fingerprints are for grouping/analysis only; they do not create vulnerability findings by themselves.
 
 ### Finding deduplication
 
-Repeated root issues are merged before reporting.
+Repeated root issues are merged before reporting while preserving:
 
-Example:
-
-```
-Missing Content-Security-Policy
-Affected URLs: 37
-Occurrences: 37
-Fingerprint: 7f...
-```
-
-instead of 37 separate findings.
-
-The report keeps:
-
-- one root finding
 - representative evidence
 - all affected URLs
 - occurrence count
@@ -82,9 +93,7 @@ Run with `--active`.
 
 The core rule is:
 
-**Detect -> Verify -> Deduplicate -> Report.**
-
-Findings are separated into Vulnerability / Exposure / Hardening.
+**Discover -> Normalize -> Detect -> Verify -> Deduplicate -> Report.**
 
 ## Install
 
@@ -111,29 +120,18 @@ magic-security http://localhost:3000 --browser --active --json reports/scan.json
 
 ## JSON report
 
-The JSON report now includes:
+The report contains both:
 
-- attack-surface counts
-- response fingerprint groups
-- browser-rendered pages
-- normalized endpoints
-- finding fingerprints
-- affected URL lists
-- occurrence counts
-- severity
-- confidence
-- verified status
+- `normalized_endpoints` for the useful attack-surface view
+- `raw_endpoints` for discovery provenance/evidence
+
+It also contains response groups, finding fingerprints, affected URLs, occurrence counts, severity, confidence, and verified status.
 
 ## Safety default
 
 The MVP remains localhost/loopback only.
 
-Browser mode:
-
-- blocks cross-origin requests
-- does not click buttons
-- does not submit forms
-- does not explore state-changing workflows
+Browser mode blocks cross-origin requests and does not click buttons or submit forms.
 
 ## Test
 
@@ -157,6 +155,7 @@ magic_security/
 ├── openapi.py
 ├── probes.py
 ├── reporting.py
+├── surface.py
 └── checks/
 ```
 
@@ -164,5 +163,5 @@ magic_security/
 
 - richer JavaScript route extraction
 - browser-discovered source maps
-- attack-surface normalization across HTTP/browser/OpenAPI sources
+- endpoint response classification
 - authenticated/test-account mode later

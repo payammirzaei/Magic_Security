@@ -15,6 +15,7 @@ from magic_security.fingerprints import (
 from magic_security.models import CrawlResult, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
+from magic_security.surface import normalize_endpoints
 
 
 _SEVERITY_ORDER = {
@@ -82,6 +83,8 @@ class ScannerEngine:
         crawl.endpoints.update(openapi_endpoints)
         for endpoint in openapi_endpoints:
             crawl.parameters.update(endpoint.parameters)
+
+        crawl.normalized_endpoints = normalize_endpoints(crawl.endpoints)
 
         findings: list[Finding] = []
 
