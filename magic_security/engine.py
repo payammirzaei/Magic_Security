@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.crawler import HttpCrawler
 from magic_security.models import CrawlResult, Finding, Severity
-from magic_security.probes import probe_common_exposures
+from magic_security.probes import probe_common_exposures, probe_source_maps
 
 
 _SEVERITY_ORDER = {
@@ -64,5 +64,6 @@ class ScannerEngine:
                 findings.extend(check.run(page))
 
         findings.extend(await probe_common_exposures(crawl.target))
+        findings.extend(await probe_source_maps(crawl.source_maps))
         findings.sort(key=lambda f: (_SEVERITY_ORDER[f.severity], f.title, f.url))
         return crawl, findings

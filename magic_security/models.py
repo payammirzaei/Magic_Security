@@ -28,6 +28,14 @@ class PageSnapshot:
     body: str
 
 
+@dataclass(frozen=True, slots=True)
+class EndpointCandidate:
+    url: str
+    method: str = "GET"
+    source: str = "discovery"
+    parameters: tuple[str, ...] = ()
+
+
 @dataclass(slots=True)
 class CrawlResult:
     target: str
@@ -35,6 +43,9 @@ class CrawlResult:
     links: set[str] = field(default_factory=set)
     js_assets: set[str] = field(default_factory=set)
     forms: list[dict[str, str]] = field(default_factory=list)
+    endpoints: set[EndpointCandidate] = field(default_factory=set)
+    parameters: set[str] = field(default_factory=set)
+    source_maps: set[str] = field(default_factory=set)
 
 
 @dataclass(slots=True)

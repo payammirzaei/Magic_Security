@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from urllib.parse import urljoin
 
 import httpx
@@ -31,7 +32,7 @@ async def probe_common_exposures(target: str, timeout: float = 5.0) -> list[Find
         for path in probes:
             url = urljoin(target.rstrip("/") + "/", path.lstrip("/"))
             try:
-                response = await client.get(url, headers={"User-Agent": "Magic-Security/0.1 local-security-scanner"})
+                response = await client.get(url, headers={"User-Agent": "Magic-Security/0.2 local-security-scanner"})
             except httpx.HTTPError:
                 continue
 
@@ -39,7 +40,6 @@ async def probe_common_exposures(target: str, timeout: float = 5.0) -> list[Find
                 continue
 
             body = response.text[:200_000]
-            content_type = response.headers.get("content-type", "").lower()
 
             if path == "/.env":
                 matches = _SECRET_KEY.findall(body)
@@ -92,5 +92,51 @@ async def probe_common_exposures(target: str, timeout: float = 5.0) -> list[Find
                             confidence=1.0,
                         )
                     )
+
+    return findings
+
+
+async def probe_source_maps(urls: Iterable[str], timeout: float = 5.0) -> list[Finding]:
+    findings: list[Finding] = []
+
+    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
+        for url in sorted(set(urls)):
+            try:
+                response = await client.get(
+                    url,
+                    headers={"User-Agent": "Magic-Security/0.2 local-security-scanner"},
+                )
+            except httpx.HTTPError:
+                continue
+
+            if response.status_code != 200:
+                continue
+
+            try:
+                data = response.json()
+            except json.JSONDecodeError:
+                continue
+
+            if not isinstance(data, dict) or not isinstance(data.get("sources"), list):
+                continue
+
+            source_count = len(data["sources"])
+            includes_content = isinstance(data.get("sourcesContent"), list)
+            findings.append(
+                Finding(
+                    title="Frontend source map is publicly exposed",
+                    severity=Severity.LOW,
+                    kind=FindingKind.EXPOSURE,
+                    url=url,
+                    description="A valid JavaScript source map is publicly downloadable.",
+                    evidence=(
+                        f"HTTP 200 returned a valid source map referencing {source_count} source file(s). "
+                        f"Embedded source content: {'yes' if includes_content else 'no'}."
+                    ),
+                    remediation="Disable production source-map publication unless it is intentionally required.",
+                    confidence=1.0,
+                    cwe="CWE-200",
+                )
+            )
 
     return findings

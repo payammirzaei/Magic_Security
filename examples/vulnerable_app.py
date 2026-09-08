@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 class DemoHandler(BaseHTTPRequestHandler):
-    server_version = "MagicDemo/0.1"
+    server_version = "MagicDemo/0.2"
 
     def log_message(self, format: str, *args) -> None:
         print(f"[demo] {self.address_string()} - {format % args}")
@@ -38,11 +38,45 @@ class DemoHandler(BaseHTTPRequestHandler):
     <li><a href="/docs">API docs</a></li>
     <li><a href="/files/">Files</a></li>
     <li><a href="/stacktrace">Debug error</a></li>
+    <li><a href="/products?page=2&sort=name">Products</a></li>
   </ul>
-  <form action="/search" method="GET"><input name="q"></form>
+  <form action="/search" method="GET">
+    <input name="q">
+    <select name="category"><option>all</option></select>
+  </form>
+  <script src="/static/app.js"></script>
 </body>
 </html>""",
                 cookie="session=fake-local-session; Path=/",
+            )
+            return
+
+        if self.path == "/static/app.js":
+            self._send(
+                """fetch('/api/users?limit=20');
+axios.post('/api/orders', {item: 1});
+const graph = "/graphql";
+//# sourceMappingURL=app.js.map
+""",
+                content_type="application/javascript",
+            )
+            return
+
+        if self.path == "/static/app.js.map":
+            self._send(
+                json.dumps(
+                    {
+                        "version": 3,
+                        "file": "app.js",
+                        "sources": ["src/app.ts"],
+                        "sourcesContent": [
+                            "export async function load(){ return fetch('/api/users?limit=20') }"
+                        ],
+                        "names": [],
+                        "mappings": "",
+                    }
+                ),
+                content_type="application/json",
             )
             return
 
@@ -94,7 +128,7 @@ RuntimeError: demo exception
                 json.dumps(
                     {
                         "openapi": "3.1.0",
-                        "info": {"title": "Magic Demo API", "version": "0.1"},
+                        "info": {"title": "Magic Demo API", "version": "0.2"},
                         "paths": {"/demo": {"get": {}}},
                     }
                 ),
@@ -107,7 +141,7 @@ RuntimeError: demo exception
                 json.dumps(
                     {
                         "swagger": "2.0",
-                        "info": {"title": "Magic Demo API", "version": "0.1"},
+                        "info": {"title": "Magic Demo API", "version": "0.2"},
                         "paths": {},
                     }
                 ),
@@ -115,10 +149,16 @@ RuntimeError: demo exception
             )
             return
 
-        if self.path.startswith("/search"):
-            self._send("<html><body>search demo</body></html>")
+        if self.path.startswith(("/search", "/products", "/api/users", "/graphql")):
+            self._send("<html><body>demo response</body></html>")
             return
 
+        self._send("not found", status=404, content_type="text/plain; charset=utf-8")
+
+    def do_POST(self) -> None:
+        if self.path == "/api/orders":
+            self._send('{"ok": true}', content_type="application/json")
+            return
         self._send("not found", status=404, content_type="text/plain; charset=utf-8")
 
 

@@ -27,12 +27,22 @@ async def _run(target: str, max_pages: int) -> int:
         return 2
 
     print(f"\nTarget: {crawl.target}")
-    print("\nDiscovered")
-    print("----------")
-    print(f"Pages:     {len(crawl.pages)}")
-    print(f"Links:     {len(crawl.links)}")
-    print(f"Forms:     {len(crawl.forms)}")
-    print(f"JS assets: {len(crawl.js_assets)}")
+    print("\nAttack Surface")
+    print("--------------")
+    print(f"Pages:       {len(crawl.pages)}")
+    print(f"Links:       {len(crawl.links)}")
+    print(f"Forms:       {len(crawl.forms)}")
+    print(f"JS assets:   {len(crawl.js_assets)}")
+    print(f"Endpoints:   {len(crawl.endpoints)}")
+    print(f"Parameters:  {len(crawl.parameters)}")
+    print(f"Source maps: {len(crawl.source_maps)}")
+
+    if crawl.endpoints:
+        print("\nDiscovered Endpoints")
+        print("--------------------")
+        for endpoint in sorted(crawl.endpoints, key=lambda item: (item.url, item.method, item.source)):
+            params = f" params={','.join(endpoint.parameters)}" if endpoint.parameters else ""
+            print(f"{endpoint.method:7} {endpoint.url} [{endpoint.source}]{params}")
 
     groups = (
         (FindingKind.VULNERABILITY, "Vulnerabilities"),
