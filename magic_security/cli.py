@@ -38,8 +38,9 @@ def _parser() -> argparse.ArgumentParser:
         "--active",
         action="store_true",
         help=(
-            "Run non-destructive external verification checks "
-            "(injection, GraphQL, CORS, redirects, rate behavior)"
+            "Run non-destructive external/server verification checks "
+            "(injection, GraphQL, SSRF callback, traversal, auth bypass, "
+            "CORS, redirects, rate behavior)"
         ),
     )
     parser.add_argument(
@@ -218,6 +219,47 @@ async def _run(
         print(
             f"WebSocket endpoints:      "
             f"{browser_cov.websocket_endpoints}"
+        )
+
+    server_cov = crawl.server_security_coverage
+    if server_cov is not None:
+        print("\nServer-Side Black-Box Coverage")
+        print("------------------------------")
+        print(
+            f"Total server probes:      "
+            f"{server_cov.total_probes}"
+        )
+        print(
+            f"DB error triggers:        "
+            f"{server_cov.database_error_triggers}"
+        )
+        print(
+            f"SSTI verified:            "
+            f"{server_cov.ssti_verified}"
+        )
+        print(
+            f"CRLF verified:            "
+            f"{server_cov.crlf_verified}"
+        )
+        print(
+            f"Traversal/LFI verified:   "
+            f"{server_cov.path_traversal_verified}"
+        )
+        print(
+            f"SSRF callback verified:   "
+            f"{server_cov.ssrf_verified}"
+        )
+        print(
+            f"Auth SQLi bypass:         "
+            f"{server_cov.auth_sqli_verified}"
+        )
+        print(
+            f"Auth NoSQLi bypass:       "
+            f"{server_cov.auth_nosqli_verified}"
+        )
+        print(
+            f"Host-header influence:    "
+            f"{server_cov.host_header_influences}"
         )
 
     ext = crawl.external_security_coverage

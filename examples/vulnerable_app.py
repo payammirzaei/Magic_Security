@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.request
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -111,6 +112,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     <li><a href="/ssti?name=hello">SSTI demo</a></li>
     <li><a href="/sql?q=hello">SQL error demo</a></li>
     <li><a href="/crlf?value=hello">CRLF demo</a></li>
+    <li><a href="/absolute">Host-header demo</a></li>
     {authenticated_link}
   </ul>
   <form action="/search" method="GET">
@@ -176,6 +178,102 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send(
                 "<html><body>redirect helper</body></html>",
                 headers=headers,
+            )
+            return
+
+        if path == "/sql-search":
+            value = query.get("q", [""])[0]
+            if "'" in value or '"' in value:
+                self._send(
+                    "SQL syntax error near quote",
+                    status=500,
+                    content_type="text/plain; charset=utf-8",
+                )
+            else:
+                self._send(
+                    "search ok",
+                    content_type="text/plain; charset=utf-8",
+                )
+            return
+
+        if path == "/template":
+            value = query.get("name", [""])[0]
+            if value == "{{1337*7}}":
+                value = "9359"
+            self._send(
+                f"Hello {value}",
+                content_type="text/html; charset=utf-8",
+            )
+            return
+
+        if path == "/download":
+            value = query.get("file", [""])[0]
+            normalized = value.replace("\\", "/").lower()
+            if normalized.endswith("etc/hosts"):
+                self._send(
+                    "127.0.0.1 localhost",
+                    content_type="text/plain; charset=utf-8",
+                )
+            elif normalized.endswith("windows/win.ini"):
+                self._send(
+                    "[fonts]\n[extensions]",
+                    content_type="text/plain; charset=utf-8",
+                )
+            else:
+                self._send(
+                    "not found",
+                    status=404,
+                    content_type="text/plain; charset=utf-8",
+                )
+            return
+
+        if path == "/fetch":
+            target_url = query.get("url", [""])[0]
+            parsed_target = urlparse(target_url)
+            if (
+                parsed_target.scheme == "http"
+                and parsed_target.hostname in {"127.0.0.1", "localhost"}
+            ):
+                try:
+                    with urllib.request.urlopen(
+                        target_url,
+                        timeout=2,
+                    ) as response:
+                        status = response.status
+                except Exception:
+                    status = 599
+                self._send(
+                    json.dumps({"fetched_status": status}),
+                    content_type="application/json",
+                )
+            else:
+                self._send(
+                    json.dumps(
+                        {"detail": "demo allows loopback URLs only"}
+                    ),
+                    status=400,
+                    content_type="application/json",
+                )
+            return
+
+        if path == "/header":
+            value = query.get("name", [""])[0]
+            headers = {}
+            if "X-Magic-Security-Probe: verified" in value:
+                headers["X-Magic-Security-Probe"] = "verified"
+            self._send(
+                "header demo",
+                headers=headers,
+            )
+            return
+
+        if path == "/absolute":
+            host = (
+                self.headers.get("X-Forwarded-Host")
+                or self.headers.get("Host", "localhost")
+            )
+            self._send(
+                f"<html><body>Continue at http://{host}/landing</body></html>"
             )
             return
 
@@ -309,7 +407,7 @@ RuntimeError: demo exception
                         "openapi": "3.1.0",
                         "info": {
                             "title": "Magic Demo API",
-                            "version": "0.8",
+                            "version": "0.9",
                         },
                         "paths": {
                             "/api/users": {
@@ -320,6 +418,59 @@ RuntimeError: demo exception
                                             "in": "query",
                                         }
                                     ]
+                                }
+                            },
+                            "/sql-search": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "q", "in": "query"}
+                                    ]
+                                }
+                            },
+                            "/template": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "name", "in": "query"}
+                                    ]
+                                }
+                            },
+                            "/download": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "file", "in": "query"}
+                                    ]
+                                }
+                            },
+                            "/fetch": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "url", "in": "query"}
+                                    ]
+                                }
+                            },
+                            "/header": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "name", "in": "query"}
+                                    ]
+                                }
+                            },
+                            "/api/login": {
+                                "post": {
+                                    "requestBody": {
+                                        "content": {
+                                            "application/json": {
+                                                "schema": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "email": {"type": "string"},
+                                                        "username": {"type": "string"},
+                                                        "password": {"type": "string"}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             },
                             "/api/orders": {
@@ -447,7 +598,7 @@ RuntimeError: demo exception
                         "swagger": "2.0",
                         "info": {
                             "title": "Magic Demo API",
-                            "version": "0.7",
+                            "version": "0.9",
                         },
                         "paths": {},
                     }
@@ -706,6 +857,49 @@ RuntimeError: demo exception
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+
+        if path == "/api/login":
+            length = int(
+                self.headers.get("Content-Length", "0") or "0"
+            )
+            raw = self.rfile.read(length)
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = {}
+
+            email = payload.get("email")
+            username = payload.get("username")
+            password = payload.get("password")
+
+            sql_bypass = any(
+                isinstance(value, str)
+                and " OR " in value.upper()
+                for value in (email, username)
+            )
+            nosql_bypass = any(
+                isinstance(value, dict)
+                and "$ne" in value
+                for value in (email, username, password)
+            )
+
+            if sql_bypass or nosql_bypass:
+                self._send(
+                    json.dumps(
+                        {"user": {"id": "demo-auth-bypass"}}
+                    ),
+                    content_type="application/json",
+                    cookie="demo_session=A; Path=/",
+                )
+            else:
+                self._send(
+                    json.dumps(
+                        {"detail": "invalid credentials"}
+                    ),
+                    status=401,
+                    content_type="application/json",
+                )
+            return
 
         if path == "/graphql":
             length = int(

@@ -23,6 +23,11 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
         if crawl.browser_security_coverage is not None
         else None
     )
+    server_coverage = (
+        asdict(crawl.server_security_coverage)
+        if crawl.server_security_coverage is not None
+        else None
+    )
 
     return {
         "target": crawl.target,
@@ -53,6 +58,9 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             ),
             "browser_security_observations": len(
                 crawl.browser_security_observations
+            ),
+            "server_security_observations": len(
+                crawl.server_security_observations
             ),
             "websocket_endpoints": len(crawl.websocket_endpoints),
             "protected_cors_observations": len(

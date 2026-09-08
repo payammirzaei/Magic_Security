@@ -261,6 +261,29 @@ class BrowserSecurityCoverage:
     websocket_endpoints: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class ServerProbeObservation:
+    category: str
+    url: str
+    parameter: str
+    status_code: int
+    verified: bool
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
+class ServerSecurityCoverage:
+    total_probes: int = 0
+    database_error_triggers: int = 0
+    ssti_verified: int = 0
+    crlf_verified: int = 0
+    path_traversal_verified: int = 0
+    ssrf_verified: int = 0
+    auth_sqli_verified: int = 0
+    auth_nosqli_verified: int = 0
+    host_header_influences: int = 0
+
+
 @dataclass(slots=True)
 class CrawlResult:
     target: str
@@ -293,6 +316,9 @@ class CrawlResult:
     browser_security_observations: list[BrowserSecurityObservation] = field(default_factory=list)
     browser_security_coverage: BrowserSecurityCoverage | None = None
     websocket_endpoints: set[str] = field(default_factory=set)
+
+    server_security_observations: list[ServerProbeObservation] = field(default_factory=list)
+    server_security_coverage: ServerSecurityCoverage | None = None
 
     parameters: set[str] = field(default_factory=set)
     source_maps: set[str] = field(default_factory=set)

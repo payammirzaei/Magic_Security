@@ -165,6 +165,83 @@ Every report now includes the original 42 security categories with an explicit s
 
 This is intentionally honest. Black-box scanning cannot reliably prove every business-logic, cloud/IAM, supply-chain, file-upload, race-condition, or SSRF issue without extra configuration or source/infrastructure context.
 
+## Server-Side Black-Box Verification Pack
+
+v0.9 adds backend vulnerabilities that can be proven from the outside without source or host access.
+
+### Database / authentication injection
+
+Existing parameter testing keeps database-error responses as an **Exposure signal**, not automatic SQLi proof.
+
+For discovered login/token POST endpoints, v0.9 also compares a synthetic invalid-login baseline against:
+
+- SQL-style credential probes
+- NoSQL operator-object probes
+
+A critical authentication-bypass finding is created only when the baseline fails but the probe returns an authenticated success signal such as a session cookie/token/user response.
+
+No real credentials are used.
+
+### Path traversal / LFI
+
+File/path-like GET parameters are tested with only known non-secret marker files:
+
+- Unix hosts-file markers
+- Windows win.ini markers
+
+A vulnerability is reported only when the marker set appears after traversal and is absent from the baseline. File content is not stored in the report.
+
+### SSRF callback verification
+
+URL-like GET parameters can be verified against a scanner-owned HTTP listener bound only to:
+
+```
+127.0.0.1
+```
+
+Each probe uses a unique callback token. SSRF is verified only when that token is received.
+
+Magic_Security does **not** probe:
+
+- cloud metadata endpoints
+- private network services
+- public callback infrastructure
+- arbitrary external hosts
+
+### Host-header influence
+
+HTML pages are compared with a controlled `Host` / `X-Forwarded-Host` marker.
+
+If the attacker-controlled hostname appears only in the poisoned response or redirect location, the scanner reports concrete Host-header influence. It does not claim password-reset poisoning unless such a workflow is later configured and verified.
+
+### POST login/token rate limiting
+
+Rate behavior now includes bounded synthetic requests to discovered login/token POST endpoints, in addition to safe GET endpoints.
+
+Only fake invalid credentials are sent, and the scanner stops early on HTTP 429.
+
+### Server coverage
+
+The report includes:
+
+```
+coverage.server_security
+server_security.observations
+```
+
+with counters for:
+
+- database error triggers
+- SSTI arithmetic verification
+- CRLF header injection
+- path traversal / LFI
+- loopback-callback SSRF
+- SQL-style auth bypass
+- NoSQL operator auth bypass
+- Host-header response influence
+
+Probe payloads, callback tokens, credentials, and file contents are not serialized.
+
 ## Existing external verification
 
 v0.8 keeps the existing v0.7 pack:
@@ -333,7 +410,7 @@ The current scanner remains intentionally constrained:
 - no arbitrary button clicking
 - no automatic form submission
 - authorization exploitation limited to GET
-- bounded rate-behavior requests
+- bounded rate-behavior requests, including synthetic login/token probes
 - reflected/DOM XSS proof uses DOM-only canaries
 - no secret values written into reports
 
@@ -345,7 +422,7 @@ Examples that need later verification packs or repo/cloud context:
 
 - complex business-logic abuse
 - race conditions / double-spend
-- deep SSRF confirmation
+- SSRF impact beyond the safe loopback callback (for example cloud metadata or internal-service access)
 - file-upload-to-code-execution chains
 - backend dependency vulnerabilities
 - cloud/IAM mistakes invisible from the app
@@ -383,6 +460,8 @@ magic_security/
 ├── coverage_registry.py
 ├── probes.py
 ├── reporting.py
+├── server_coverage.py
+├── server_security.py
 ├── session_security.py
 ├── surface.py
 └── checks/

@@ -41,6 +41,8 @@ from magic_security.protocol_security import analyze_protocol_security
 from magic_security.models import AuthContext, CrawlResult, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
+from magic_security.server_coverage import build_server_security_coverage
+from magic_security.server_security import run_server_security_pack
 from magic_security.session_security import analyze_session_cookies
 from magic_security.surface import normalize_endpoints
 
@@ -239,6 +241,26 @@ class ScannerEngine:
                 protocol_findings,
             ) = await analyze_protocol_security(crawl.target)
             findings.extend(protocol_findings)
+
+            (
+                crawl.server_security_observations,
+                server_findings,
+            ) = await run_server_security_pack(
+                crawl.normalized_endpoints,
+                [
+                    page.url
+                    for page in crawl.pages
+                    if "text/html" in page.content_type
+                ],
+            )
+            findings.extend(server_findings)
+
+            crawl.server_security_coverage = (
+                build_server_security_coverage(
+                    crawl.parameter_security_observations,
+                    crawl.server_security_observations,
+                )
+            )
 
             if browser:
                 page_urls = [

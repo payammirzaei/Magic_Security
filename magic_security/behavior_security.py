@@ -25,10 +25,25 @@ _RATE_HEADERS = (
     "x-ratelimit-reset",
     "retry-after",
 )
+_AUTH_PATH_MARKERS = (
+    "/login",
+    "/signin",
+    "/sign-in",
+    "/auth/login",
+    "/auth/token",
+    "/oauth/token",
+    "/token",
+)
 
 
-def _protected_urls(comparisons: list[AuthComparison]) -> set[str]:
-    return {item.url for item in comparisons if item.boundary == "protected"}
+def _protected_urls(
+    comparisons: list[AuthComparison],
+) -> set[str]:
+    return {
+        item.url
+        for item in comparisons
+        if item.boundary == "protected"
+    }
 
 
 async def verify_protected_cors(
@@ -41,7 +56,10 @@ async def verify_protected_cors(
     observations: list[CorsImpactObservation] = []
     findings: list[Finding] = []
 
-    protected = sorted(_protected_urls(comparisons))[:max_tests]
+    protected = sorted(
+        _protected_urls(comparisons)
+    )[:max_tests]
+
     if not protected:
         return observations, findings
 
@@ -50,24 +68,43 @@ async def verify_protected_cors(
             follow_redirects=False,
             timeout=timeout,
             headers={
-                "User-Agent": "Magic-Security/0.7 local-security-scanner",
-                "Accept": "application/json,text/html;q=0.8,*/*;q=0.5",
+                "User-Agent": (
+                    "Magic-Security/0.8 local-security-scanner"
+                ),
+                "Accept": (
+                    "application/json,text/html;q=0.8,*/*;q=0.5"
+                ),
                 **context.headers,
             },
             cookies=context.cookies,
         ) as client:
             for url in protected:
                 try:
-                    response = await client.get(url, headers={"Origin": _PROBE_ORIGIN})
+                    response = await client.get(
+                        url,
+                        headers={"Origin": _PROBE_ORIGIN},
+                    )
                 except httpx.HTTPError:
                     continue
 
-                allow_origin = response.headers.get("access-control-allow-origin", "").strip()
+                allow_origin = response.headers.get(
+                    "access-control-allow-origin",
+                    "",
+                ).strip()
                 allow_credentials = (
-                    response.headers.get("access-control-allow-credentials", "").strip().lower() == "true"
+                    response.headers.get(
+                        "access-control-allow-credentials",
+                        "",
+                    ).strip().lower()
+                    == "true"
                 )
+
                 reflected = allow_origin == _PROBE_ORIGIN
-                readable_policy = reflected and allow_credentials and response.status_code == 200
+                readable_policy = (
+                    reflected
+                    and allow_credentials
+                    and response.status_code == 200
+                )
 
                 observations.append(
                     CorsImpactObservation(
@@ -85,21 +122,27 @@ async def verify_protected_cors(
 
                 findings.append(
                     Finding(
-                        title="Credentialed CORS policy exposes a protected endpoint",
+                        title=(
+                            "Credentialed CORS policy exposes a "
+                            "protected endpoint"
+                        ),
                         severity=Severity.HIGH,
                         kind=FindingKind.EXPOSURE,
                         url=url,
                         description=(
-                            "A protected authenticated endpoint reflected an untrusted Origin and enabled credentials."
+                            "A protected authenticated endpoint reflected "
+                            "an untrusted Origin and enabled credentials."
                         ),
                         evidence=(
-                            f"Context {context.name!r} received HTTP 200 while Origin {_PROBE_ORIGIN!r} "
-                            "was reflected and Access-Control-Allow-Credentials was true. "
+                            f"Context {context.name!r} received HTTP 200 "
+                            f"while Origin {_PROBE_ORIGIN!r} was reflected "
+                            "and Access-Control-Allow-Credentials was true. "
                             "Response body and credential values were not stored."
                         ),
                         remediation=(
-                            "Use an explicit trusted-origin allowlist and never reflect arbitrary origins on "
-                            "credentialed protected endpoints."
+                            "Use an explicit trusted-origin allowlist and "
+                            "never reflect arbitrary origins on credentialed "
+                            "protected endpoints."
                         ),
                         confidence=1.0,
                         cwe="CWE-942",
@@ -120,8 +163,10 @@ async def analyze_authenticated_cache(
     findings: list[Finding] = []
 
     interesting = [
-        item for item in comparisons
-        if item.boundary == "protected" and item.authenticated_responses_differ
+        item
+        for item in comparisons
+        if item.boundary == "protected"
+        and item.authenticated_responses_differ
     ][:max_tests]
 
     for comparison in interesting:
@@ -130,17 +175,25 @@ async def analyze_authenticated_cache(
                 follow_redirects=False,
                 timeout=timeout,
                 headers={
-                    "User-Agent": "Magic-Security/0.7 local-security-scanner",
+                    "User-Agent": (
+                        "Magic-Security/0.8 local-security-scanner"
+                    ),
                     **context.headers,
                 },
                 cookies=context.cookies,
             ) as client:
                 try:
-                    response = await client.get(comparison.url)
+                    response = await client.get(
+                        comparison.url
+                    )
                 except httpx.HTTPError:
                     continue
 
-            cache_control = response.headers.get("cache-control", "").lower()
+            cache_control = response.headers.get(
+                "cache-control",
+                "",
+            ).lower()
+
             risky = (
                 response.status_code == 200
                 and (
@@ -161,20 +214,26 @@ async def analyze_authenticated_cache(
             if risky:
                 findings.append(
                     Finding(
-                        title="User-specific authenticated response is marked for shared caching",
+                        title=(
+                            "User-specific authenticated response is "
+                            "marked for shared caching"
+                        ),
                         severity=Severity.HIGH,
                         kind=FindingKind.EXPOSURE,
                         url=comparison.url,
                         description=(
-                            "A protected response that differs between users is explicitly cacheable by shared caches."
+                            "A protected response that differs between users "
+                            "is explicitly cacheable by shared caches."
                         ),
                         evidence=(
-                            f"Context {context.name!r} received HTTP 200 with Cache-Control={cache_control!r}. "
+                            f"Context {context.name!r} received HTTP 200 "
+                            f"with Cache-Control={cache_control!r}. "
                             "The authenticated response body was not stored."
                         ),
                         remediation=(
-                            "Use Cache-Control: private or no-store for user-specific authenticated responses "
-                            "and review CDN/proxy cache rules."
+                            "Use Cache-Control: private or no-store for "
+                            "user-specific authenticated responses and review "
+                            "CDN/proxy cache rules."
                         ),
                         confidence=1.0,
                         cwe="CWE-525",
@@ -182,6 +241,33 @@ async def analyze_authenticated_cache(
                 )
 
     return observations, findings
+
+
+def _rate_candidates(
+    endpoints: list[NormalizedEndpoint],
+) -> list[NormalizedEndpoint]:
+    auth_post: list[NormalizedEndpoint] = []
+    safe_get: list[NormalizedEndpoint] = []
+
+    for endpoint in endpoints:
+        if "{" in endpoint.url or "}" in endpoint.url:
+            continue
+
+        method = endpoint.method.upper()
+        lower_url = endpoint.url.lower()
+
+        if (
+            method == "POST"
+            and any(
+                marker in lower_url
+                for marker in _AUTH_PATH_MARKERS
+            )
+        ):
+            auth_post.append(endpoint)
+        elif method == "GET":
+            safe_get.append(endpoint)
+
+    return auth_post + safe_get
 
 
 async def classify_rate_limits(
@@ -192,29 +278,54 @@ async def classify_rate_limits(
     requests_per_endpoint: int = 6,
 ) -> list[RateLimitObservation]:
     observations: list[RateLimitObservation] = []
+    candidates = _rate_candidates(
+        endpoints
+    )[:max_endpoints]
 
-    candidates = [
-        endpoint for endpoint in endpoints
-        if endpoint.method.upper() == "GET"
-        and "{" not in endpoint.url
-        and "}" not in endpoint.url
-    ][:max_endpoints]
-
-    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
+    async with httpx.AsyncClient(
+        follow_redirects=False,
+        timeout=timeout,
+    ) as client:
         for endpoint in candidates:
             statuses: list[int] = []
             observed_headers: set[str] = set()
 
             for _ in range(requests_per_endpoint):
                 try:
-                    response = await client.get(
-                        endpoint.url,
-                        headers={"User-Agent": "Magic-Security/0.7 local-security-scanner"},
-                    )
+                    if endpoint.method.upper() == "POST":
+                        response = await client.post(
+                            endpoint.url,
+                            headers={
+                                "User-Agent": (
+                                    "Magic-Security/0.8 "
+                                    "local-security-scanner"
+                                )
+                            },
+                            json={
+                                "email": (
+                                    "magic-security-invalid@"
+                                    "example.invalid"
+                                ),
+                                "password": (
+                                    "invalid-magic-security-password"
+                                ),
+                            },
+                        )
+                    else:
+                        response = await client.get(
+                            endpoint.url,
+                            headers={
+                                "User-Agent": (
+                                    "Magic-Security/0.8 "
+                                    "local-security-scanner"
+                                )
+                            },
+                        )
                 except httpx.HTTPError:
                     break
 
                 statuses.append(response.status_code)
+
                 for header in _RATE_HEADERS:
                     if header in response.headers:
                         observed_headers.add(header)
@@ -225,11 +336,13 @@ async def classify_rate_limits(
             observations.append(
                 RateLimitObservation(
                     url=endpoint.url,
-                    method=endpoint.method,
+                    method=endpoint.method.upper(),
                     requests_sent=len(statuses),
                     statuses=tuple(statuses),
                     throttled=429 in statuses,
-                    rate_limit_headers=tuple(sorted(observed_headers)),
+                    rate_limit_headers=tuple(
+                        sorted(observed_headers)
+                    ),
                 )
             )
 

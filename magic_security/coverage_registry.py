@@ -7,13 +7,13 @@ _CATEGORIES = (
     ("Authentication", "auth"),
     ("Authorization / Access Control", "auth"),
     ("Session Security", "auth"),
-    ("SQL / Database", "external"),
+    ("SQL / Database", "server"),
     ("Injection", "external"),
     ("XSS", "browser"),
     ("CSRF", "auth"),
-    ("SSRF", "config"),
+    ("SSRF", "server"),
     ("File Upload", "config"),
-    ("Path / File Handling", "partial"),
+    ("Path / File Handling", "server"),
     ("API Security", "external"),
     ("REST / HTTP", "external"),
     ("GraphQL", "external"),
@@ -65,6 +65,8 @@ def build_coverage_registry(
             status = "Fully Tested" if active else "Passive Only"
         elif family == "browser":
             status = "Fully Tested" if browser else "Partial"
+        elif family == "server":
+            status = "Partially Tested" if active else "Passive Only"
         elif family == "passive":
             status = "Fully Tested"
         elif family == "partial":
@@ -77,8 +79,9 @@ def build_coverage_registry(
         note = ""
         if name == "SQL / Database":
             note = (
-                "Error-trigger behavior is tested; exploitability still requires "
-                "manual or configured deeper verification."
+                "Database-error behavior plus SQL/NoSQL login-bypass proofs are "
+                "tested when relevant endpoints are discovered; this is not "
+                "exhaustive SQLi coverage."
             )
         elif name == "CSRF":
             note = (
@@ -87,8 +90,14 @@ def build_coverage_registry(
             )
         elif name == "SSRF":
             note = (
-                "Not automatically exploited to avoid unintended access to internal "
-                "services. Requires an explicit safe callback/configuration."
+                "Discovered URL-like GET parameters are tested only against a "
+                "scanner-owned 127.0.0.1 callback. External/internal services are "
+                "not probed."
+            )
+        elif name == "Path / File Handling":
+            note = (
+                "Traversal candidates are tested with non-secret operating-system "
+                "marker files only."
             )
         elif name in {"File Upload", "Business Logic", "Race Conditions"}:
             note = "Needs workflow-specific test configuration."
