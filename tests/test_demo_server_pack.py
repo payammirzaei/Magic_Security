@@ -1,17 +1,38 @@
 from __future__ import annotations
 
+import importlib.util
 import threading
+from http.server import ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
 
-from examples.vulnerable_app import DemoHandler
-from http.server import ThreadingHTTPServer
 from magic_security.models import NormalizedEndpoint
 from magic_security.server_security import run_server_security_pack
 
 
+def _load_demo_handler():
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "examples"
+        / "vulnerable_app.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "magic_security_vulnerable_demo",
+        path,
+    )
+    assert spec is not None
+    assert spec.loader is not None
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.DemoHandler
+
+
 @pytest.mark.asyncio
 async def test_vulnerable_demo_server_pack_end_to_end():
+    DemoHandler = _load_demo_handler()
+
     server = ThreadingHTTPServer(
         ("127.0.0.1", 0),
         DemoHandler,
