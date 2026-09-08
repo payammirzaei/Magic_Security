@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from magic_security.active import run_safe_active_checks
 from magic_security.browser import BrowserCrawler
 from magic_security.checks import DEFAULT_CHECKS
+from magic_security.classifier import classify_endpoints
 from magic_security.crawler import HttpCrawler
 from magic_security.fingerprints import (
     deduplicate_findings,
@@ -96,6 +97,11 @@ class ScannerEngine:
         findings.extend(await probe_source_maps(crawl.source_maps))
 
         if active:
+            observations, classification_findings = await classify_endpoints(
+                crawl.normalized_endpoints
+            )
+            crawl.endpoint_observations = observations
+            findings.extend(classification_findings)
             findings.extend(
                 await run_safe_active_checks(
                     page_urls=(page.url for page in crawl.pages),

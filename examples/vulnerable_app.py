@@ -202,6 +202,9 @@ RuntimeError: demo exception
                                         {"name": "next", "in": "query"}
                                     ]
                                 }
+                            },
+                            "/api/private": {
+                                "get": {}
                             }
                         },
                     }
@@ -223,7 +226,33 @@ RuntimeError: demo exception
             )
             return
 
-        if path in {"/search", "/products", "/api/users", "/graphql"}:
+        if path == "/api/users":
+            self._send(
+                json.dumps(
+                    {
+                        "users": [
+                            {
+                                "id": 1,
+                                "name": "Demo User",
+                                "email": "demo.user@example.test",
+                                "phone": "+490000000000"
+                            }
+                        ]
+                    }
+                ),
+                content_type="application/json",
+            )
+            return
+
+        if path == "/api/private":
+            self._send(
+                json.dumps({"detail": "authentication required"}),
+                status=401,
+                content_type="application/json",
+            )
+            return
+
+        if path in {"/search", "/products", "/graphql"}:
             self._send("<html><body>demo response</body></html>")
             return
 

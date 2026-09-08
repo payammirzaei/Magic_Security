@@ -22,6 +22,7 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             ),
             "raw_endpoints": len(crawl.endpoints),
             "normalized_endpoints": len(crawl.normalized_endpoints),
+            "classified_endpoints": len(crawl.endpoint_observations),
             "parameters": len(crawl.parameters),
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
@@ -45,6 +46,18 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 "sources": list(endpoint.sources),
             }
             for endpoint in crawl.normalized_endpoints
+        ],
+        "endpoint_observations": [
+            {
+                "url": item.url,
+                "method": item.method,
+                "status_code": item.status_code,
+                "classification": item.classification,
+                "content_type": item.content_type,
+                "sensitive_fields": list(item.sensitive_fields),
+                "secret_fields": list(item.secret_fields),
+            }
+            for item in crawl.endpoint_observations
         ],
         "raw_endpoints": [
             {

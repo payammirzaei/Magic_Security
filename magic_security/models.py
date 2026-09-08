@@ -44,6 +44,17 @@ class NormalizedEndpoint:
     sources: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class EndpointObservation:
+    url: str
+    method: str
+    status_code: int
+    classification: str
+    content_type: str
+    sensitive_fields: tuple[str, ...] = ()
+    secret_fields: tuple[str, ...] = ()
+
+
 @dataclass(slots=True)
 class CrawlResult:
     target: str
@@ -53,6 +64,7 @@ class CrawlResult:
     forms: list[dict[str, str]] = field(default_factory=list)
     endpoints: set[EndpointCandidate] = field(default_factory=set)
     normalized_endpoints: list[NormalizedEndpoint] = field(default_factory=list)
+    endpoint_observations: list[EndpointObservation] = field(default_factory=list)
     parameters: set[str] = field(default_factory=set)
     source_maps: set[str] = field(default_factory=set)
     browser_pages: set[str] = field(default_factory=set)

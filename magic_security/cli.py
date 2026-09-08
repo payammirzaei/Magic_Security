@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import Counter
 
 from magic_security.browser import BrowserUnavailableError
 from magic_security.engine import ScannerEngine
@@ -29,7 +30,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--active",
         action="store_true",
-        help="Run the small non-destructive active verification set (localhost only)",
+        help="Run endpoint classification and non-destructive verification checks",
     )
     parser.add_argument(
         "--json",
@@ -80,6 +81,15 @@ async def _run(
     if browser:
         print(f"Browser pages:         {len(crawl.browser_pages)}")
         print(f"Browser API reqs:      {crawl.browser_network_requests}")
+
+    if active and crawl.endpoint_observations:
+        counts = Counter(
+            item.classification for item in crawl.endpoint_observations
+        )
+        summary = ", ".join(
+            f"{key}={value}" for key, value in sorted(counts.items())
+        )
+        print(f"Endpoint classes:      {summary}")
 
     if crawl.normalized_endpoints:
         print("\nNormalized Endpoints")

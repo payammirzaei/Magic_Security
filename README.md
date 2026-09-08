@@ -2,44 +2,37 @@
 
 A local-first web security scanner focused on **evidence, not checklist noise**.
 
-## MVP pipeline
+## Current pipeline
 
 ```
 URL
  -> HTTP Crawl
  -> Browser Runtime Discovery (optional)
- -> Attack Surface Map
- -> Normalize Surface
+ -> OpenAPI / JS Discovery
+ -> Normalize Attack Surface
+ -> Endpoint Response Classification
  -> Security Checks
- -> Verification
+ -> Safe-Active Verification
  -> Fingerprint + Deduplicate
- -> Evidence
+ -> Evidence Report
 ```
 
 The current milestone intentionally has no SaaS layer: no auth, billing, database, queue, or frontend.
 
-## Current capabilities
+## Attack-surface discovery
 
-### Attack-surface discovery
+Magic_Security currently combines:
 
-- Same-origin HTTP crawl
-- Pages, links, forms, parameters, and JavaScript assets
-- API extraction from frontend JavaScript
+- same-origin HTTP crawling
+- HTML links/forms/parameters
+- frontend JavaScript API extraction
 - OpenAPI / Swagger ingestion
 - JavaScript source-map discovery
-- Optional Playwright runtime discovery for SPAs
+- optional Playwright runtime discovery for SPAs
 
-### Attack-surface normalization
+Multiple discoveries of the same route are normalized into one endpoint while raw provenance is preserved.
 
-The same endpoint can be discovered several ways:
-
-```
-javascript:fetch   GET /api/users?limit=20
-browser:network    GET /api/users?limit=50
-openapi            GET /api/users
-```
-
-Magic_Security now reports one normalized endpoint:
+Example:
 
 ```
 GET /api/users
@@ -47,25 +40,87 @@ parameters: include, limit
 sources: browser:network, javascript:fetch, openapi
 ```
 
-Raw discoveries are still kept in the JSON report for traceability.
+## Endpoint response classification
 
-Normalization is intentionally conservative:
+When `--active` is enabled, GET endpoints without unresolved path templates are requested **without authentication or session cookies** and classified as:
 
-- query values are removed
-- parameter names are merged
-- discovery sources are merged
-- HTTP methods remain separate
-- path segments are not guessed or rewritten yet
+- `auth_required` — HTTP 401/403
+- `json`
+- `html`
+- `redirect`
+- `not_found`
+- `client_error`
+- `server_error`
+- `empty`
+- `other`
 
-### Response fingerprinting
+This gives later authorization checks a real map of the API surface instead of blindly attacking every route.
 
-Every HTTP page response gets a stable fingerprint based on status, normalized content type, and normalized response body. Obvious volatile UUIDs and long numeric IDs are normalized first.
+### Verified unauthenticated data exposure
 
-Response fingerprints are for grouping/analysis only; they do not create vulnerability findings by themselves.
+For HTTP 200 JSON responses, the scanner inspects **field names only**.
 
-### Finding deduplication
+Examples of security-relevant fields include:
 
-Repeated root issues are merged before reporting while preserving:
+- email / phone / address
+- DOB
+- IBAN / bank-account fields
+- password / secret / API-key / token-like fields
+
+If such fields are returned without auth, Magic_Security emits a verified **Exposure**.
+
+Response values are never stored in the finding evidence.
+
+Example:
+
+```
+MEDIUM
+Unauthenticated JSON exposes sensitive-looking fields
+Verified: YES
+
+Endpoint:
+GET /api/users
+
+Evidence:
+users.email
+users.phone
+
+Values stored:
+NO
+```
+
+Secret-like fields receive higher severity than ordinary personal-data-looking fields.
+
+This is intentionally not promoted to a stronger exploit claim until authenticated/contextual testing proves the actual authorization impact.
+
+## Existing security checks
+
+### Passive
+
+- Security headers
+- Cookie flags
+- Directory listing
+- Swagger/OpenAPI exposure
+- Debug/stack traces
+- exposed `.env`
+- exposed `.git/HEAD`
+- source maps
+- secret redaction
+
+### Safe-active
+
+- CORS arbitrary-origin reflection
+- Open Redirect
+- endpoint response classification
+- unauthenticated sensitive-looking JSON exposure
+
+The core rule remains:
+
+**Discover -> Normalize -> Detect -> Verify -> Deduplicate -> Report.**
+
+## Response fingerprinting and deduplication
+
+Repeated root issues are merged while preserving:
 
 - representative evidence
 - all affected URLs
@@ -73,27 +128,7 @@ Repeated root issues are merged before reporting while preserving:
 - stable finding fingerprint
 - highest observed severity/confidence
 
-### Passive security checks
-
-- Security-header hardening checks
-- Cookie flag checks
-- Directory-listing exposure
-- Swagger/OpenAPI exposure
-- Debug/stack-trace exposure heuristics
-- Local probes for exposed `.env`, `.git/HEAD`, OpenAPI specs
-- Verified public source-map exposure
-- Secret values are redacted from findings
-
-### Safe-active verification
-
-Run with `--active`.
-
-- CORS arbitrary-origin reflection
-- Open Redirect
-
-The core rule is:
-
-**Discover -> Normalize -> Detect -> Verify -> Deduplicate -> Report.**
+HTTP responses are also fingerprinted for grouping. Response similarity alone never creates a vulnerability.
 
 ## Install
 
@@ -101,7 +136,7 @@ Base scanner:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
@@ -112,20 +147,53 @@ pip install -e ".[dev,browser]"
 playwright install chromium
 ```
 
-## Run
+## Full local scan
 
 ```bash
 magic-security http://localhost:3000 --browser --active --json reports/scan.json
 ```
 
+## Vulnerable demo
+
+Terminal 1:
+
+```bash
+python examples/vulnerable_app.py
+```
+
+Terminal 2:
+
+```bash
+magic-security http://127.0.0.1:8000 --active --json reports/demo.json
+```
+
+The demo uses fake data only. It contains:
+
+- exposed fake `.env`
+- fake Git metadata
+- public source map
+- directory listing
+- OpenAPI docs
+- open redirect
+- unsafe CORS
+- unauthenticated fake personal-data JSON
+- a separate API endpoint returning HTTP 401
+
 ## JSON report
 
-The report contains both:
+The report contains:
 
-- `normalized_endpoints` for the useful attack-surface view
-- `raw_endpoints` for discovery provenance/evidence
-
-It also contains response groups, finding fingerprints, affected URLs, occurrence counts, severity, confidence, and verified status.
+- normalized endpoints
+- raw endpoint discovery provenance
+- endpoint response classifications
+- sensitive/secret field names only
+- response fingerprint groups
+- finding fingerprints
+- affected URLs
+- occurrence counts
+- severity
+- confidence
+- verified status
 
 ## Safety default
 
@@ -147,6 +215,7 @@ Tests also run automatically through GitHub Actions.
 magic_security/
 ├── active.py
 ├── browser.py
+├── classifier.py
 ├── crawler.py
 ├── discovery.py
 ├── engine.py
@@ -161,7 +230,12 @@ magic_security/
 
 ## Next milestone
 
-- richer JavaScript route extraction
-- browser-discovered source maps
-- endpoint response classification
-- authenticated/test-account mode later
+The next major jump in real security coverage is an **authenticated test-account mode**:
+
+- Session A / Session B
+- auth-boundary mapping
+- object-ID candidate discovery
+- cross-account access comparison
+- IDOR / BOLA verification
+
+That is where Magic_Security starts proving broken authorization instead of only mapping unauthenticated behavior.
