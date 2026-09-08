@@ -125,7 +125,7 @@ class BrowserCrawler:
         except ImportError as exc:
             raise BrowserUnavailableError(
                 "Browser mode needs Playwright. Install with "
-                "'pip install -e ".[browser]"' and then run "
+                "pip install -e '.[browser]' and then run "
                 "'playwright install chromium'."
             ) from exc
 
