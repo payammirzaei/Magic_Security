@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +19,9 @@ def load_auth_contexts(path: str | Path) -> list[AuthContext]:
     try:
         data = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise AuthConfigError(f"Could not read auth context file: {source}") from exc
+        raise AuthConfigError(
+            f"Could not read auth context file: {source}"
+        ) from exc
 
     raw_contexts = data.get("contexts") if isinstance(data, dict) else None
     if not isinstance(raw_contexts, list) or len(raw_contexts) < 2:
@@ -37,18 +38,31 @@ def load_auth_contexts(path: str | Path) -> list[AuthContext]:
 
         name = str(item.get("name") or "").strip()
         if not name:
-            raise AuthConfigError("Each auth context needs a non-empty name.")
+            raise AuthConfigError(
+                "Each auth context needs a non-empty name."
+            )
         if name.lower() == "anonymous":
-            raise AuthConfigError("'anonymous' is reserved by the scanner.")
+            raise AuthConfigError(
+                "'anonymous' is reserved by the scanner."
+            )
         if name in seen_names:
-            raise AuthConfigError(f"Duplicate auth context name: {name}")
+            raise AuthConfigError(
+                f"Duplicate auth context name: {name}"
+            )
         seen_names.add(name)
 
         headers = item.get("headers") or {}
         cookies = item.get("cookies") or {}
+        role = item.get("role")
 
         if not isinstance(headers, dict) or not isinstance(cookies, dict):
-            raise AuthConfigError("headers and cookies must be JSON objects.")
+            raise AuthConfigError(
+                "headers and cookies must be JSON objects."
+            )
+        if role is not None and not isinstance(role, str):
+            raise AuthConfigError(
+                "role must be a string when provided."
+            )
 
         contexts.append(
             AuthContext(
@@ -61,6 +75,11 @@ def load_auth_contexts(path: str | Path) -> list[AuthContext]:
                     str(key): str(value)
                     for key, value in cookies.items()
                 },
+                role=(
+                    role.strip()
+                    if isinstance(role, str) and role.strip()
+                    else None
+                ),
             )
         )
 
@@ -69,7 +88,9 @@ def load_auth_contexts(path: str | Path) -> list[AuthContext]:
 
 def _body_fingerprint(response: httpx.Response) -> str:
     body = response.content[:500_000]
-    content_type = response.headers.get("content-type", "").split(";", 1)[0]
+    content_type = (
+        response.headers.get("content-type", "").split(";", 1)[0]
+    )
     payload = (
         f"{response.status_code}\n{content_type.lower()}\n".encode("utf-8")
         + body
@@ -120,8 +141,12 @@ async def map_auth_boundaries(
                 follow_redirects=False,
                 timeout=timeout,
                 headers={
-                    "User-Agent": "Magic-Security/0.6 local-security-scanner",
-                    "Accept": "application/json,text/html;q=0.8,*/*;q=0.5",
+                    "User-Agent": (
+                        "Magic-Security/0.8 local-security-scanner"
+                    ),
+                    "Accept": (
+                        "application/json,text/html;q=0.8,*/*;q=0.5"
+                    ),
                     **(headers or {}),
                 },
                 cookies=cookies or {},
@@ -135,12 +160,10 @@ async def map_auth_boundaries(
                 "status_code": response.status_code,
                 "access": _response_class(response.status_code),
                 "fingerprint": _body_fingerprint(response),
-                "content_type": response.headers.get(
-                    "content-type", ""
-                ).split(";", 1)[0].lower(),
             }
 
         await execute("anonymous")
+
         for context in contexts:
             await execute(
                 context.name,
@@ -159,6 +182,7 @@ async def map_auth_boundaries(
         }
 
         boundary = "unknown"
+
         if anonymous and anonymous["access"] == "denied":
             if any(
                 result["access"] == "allowed"
@@ -167,6 +191,7 @@ async def map_auth_boundaries(
                 boundary = "protected"
             else:
                 boundary = "denied_for_all"
+
         elif anonymous and anonymous["access"] == "allowed":
             if all(
                 result["access"] == "allowed"
@@ -175,6 +200,7 @@ async def map_auth_boundaries(
                 boundary = "public_or_unprotected"
             else:
                 boundary = "inconsistent"
+
         elif authenticated:
             boundary = "inconsistent"
 
@@ -201,7 +227,9 @@ async def map_auth_boundaries(
                         for name, result in authenticated.items()
                     )
                 ),
-                authenticated_responses_differ=len(auth_fingerprints) > 1,
+                authenticated_responses_differ=(
+                    len(auth_fingerprints) > 1
+                ),
             )
         )
 

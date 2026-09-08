@@ -1,21 +1,39 @@
 """Intentionally vulnerable local demo target for Magic_Security.
 
-Run only on localhost. All secrets are fake test values.
+Run only on localhost. All secrets and identities are fake test values.
 """
 
 from __future__ import annotations
 
 import json
 import sys
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 
 class DemoHandler(BaseHTTPRequestHandler):
-    server_version = "MagicDemo/0.3"
+    server_version = "MagicDemo/0.6"
 
     def log_message(self, format: str, *args) -> None:
         print(f"[demo] {self.address_string()} - {format % args}")
+
+    def _demo_user(self) -> str | None:
+        header_user = self.headers.get("X-Demo-User")
+        if header_user in {"A", "B", "ADMIN"}:
+            return header_user
+
+        cookie_header = self.headers.get("Cookie", "")
+        cookie = SimpleCookie()
+        try:
+            cookie.load(cookie_header)
+        except Exception:
+            return None
+
+        morsel = cookie.get("demo_session")
+        if morsel and morsel.value in {"A", "B", "ADMIN"}:
+            return morsel.value
+        return None
 
     def _send(
         self,
@@ -37,17 +55,35 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def _require_user(self) -> str | None:
+        user = self._demo_user()
+        if user is None:
+            self._send(
+                json.dumps({"detail": "authentication required"}),
+                status=401,
+                content_type="application/json",
+            )
+        return user
+
+    def _account_id_for_user(self, user: str) -> int:
+        return {"A": 101, "B": 202, "ADMIN": 303}[user]
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
+        user = self._demo_user()
 
         if path == "/":
-            user = self.headers.get("X-Demo-User")
             authenticated_link = (
                 '<li><a href="/dashboard">Dashboard</a></li>'
-                if user in {"A", "B"}
+                if user
                 else ""
+            )
+            auth_cookie = (
+                f"demo_session={user}; Path=/"
+                if user
+                else "session=fake-local-session; Path=/"
             )
             self._send(
                 f"""<!doctype html>
@@ -71,7 +107,7 @@ class DemoHandler(BaseHTTPRequestHandler):
   <script src="/static/app.js"></script>
 </body>
 </html>""",
-                cookie="session=fake-local-session; Path=/",
+                cookie=auth_cookie,
             )
             return
 
@@ -179,7 +215,7 @@ RuntimeError: demo exception
                 json.dumps(
                     {
                         "openapi": "3.1.0",
-                        "info": {"title": "Magic Demo API", "version": "0.3"},
+                        "info": {"title": "Magic Demo API", "version": "0.6"},
                         "paths": {
                             "/api/users": {
                                 "get": {
@@ -204,6 +240,24 @@ RuntimeError: demo exception
                                     }
                                 }
                             },
+                            "/api/profile": {
+                                "post": {
+                                    "requestBody": {
+                                        "content": {
+                                            "application/json": {
+                                                "schema": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "display_name": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                             "/go": {
                                 "get": {
                                     "parameters": [
@@ -211,19 +265,21 @@ RuntimeError: demo exception
                                     ]
                                 }
                             },
-                            "/api/private": {
-                                "get": {}
-                            },
-                            "/api/me": {
-                                "get": {}
-                            },
-                            "/api/public": {
-                                "get": {}
-                            },
+                            "/api/private": {"get": {}},
+                            "/api/me": {"get": {}},
+                            "/api/public": {"get": {}},
+                            "/api/user-settings": {"get": {}},
                             "/api/accounts/{account_id}": {
                                 "get": {
                                     "parameters": [
                                         {"name": "account_id", "in": "path"}
+                                    ]
+                                }
+                            },
+                            "/api/account-detail": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "account_id", "in": "query"}
                                     ]
                                 }
                             }
@@ -239,7 +295,7 @@ RuntimeError: demo exception
                 json.dumps(
                     {
                         "swagger": "2.0",
-                        "info": {"title": "Magic Demo API", "version": "0.3"},
+                        "info": {"title": "Magic Demo API", "version": "0.6"},
                         "paths": {},
                     }
                 ),
@@ -256,7 +312,7 @@ RuntimeError: demo exception
                                 "id": 1,
                                 "name": "Demo User",
                                 "email": "demo.user@example.test",
-                                "phone": "+490000000000"
+                                "phone": "+490000000000",
                             }
                         ]
                     }
@@ -274,26 +330,27 @@ RuntimeError: demo exception
             return
 
         if path == "/api/me":
-            user = self.headers.get("X-Demo-User")
-            if user not in {"A", "B"}:
+            if not user:
                 self._send(
                     json.dumps({"detail": "authentication required"}),
                     status=401,
                     content_type="application/json",
                 )
                 return
-            account_id = 101 if user == "A" else 202
+
+            account_id = self._account_id_for_user(user)
             self._send(
                 json.dumps(
                     {
                         "user": {
                             "id": user,
                             "display_name": f"Demo User {user}",
-                            "account_id": account_id
+                            "account_id": account_id,
                         }
                     }
                 ),
                 content_type="application/json",
+                cookie=f"demo_session={user}; Path=/",
             )
             return
 
@@ -305,8 +362,7 @@ RuntimeError: demo exception
             return
 
         if path == "/dashboard":
-            user = self.headers.get("X-Demo-User")
-            if user not in {"A", "B"}:
+            if not user:
                 self._send(
                     "<html><body>authentication required</body></html>",
                     status=401,
@@ -319,17 +375,20 @@ RuntimeError: demo exception
 <body>
   <h1>Dashboard {user}</h1>
   <a href="/settings?tab=profile">Settings</a>
+  <form action="/api/profile" method="POST">
+    <input name="display_name">
+  </form>
   <script>
     fetch('/api/user-settings');
   </script>
 </body>
-</html>"""
+</html>""",
+                cookie=f"demo_session={user}; Path=/",
             )
             return
 
         if path == "/api/user-settings":
-            user = self.headers.get("X-Demo-User")
-            if user not in {"A", "B"}:
+            if not user:
                 self._send(
                     json.dumps({"detail": "authentication required"}),
                     status=401,
@@ -349,8 +408,7 @@ RuntimeError: demo exception
             return
 
         if path.startswith("/api/accounts/"):
-            user = self.headers.get("X-Demo-User")
-            if user not in {"A", "B"}:
+            if not user:
                 self._send(
                     json.dumps({"detail": "authentication required"}),
                     status=401,
@@ -368,7 +426,7 @@ RuntimeError: demo exception
                 )
                 return
 
-            if account_id not in {101, 202}:
+            if account_id not in {101, 202, 303}:
                 self._send(
                     json.dumps({"detail": "not found"}),
                     status=404,
@@ -376,13 +434,48 @@ RuntimeError: demo exception
                 )
                 return
 
-            # Intentionally vulnerable: authenticated users can read either account.
+            # Intentionally vulnerable: no object ownership check.
             self._send(
                 json.dumps(
                     {
                         "account_id": account_id,
                         "email": f"demo-{account_id}@example.test",
                         "plan": "demo",
+                    }
+                ),
+                content_type="application/json",
+            )
+            return
+
+        if path == "/api/account-detail":
+            if not user:
+                self._send(
+                    json.dumps({"detail": "authentication required"}),
+                    status=401,
+                    content_type="application/json",
+                )
+                return
+
+            raw_account = query.get("account_id", [None])[0]
+            try:
+                account_id = int(raw_account) if raw_account else None
+            except ValueError:
+                account_id = None
+
+            if account_id not in {101, 202, 303}:
+                self._send(
+                    json.dumps({"detail": "not found"}),
+                    status=404,
+                    content_type="application/json",
+                )
+                return
+
+            # Intentionally vulnerable query-parameter BOLA.
+            self._send(
+                json.dumps(
+                    {
+                        "account_id": account_id,
+                        "status": "active",
                     }
                 ),
                 content_type="application/json",
@@ -400,9 +493,22 @@ RuntimeError: demo exception
         )
 
     def do_POST(self) -> None:
-        if self.path == "/api/orders":
+        path = urlparse(self.path).path
+
+        if path == "/api/orders":
             self._send('{"ok": true}', content_type="application/json")
             return
+
+        if path == "/api/profile":
+            user = self._require_user()
+            if not user:
+                return
+            self._send(
+                json.dumps({"ok": True, "user": user}),
+                content_type="application/json",
+            )
+            return
+
         self._send(
             "not found",
             status=404,
@@ -417,7 +523,7 @@ def main() -> None:
         f"Intentionally vulnerable demo running at "
         f"http://127.0.0.1:{port}"
     )
-    print("All credentials are fake. Stop with Ctrl+C.")
+    print("All credentials and data are fake. Stop with Ctrl+C.")
     server.serve_forever()
 
 

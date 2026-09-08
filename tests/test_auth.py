@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from magic_security.auth import load_auth_contexts, map_auth_boundaries
-from magic_security.models import NormalizedEndpoint
+from magic_security.models import AuthContext, NormalizedEndpoint
 
 
 def test_load_auth_contexts(tmp_path):
@@ -15,11 +15,13 @@ def test_load_auth_contexts(tmp_path):
                 "contexts": [
                     {
                         "name": "user_a",
+                        "role": "customer",
                         "headers": {"X-Test-User": "A"},
                     },
                     {
-                        "name": "user_b",
-                        "cookies": {"session": "fake-b"},
+                        "name": "admin",
+                        "role": "admin",
+                        "cookies": {"session": "fake-admin"},
                     },
                 ]
             }
@@ -28,9 +30,11 @@ def test_load_auth_contexts(tmp_path):
 
     contexts = load_auth_contexts(path)
 
-    assert [item.name for item in contexts] == ["user_a", "user_b"]
+    assert [item.name for item in contexts] == ["user_a", "admin"]
+    assert contexts[0].role == "customer"
+    assert contexts[1].role == "admin"
     assert contexts[0].headers["X-Test-User"] == "A"
-    assert contexts[1].cookies["session"] == "fake-b"
+    assert contexts[1].cookies["session"] == "fake-admin"
 
 
 @pytest.mark.asyncio
@@ -39,7 +43,11 @@ async def test_auth_boundary_detects_protected_endpoint(monkeypatch):
         request = httpx.Request("GET", url)
         marker = self.headers.get("X-Test-User")
         if not marker:
-            return httpx.Response(401, request=request, json={"detail": "login"})
+            return httpx.Response(
+                401,
+                request=request,
+                json={"detail": "login"},
+            )
         return httpx.Response(
             200,
             request=request,
@@ -47,8 +55,6 @@ async def test_auth_boundary_detects_protected_endpoint(monkeypatch):
         )
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
-
-    from magic_security.models import AuthContext
 
     comparisons = await map_auth_boundaries(
         [
@@ -58,8 +64,14 @@ async def test_auth_boundary_detects_protected_endpoint(monkeypatch):
             )
         ],
         [
-            AuthContext(name="user_a", headers={"X-Test-User": "A"}),
-            AuthContext(name="user_b", headers={"X-Test-User": "B"}),
+            AuthContext(
+                name="user_a",
+                headers={"X-Test-User": "A"},
+            ),
+            AuthContext(
+                name="user_b",
+                headers={"X-Test-User": "B"},
+            ),
         ],
     )
 
@@ -81,8 +93,6 @@ async def test_auth_boundary_marks_public_or_unprotected(monkeypatch):
         )
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
-
-    from magic_security.models import AuthContext
 
     comparisons = await map_auth_boundaries(
         [

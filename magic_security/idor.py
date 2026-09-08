@@ -287,7 +287,9 @@ async def verify_idor_read_access(
 
             findings.append(
                 Finding(
-                    title="Cross-account object access verified",
+                    title=(
+                        f"Cross-account object access verified ({location})"
+                    ),
                     severity=Severity.HIGH,
                     kind=FindingKind.VULNERABILITY,
                     url=endpoint.url,

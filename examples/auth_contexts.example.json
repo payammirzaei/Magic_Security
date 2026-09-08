@@ -2,17 +2,27 @@
   "contexts": [
     {
       "name": "user_a",
-      "headers": {
-        "X-Demo-User": "A"
-      },
-      "cookies": {}
+      "role": "customer",
+      "headers": {},
+      "cookies": {
+        "demo_session": "A"
+      }
     },
     {
       "name": "user_b",
-      "headers": {
-        "X-Demo-User": "B"
-      },
-      "cookies": {}
+      "role": "customer",
+      "headers": {},
+      "cookies": {
+        "demo_session": "B"
+      }
+    },
+    {
+      "name": "admin",
+      "role": "admin",
+      "headers": {},
+      "cookies": {
+        "demo_session": "ADMIN"
+      }
     }
   ]
 }

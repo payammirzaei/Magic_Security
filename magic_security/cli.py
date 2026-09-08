@@ -27,20 +27,19 @@ def _parser() -> argparse.ArgumentParser:
         "--browser",
         action="store_true",
         help=(
-            "Use Playwright for anonymous runtime discovery and, when auth contexts "
-            "are supplied, authenticated runtime discovery for each test context"
+            "Use Playwright for anonymous and authenticated runtime discovery"
         ),
     )
     parser.add_argument(
         "--active",
         action="store_true",
-        help="Run endpoint classification and non-destructive verification checks",
+        help="Run non-destructive active verification checks",
     )
     parser.add_argument(
         "--auth-contexts",
         help=(
-            "Local JSON file containing at least two test-user header/cookie contexts; "
-            "enables auth-boundary and read-only IDOR/BOLA verification"
+            "Local JSON file with two or more test-user header/cookie contexts; "
+            "enables the authorization/session security suite"
         ),
     )
     parser.add_argument(
@@ -83,9 +82,7 @@ async def _run(
     if active:
         modes.append("safe-active")
     if auth_contexts:
-        modes.append("authz-read-only")
-        if browser:
-            modes.append("authenticated-browser")
+        modes.append("auth-security-suite")
 
     print(f"\nTarget: {crawl.target}")
     print(f"Mode:   {' + '.join(modes)}")
@@ -99,7 +96,6 @@ async def _run(
     print(f"Normalized endpoints:  {len(crawl.normalized_endpoints)}")
     print(f"Parameters:            {len(crawl.parameters)}")
     print(f"Source maps:           {len(crawl.source_maps)}")
-    print(f"Response groups:       {len(crawl.response_groups)}")
 
     if browser:
         print(f"Browser pages:         {len(crawl.browser_pages)}")
@@ -126,29 +122,40 @@ async def _run(
         )
         print(f"Endpoint classes:      {summary}")
 
-    if auth_contexts and crawl.auth_comparisons:
-        counts = Counter(item.boundary for item in crawl.auth_comparisons)
-        summary = ", ".join(
-            f"{key}={value}" for key, value in sorted(counts.items())
-        )
-        print(f"Auth boundaries:       {summary}")
-
-        differing = sum(
-            1
-            for item in crawl.auth_comparisons
-            if item.authenticated_responses_differ
-        )
-        print(f"User-specific replies: {differing}")
-
-    if auth_contexts:
-        verified_idor = sum(
-            1
-            for item in crawl.idor_observations
-            if item.cross_account_verified
+    coverage = crawl.auth_security_coverage
+    if coverage is not None:
+        print("\nAuth Security Coverage")
+        print("----------------------")
+        print(
+            f"Auth compared:         {coverage.auth_compared_endpoints}"
         )
         print(
-            f"IDOR templates:        {len(crawl.idor_observations)} "
-            f"(verified: {verified_idor})"
+            f"Protected endpoints:   {coverage.protected_endpoints}"
+        )
+        print(
+            f"User-specific:         {coverage.user_specific_endpoints}"
+        )
+        print(
+            f"Ownership signals:     {coverage.ownership_signals}"
+        )
+        print(
+            f"IDOR pairwise tests:   {coverage.idor_pairwise_tests}"
+        )
+        print(
+            f"Verified IDOR/BOLA:    {coverage.idor_verified}"
+        )
+        print(
+            f"State-changing APIs:   {coverage.state_changing_endpoints}"
+        )
+        print(
+            f"CSRF needs verify:     {coverage.csrf_needs_verification}"
+        )
+        print(
+            f"Session cookies seen:  {coverage.session_cookies_observed}"
+        )
+        print(
+            f"Weak session cookies:  "
+            f"{coverage.weak_session_cookie_observations}"
         )
 
     if crawl.normalized_endpoints:

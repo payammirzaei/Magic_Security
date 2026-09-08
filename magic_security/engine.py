@@ -9,15 +9,18 @@ from magic_security.auth import map_auth_boundaries
 from magic_security.browser import BrowserCrawler
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.classifier import classify_endpoints
+from magic_security.coverage import build_auth_security_coverage
+from magic_security.csrf import map_csrf_posture
 from magic_security.crawler import HttpCrawler
 from magic_security.fingerprints import (
     deduplicate_findings,
     group_response_fingerprints,
 )
-from magic_security.idor import verify_idor_read_access
+from magic_security.idor import verify_pairwise_idor_read_access
 from magic_security.models import AuthContext, CrawlResult, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
 from magic_security.probes import probe_common_exposures, probe_source_maps
+from magic_security.session_security import analyze_session_cookies
 from magic_security.surface import normalize_endpoints
 
 
@@ -132,12 +135,40 @@ class ScannerEngine:
                 crawl.normalized_endpoints,
                 auth_contexts,
             )
-            idor_observations, idor_findings = await verify_idor_read_access(
+
+            (
+                crawl.ownership_observations,
+                crawl.pairwise_idor_observations,
+                idor_findings,
+            ) = await verify_pairwise_idor_read_access(
+                crawl.normalized_endpoints,
+                auth_contexts,
+                auth_comparisons=crawl.auth_comparisons,
+            )
+            findings.extend(idor_findings)
+
+            (
+                crawl.session_cookie_observations,
+                session_findings,
+            ) = await analyze_session_cookies(
                 crawl.normalized_endpoints,
                 auth_contexts,
             )
-            crawl.idor_observations = idor_observations
-            findings.extend(idor_findings)
+            findings.extend(session_findings)
+
+            crawl.csrf_candidates = map_csrf_posture(
+                crawl.normalized_endpoints,
+                auth_contexts,
+            )
+
+            crawl.auth_security_coverage = build_auth_security_coverage(
+                crawl.normalized_endpoints,
+                crawl.auth_comparisons,
+                crawl.ownership_observations,
+                crawl.pairwise_idor_observations,
+                crawl.csrf_candidates,
+                crawl.session_cookie_observations,
+            )
 
         findings = deduplicate_findings(findings)
         findings.sort(key=lambda f: (_SEVERITY_ORDER[f.severity], f.title, f.url))

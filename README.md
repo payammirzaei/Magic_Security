@@ -1,148 +1,278 @@
 # Magic_Security
 
-A local-first web security scanner focused on **evidence, not checklist noise**.
+Local-first web security scanner focused on **verified evidence, not checklist noise**.
 
-## Current pipeline
-
-```
-URL
- -> HTTP / Browser / OpenAPI Discovery
- -> Authenticated Browser Discovery (optional)
- -> Normalize Attack Surface
- -> Anonymous Endpoint Classification
- -> Test-Account Auth Boundary Mapping
- -> Read-only IDOR / BOLA Verification
- -> Security Checks
- -> Safe-Active Verification
- -> Fingerprint + Deduplicate
- -> Evidence Report
-```
-
-The current milestone intentionally has no SaaS layer: no auth UI, billing, database, queue, or frontend.
-
-## Discovery
-
-Magic_Security currently combines:
-
-- same-origin HTTP crawling
-- HTML links/forms/parameters
-- frontend JavaScript API extraction
-- OpenAPI / Swagger ingestion
-- source-map discovery
-- optional anonymous Playwright discovery
-- optional authenticated Playwright discovery for every supplied test context
-- endpoint normalization across all discovery sources
-
-## Authenticated Browser Discovery
-
-When both `--browser` and `--auth-contexts` are supplied, Playwright creates a separate isolated browser context for each test account.
-
-Each context receives only its own:
-
-- custom headers
-- cookies
-
-Then Magic_Security renders the target and same-origin pages without clicking buttons or submitting forms.
-
-It captures:
-
-- authenticated-only links
-- authenticated-only forms
-- XHR / fetch requests
-- runtime query/body parameter names
-- scripts loaded after authentication
-
-Discovery provenance is context-aware.
-
-Example:
+## v0.6 pipeline
 
 ```
-GET /api/user-settings
-sources:
-  browser:user_a:network
-  browser:user_b:network
+HTTP / JS / OpenAPI Discovery
+        ↓
+Anonymous + Authenticated Browser Discovery
+        ↓
+Attack Surface Normalization
+        ↓
+Anonymous Response Classification
+        ↓
+Authorization Matrix
+        ↓
+Ownership Discovery
+        ↓
+Pairwise IDOR / BOLA Verification
+   path + query parameters
+        ↓
+Session Cookie Analysis
+        ↓
+CSRF Posture Mapping
+        ↓
+Fingerprint + Deduplicate
+        ↓
+Evidence Report
 ```
 
-Only the context name is stored. Header values, cookie values, tokens, and authenticated response bodies are not serialized.
+The current project is still intentionally local-first. There is no SaaS UI, billing, database, queue, or public-target scanning yet.
 
-## Anonymous response classification
+## Core rule
 
-With `--active`, GET endpoints are requested without auth and classified as:
+**No proof -> no vulnerability.**
 
-- `auth_required`
-- `json`
-- `html`
-- `redirect`
-- `not_found`
-- `client_error`
-- `server_error`
-- `empty`
-- `other`
+Magic_Security separates:
 
-The scanner can also verify sensitive-looking JSON fields exposed without authentication. Field names are reported; values are not stored.
+- **Vulnerability** — reproduced security failure
+- **Exposure** — dangerous observable surface
+- **Hardening** — defensive configuration
+- **Posture/Candidate** — needs stronger verification and is not promoted to a vulnerability
 
-## Test-account auth boundary mapping
+---
 
-Magic_Security can compare the same endpoint in three contexts:
+# Auth Security Suite v1
 
-```
-Anonymous
-User A
-User B
-```
+The main v0.6 milestone is a larger authenticated-security engine.
 
-Test contexts are supplied through a local JSON file.
+## 1. Multi-context authorization matrix
 
-Example:
+Auth contexts can include role metadata plus test headers/cookies:
 
 ```json
 {
   "contexts": [
     {
       "name": "user_a",
-      "headers": {"X-Demo-User": "A"},
-      "cookies": {}
+      "role": "customer",
+      "headers": {},
+      "cookies": {
+        "demo_session": "A"
+      }
     },
     {
       "name": "user_b",
-      "headers": {"X-Demo-User": "B"},
-      "cookies": {}
+      "role": "customer",
+      "headers": {},
+      "cookies": {
+        "demo_session": "B"
+      }
+    },
+    {
+      "name": "admin",
+      "role": "admin",
+      "headers": {},
+      "cookies": {
+        "demo_session": "ADMIN"
+      }
     }
   ]
 }
 ```
 
-A fake ready-to-use example lives at:
+For concrete GET endpoints the scanner compares:
 
 ```
-examples/auth_contexts.example.json
+Anonymous
+User A
+User B
+Admin
+...
 ```
 
-## Verified read-only IDOR / BOLA
+and classifies boundaries such as:
 
-The object-level authorization verifier:
+- `protected`
+- `public_or_unprotected`
+- `denied_for_all`
+- `inconsistent`
+- `unknown`
 
-1. learns IDs from each user's own authenticated JSON
-2. matches them to path templates such as `/api/accounts/{account_id}`
-3. establishes owner baselines
-4. cross-tests User A and User B
-5. reports only when cross-account HTTP 200 JSON matches the owner's object response
+It also tracks when authenticated contexts receive different response fingerprints, which helps locate user-specific APIs.
 
-No brute force is used. Only GET requests are issued.
+## 2. Authenticated browser discovery
 
-Example finding:
+With both `--browser` and `--auth-contexts`, Playwright creates isolated browser contexts for every supplied test identity.
+
+It discovers:
+
+- login-only routes
+- runtime links/forms
+- authenticated XHR/fetch calls
+- query/body parameter names
+- context-specific APIs
+
+Provenance is preserved:
 
 ```
-HIGH
-Cross-account object access verified
-VERIFIED
+browser:user_a:network
+browser:user_b:network
+browser:admin:network
 ```
 
-The report does not contain authentication secrets or raw object identifiers used during verification.
+Credential values are never serialized.
 
-## Current checks
+## 3. Ownership discovery
 
-### Passive
+Magic_Security learns object identifiers only from authenticated application responses.
+
+Examples:
+
+- `account_id`
+- `user_id`
+- `order_id`
+- `invoice_id`
+- `project_id`
+- other `*_id` fields
+
+Ownership learning prefers endpoints that are both:
+
+- protected
+- user-specific
+
+The report stores only:
+
+- context name
+- identifier field name
+- number of discovered values
+- source endpoints
+
+Raw object identifiers are not written to the report.
+
+## 4. Pairwise IDOR / BOLA verification
+
+Object authorization is tested across same-role contexts by default.
+
+That matters because:
+
+```
+customer -> customer
+```
+
+is a useful horizontal authorization test, while:
+
+```
+admin -> customer
+```
+
+may be intentionally allowed.
+
+If role metadata is absent, contexts remain pairwise-testable.
+
+### Path parameter verification
+
+Example:
+
+```
+GET /api/accounts/{account_id}
+```
+
+The scanner:
+
+1. learns User A's own `account_id`
+2. learns User B's own `account_id`
+3. establishes owner responses
+4. replays User A's object using User B
+5. compares the returned JSON with the owner's baseline
+
+A vulnerability is reported only if cross-account HTTP 200 returns the same object.
+
+### Query parameter verification
+
+v0.6 also covers ID-style query parameters:
+
+```
+GET /api/account-detail?account_id=...
+```
+
+So IDOR coverage is no longer limited to path templates.
+
+### No brute force
+
+The scanner never guesses sequential IDs.
+
+It only reuses identifiers already observed from the supplied test accounts' own authenticated responses.
+
+## 5. Session cookie analysis
+
+Authenticated GET responses are inspected for session-like `Set-Cookie` headers.
+
+The scanner records only:
+
+- cookie name
+- source endpoint
+- context name
+- `Secure`
+- `HttpOnly`
+- `SameSite`
+
+Cookie values are discarded.
+
+Session-like cookies missing protections become **Hardening** findings rather than fake exploit claims.
+
+## 6. CSRF posture mapping
+
+State-changing endpoints are mapped:
+
+- POST
+- PUT
+- PATCH
+- DELETE
+
+Magic_Security looks at:
+
+- authentication style
+- discovered parameter names
+- CSRF/XSRF token signals
+
+Posture examples:
+
+- `header_authenticated`
+- `token_signal_present`
+- `cookie_authenticated_needs_verification`
+- `auth_mechanism_unknown`
+
+Important: CSRF posture is **not automatically a vulnerability**.
+
+The scanner does not issue unsafe state-changing exploit requests just to create a dramatic finding.
+
+## 7. Auth Security Coverage
+
+The report now includes a dedicated coverage section:
+
+```
+Auth compared endpoints
+Protected endpoints
+User-specific endpoints
+Ownership signals
+Pairwise IDOR tests
+Verified IDOR/BOLA
+State-changing endpoints
+CSRF candidates needing verification
+Session cookies observed
+Weak session-cookie observations
+```
+
+This makes it clear what was actually tested instead of implying universal coverage.
+
+---
+
+# Existing coverage
+
+## Passive
 
 - security headers
 - cookie flags
@@ -151,33 +281,35 @@ The report does not contain authentication secrets or raw object identifiers use
 - debug/stack traces
 - exposed `.env`
 - exposed `.git/HEAD`
-- public source maps
+- source-map exposure
+- JS/API discovery
 - secret redaction
 
-### Safe-active
+## Safe-active
 
 - CORS arbitrary-origin reflection
+- credentialed CORS reflection
 - Open Redirect
 - anonymous endpoint classification
 - unauthenticated sensitive-looking JSON exposure
 
-### Authenticated read-only
+## Authenticated read-only
 
-- authenticated browser discovery
 - auth boundary mapping
+- authenticated browser discovery
 - user-specific response detection
-- owned-ID discovery
-- path-template matching
-- cross-account object-read verification
-- verified IDOR/BOLA finding
+- ownership discovery
+- path IDOR/BOLA
+- query IDOR/BOLA
+- same-role pairwise authorization testing
+- session cookie analysis
+- CSRF posture mapping
 
-The rule remains:
+---
 
-**Discover -> Normalize -> Compare -> Verify -> Deduplicate -> Report.**
+# Install
 
-## Install
-
-Base:
+Base scanner:
 
 ```bash
 python -m venv .venv
@@ -185,14 +317,16 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-Browser support:
+Browser mode:
 
 ```bash
 pip install -e ".[dev,browser]"
 playwright install chromium
 ```
 
-## Full local demo
+---
+
+# Run the full local demo
 
 Terminal 1:
 
@@ -210,61 +344,68 @@ magic-security http://127.0.0.1:8000 \
   --json reports/demo.json
 ```
 
-The demo uses fake data and fake auth headers only.
+The demo uses fake identities, fake cookies, and fake data only.
 
-Authenticated browser discovery should additionally find:
+It intentionally contains:
 
-- `/dashboard`, visible only to test users
-- `/settings?tab=profile`
-- runtime `GET /api/user-settings`
+- exposed fake `.env`
+- fake Git metadata
+- source map exposure
+- directory listing
+- OpenAPI exposure
+- unsafe CORS
+- Open Redirect
+- unauthenticated fake personal-data JSON
+- authenticated-only dashboard/API discovery
+- weak session-cookie attributes
+- path-based cross-account object access
+- query-based cross-account object access
+- cookie-authenticated state-changing endpoint with no obvious CSRF token signal
 
-The normalized endpoint keeps provenance such as:
+The scanner does **not** submit the state-changing CSRF candidate.
 
-```
-browser:user_a:network
-browser:user_b:network
-```
+---
 
-## JSON report
+# Report privacy
 
-The report includes:
+The JSON report does not serialize:
 
-- normalized and raw endpoints
-- anonymous browser pages
-- authenticated browser pages per context
-- authenticated browser network-request counts
-- endpoint discovery provenance
-- anonymous endpoint observations
-- auth-boundary comparisons
-- IDOR observations
-- findings / fingerprints / affected URLs
-
-It does **not** serialize:
-
-- auth header values
+- Authorization values
 - cookie values
 - access tokens
 - authenticated response bodies
-- raw object IDs used for IDOR verification
+- raw object identifiers used in IDOR verification
 
-## Safety default
+It can store:
 
-The MVP remains localhost/loopback only.
+- context names
+- roles indirectly through local configuration only
+- endpoint URLs
+- parameter names
+- status codes
+- response/finding fingerprints
+- cookie names and attributes
+- ownership counts
+- verification results
 
-Browser discovery:
+---
 
-- blocks cross-origin requests
-- does not click buttons
-- does not submit forms
+# Safety defaults
 
-IDOR/BOLA verification:
+The current MVP:
 
-- requires explicit test contexts
-- performs GET requests only
-- does not mutate application state
-- does not brute-force identifiers
+- only scans localhost/loopback
+- blocks browser cross-origin requests
+- does not brute-force object IDs
+- does not submit browser forms
+- does not click arbitrary actions
+- limits authorization exploitation to GET requests
+- does not perform state-changing IDOR testing
+- does not promote CSRF posture into a vulnerability without proof
 
-## Architecture
+---
+
+# Architecture
 
 ```
 magic_security/
@@ -272,7 +413,9 @@ magic_security/
 ├── auth.py
 ├── browser.py
 ├── classifier.py
+├── coverage.py
 ├── crawler.py
+├── csrf.py
 ├── discovery.py
 ├── engine.py
 ├── fingerprints.py
@@ -281,26 +424,32 @@ magic_security/
 ├── openapi.py
 ├── probes.py
 ├── reporting.py
+├── session_security.py
 ├── surface.py
 └── checks/
 ```
 
-## Test
+## Tests
 
 ```bash
 pytest
 ```
 
-Tests run automatically through GitHub Actions.
+GitHub Actions runs the suite on pushes and pull requests.
 
-## Next milestone
+## Next large milestone
 
-Next useful coverage:
+The next milestone should be **Security Verification Pack v2**, not another tiny feature:
 
-- nested ownership relationships
-- multiple role pairs
-- authenticated source-map/runtime asset discovery
-- session-security checks
-- safe CSRF verification
+- safe reflected XSS verification
+- stronger CORS impact verification
+- source-map secret analysis
+- GraphQL attack-surface analysis
+- rate-limit behavior classification
+- session-fixation / session-rotation checks
+- safe CSRF proof with explicitly configured disposable test actions
+- richer authorization relationship graphs
 
-State-changing authorization tests remain out of scope until read-only verification is mature.
+The product principle remains:
+
+**We report what we can prove.**

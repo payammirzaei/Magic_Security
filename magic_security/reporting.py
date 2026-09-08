@@ -8,6 +8,12 @@ from magic_security.models import CrawlResult, Finding
 
 
 def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
+    coverage = (
+        asdict(crawl.auth_security_coverage)
+        if crawl.auth_security_coverage is not None
+        else None
+    )
+
     return {
         "target": crawl.target,
         "attack_surface": {
@@ -24,7 +30,12 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "normalized_endpoints": len(crawl.normalized_endpoints),
             "classified_endpoints": len(crawl.endpoint_observations),
             "auth_compared_endpoints": len(crawl.auth_comparisons),
-            "idor_templates_tested": len(crawl.idor_observations),
+            "ownership_signals": len(crawl.ownership_observations),
+            "idor_pairwise_tests": len(crawl.pairwise_idor_observations),
+            "csrf_candidates": len(crawl.csrf_candidates),
+            "session_cookie_observations": len(
+                crawl.session_cookie_observations
+            ),
             "parameters": len(crawl.parameters),
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
@@ -36,6 +47,54 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 crawl.authenticated_browser_network_requests.values()
             ),
             "response_fingerprint_groups": len(crawl.response_groups),
+        },
+        "auth_security": {
+            "coverage": coverage,
+            "ownership": [
+                {
+                    "context": item.context,
+                    "parameter": item.parameter,
+                    "discovered_values": item.discovered_values,
+                    "source_endpoints": list(item.source_endpoints),
+                }
+                for item in crawl.ownership_observations
+            ],
+            "pairwise_idor": [
+                {
+                    "endpoint": item.endpoint,
+                    "parameter": item.parameter,
+                    "parameter_location": item.parameter_location,
+                    "owner_context": item.owner_context,
+                    "requester_context": item.requester_context,
+                    "owner_status": item.owner_status,
+                    "requester_status": item.requester_status,
+                    "cross_account_verified": item.cross_account_verified,
+                }
+                for item in crawl.pairwise_idor_observations
+            ],
+            "session_cookies": [
+                {
+                    "context": item.context,
+                    "source_url": item.source_url,
+                    "cookie_name": item.cookie_name,
+                    "auth_like": item.auth_like,
+                    "secure": item.secure,
+                    "httponly": item.httponly,
+                    "same_site": item.same_site,
+                }
+                for item in crawl.session_cookie_observations
+            ],
+            "csrf_posture": [
+                {
+                    "url": item.url,
+                    "method": item.method,
+                    "parameters": list(item.parameters),
+                    "auth_style": item.auth_style,
+                    "token_signal_present": item.token_signal_present,
+                    "posture": item.posture,
+                }
+                for item in crawl.csrf_candidates
+            ],
         },
         "browser_pages": sorted(crawl.browser_pages),
         "authenticated_browser": [
@@ -97,18 +156,6 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 ),
             }
             for item in crawl.auth_comparisons
-        ],
-        "idor_observations": [
-            {
-                "endpoint_template": item.endpoint_template,
-                "parameter": item.parameter,
-                "user_a_own_status": item.user_a_own_status,
-                "user_b_own_status": item.user_b_own_status,
-                "user_b_to_a_status": item.user_b_to_a_status,
-                "user_a_to_b_status": item.user_a_to_b_status,
-                "cross_account_verified": item.cross_account_verified,
-            }
-            for item in crawl.idor_observations
         ],
         "raw_endpoints": [
             {
