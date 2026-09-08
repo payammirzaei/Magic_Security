@@ -19,7 +19,7 @@ _JQUERY_RE = re.compile(
     re.IGNORECASE,
 )
 _GENERIC_API_PATH_RE = re.compile(
-    r"""['"](?P<url>/(?:api(?:/|\?|$)|graphql(?:\?|$)|rest(?:/|\?|$)|v\d+(?:/|\?|$))[^'"\s]*)['"]""",
+    r"""['"](?P<url>/(?:api|graphql|rest|v\d+)(?:[/\?][^'"\s]*)?)['"]""",
     re.IGNORECASE,
 )
 _SOURCE_MAP_RE = re.compile(
@@ -52,20 +52,29 @@ def _resolve_candidate(raw: str, base_url: str) -> str | None:
 
 def extract_js_endpoints(text: str, base_url: str) -> set[EndpointCandidate]:
     endpoints: set[EndpointCandidate] = set()
-    seen_urls: set[tuple[str, str]] = set()
+    seen_methods: set[tuple[str, str]] = set()
+    explicitly_discovered_urls: set[str] = set()
 
-    def add(raw: str, method: str, source: str) -> None:
+    def add(raw: str, method: str, source: str, *, generic: bool = False) -> None:
         resolved = _resolve_candidate(raw, base_url)
         if not resolved or not same_origin(resolved, base_url):
             return
-        key = (resolved, method.upper())
-        if key in seen_urls:
+        if generic and resolved in explicitly_discovered_urls:
             return
-        seen_urls.add(key)
+
+        method = method.upper()
+        key = (resolved, method)
+        if key in seen_methods:
+            return
+
+        seen_methods.add(key)
+        if not generic:
+            explicitly_discovered_urls.add(resolved)
+
         endpoints.add(
             EndpointCandidate(
                 url=resolved,
-                method=method.upper(),
+                method=method,
                 source=source,
                 parameters=parameter_names(resolved),
             )
@@ -81,7 +90,7 @@ def extract_js_endpoints(text: str, base_url: str) -> set[EndpointCandidate]:
         add(match.group("url"), match.group("method"), "javascript:jquery")
 
     for match in _GENERIC_API_PATH_RE.finditer(text):
-        add(match.group("url"), "GET", "javascript:string")
+        add(match.group("url"), "GET", "javascript:string", generic=True)
 
     return endpoints
 
