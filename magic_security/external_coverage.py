@@ -20,8 +20,8 @@ def build_external_security_coverage(
     cors: list[CorsImpactObservation],
     cache: list[CacheObservation],
     rate_limits: list[RateLimitObservation],
-    parameter_security: list[ParameterSecurityObservation],
-    protocol_security: list[ProtocolSecurityObservation],
+    parameter_security: list[ParameterSecurityObservation] | tuple[()] = (),
+    protocol_security: list[ProtocolSecurityObservation] | tuple[()] = (),
 ) -> ExternalSecurityCoverage:
     return ExternalSecurityCoverage(
         injection_tests=len(injection),
