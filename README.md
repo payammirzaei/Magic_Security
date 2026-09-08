@@ -34,7 +34,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-## Run
+## Run against your local app
 
 ```bash
 magic-security http://localhost:3000
@@ -45,6 +45,22 @@ or:
 ```bash
 python -m magic_security http://127.0.0.1:8000
 ```
+
+## Run the intentionally vulnerable demo
+
+Terminal 1:
+
+```bash
+python examples/vulnerable_app.py
+```
+
+Terminal 2:
+
+```bash
+magic-security http://127.0.0.1:8000
+```
+
+The demo uses fake credentials only. It intentionally exposes weak headers/cookies, a directory index, debug output, API docs, a fake `.env`, and fake Git metadata so the scanner has deterministic findings to verify.
 
 ## Test
 
