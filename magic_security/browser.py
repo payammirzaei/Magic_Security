@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl
 
 from magic_security.discovery import parameter_names, same_origin
-from magic_security.models import CrawlResult, EndpointCandidate
+from magic_security.models import AuthContext, CrawlResult, EndpointCandidate
 
 
 class BrowserUnavailableError(RuntimeError):
@@ -46,6 +46,15 @@ def request_parameters(
     return tuple(sorted(names))
 
 
+def browser_source(
+    kind: str,
+    auth_context: AuthContext | None = None,
+) -> str:
+    if auth_context is None:
+        return f"browser:{kind}"
+    return f"browser:{auth_context.name}:{kind}"
+
+
 def merge_rendered_surface(
     crawl: CrawlResult,
     *,
@@ -53,7 +62,11 @@ def merge_rendered_surface(
     links: list[str],
     scripts: list[str],
     forms: list[dict],
+    auth_context: AuthContext | None = None,
 ) -> None:
+    link_source = browser_source("link", auth_context)
+    form_source = browser_source("form", auth_context)
+
     for link in links:
         if same_origin(link, crawl.target):
             crawl.links.add(link)
@@ -64,7 +77,7 @@ def merge_rendered_surface(
                     EndpointCandidate(
                         url=link,
                         method="GET",
-                        source="browser:link",
+                        source=link_source,
                         parameters=params,
                     )
                 )
@@ -100,7 +113,7 @@ def merge_rendered_surface(
             EndpointCandidate(
                 url=action,
                 method=method,
-                source="browser:form",
+                source=form_source,
                 parameters=parameters,
             )
         )
@@ -119,7 +132,12 @@ class BrowserCrawler:
         self.navigation_timeout_ms = navigation_timeout_ms
         self.settle_ms = settle_ms
 
-    async def enrich(self, crawl: CrawlResult) -> BrowserObservation:
+    async def enrich(
+        self,
+        crawl: CrawlResult,
+        *,
+        auth_context: AuthContext | None = None,
+    ) -> BrowserObservation:
         try:
             from playwright.async_api import async_playwright
         except ImportError as exc:
@@ -154,10 +172,26 @@ class BrowserCrawler:
                     "'playwright install chromium'."
                 ) from exc
 
-            context = await browser.new_context(
-                ignore_https_errors=True,
-                service_workers="block",
-            )
+            context_kwargs: dict = {
+                "ignore_https_errors": True,
+                "service_workers": "block",
+            }
+            if auth_context and auth_context.headers:
+                context_kwargs["extra_http_headers"] = auth_context.headers
+
+            context = await browser.new_context(**context_kwargs)
+
+            if auth_context and auth_context.cookies:
+                await context.add_cookies(
+                    [
+                        {
+                            "name": name,
+                            "value": value,
+                            "url": crawl.target,
+                        }
+                        for name, value in auth_context.cookies.items()
+                    ]
+                )
 
             async def route_handler(route):
                 request_url = route.request.url
@@ -170,6 +204,7 @@ class BrowserCrawler:
 
             page = await context.new_page()
             page.set_default_navigation_timeout(self.navigation_timeout_ms)
+            network_source = browser_source("network", auth_context)
 
             def on_request(request) -> None:
                 if request.resource_type not in {"fetch", "xhr"}:
@@ -188,7 +223,7 @@ class BrowserCrawler:
                     EndpointCandidate(
                         url=request.url,
                         method=request.method.upper(),
-                        source="browser:network",
+                        source=network_source,
                         parameters=params,
                     )
                 )
@@ -196,9 +231,17 @@ class BrowserCrawler:
 
             page.on("request", on_request)
 
-            for url in unique_candidates:
+            visited: set[str] = set()
+            queue = list(unique_candidates)
+
+            while queue and len(visited) < self.max_pages:
+                url = queue.pop(0)
+                if url in visited or not same_origin(url, crawl.target):
+                    continue
+                visited.add(url)
+
                 try:
-                    response = await page.goto(
+                    await page.goto(
                         url,
                         wait_until="domcontentloaded",
                     )
@@ -231,13 +274,24 @@ class BrowserCrawler:
                 except Exception:
                     continue
 
+                links = list(surface.get("links", []))
                 merge_rendered_surface(
                     crawl,
                     page_url=final_url,
-                    links=list(surface.get("links", [])),
+                    links=links,
                     scripts=list(surface.get("scripts", [])),
                     forms=list(surface.get("forms", [])),
+                    auth_context=auth_context,
                 )
+
+                for link in links:
+                    if (
+                        same_origin(link, crawl.target)
+                        and link not in visited
+                        and link not in queue
+                        and len(visited) + len(queue) < self.max_pages
+                    ):
+                        queue.append(link)
 
             await context.close()
             await browser.close()

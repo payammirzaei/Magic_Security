@@ -29,9 +29,30 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
             "source_maps": len(crawl.source_maps),
             "browser_pages": len(crawl.browser_pages),
             "browser_network_requests": crawl.browser_network_requests,
+            "authenticated_browser_contexts": len(
+                crawl.authenticated_browser_pages
+            ),
+            "authenticated_browser_network_requests": sum(
+                crawl.authenticated_browser_network_requests.values()
+            ),
             "response_fingerprint_groups": len(crawl.response_groups),
         },
         "browser_pages": sorted(crawl.browser_pages),
+        "authenticated_browser": [
+            {
+                "context": context,
+                "pages": sorted(
+                    crawl.authenticated_browser_pages.get(context, set())
+                ),
+                "network_requests": (
+                    crawl.authenticated_browser_network_requests.get(
+                        context,
+                        0,
+                    )
+                ),
+            }
+            for context in sorted(crawl.authenticated_browser_pages)
+        ],
         "response_groups": [
             {
                 "fingerprint": fingerprint,

@@ -79,9 +79,24 @@ class ScannerEngine:
         crawl.response_groups = group_response_fingerprints(crawl.pages)
 
         if browser:
-            observation = await BrowserCrawler().enrich(crawl)
+            browser_crawler = BrowserCrawler()
+
+            observation = await browser_crawler.enrich(crawl)
             crawl.browser_pages.update(observation.pages_rendered)
             crawl.browser_network_requests += observation.network_requests
+
+            if auth_contexts:
+                for auth_context in auth_contexts:
+                    auth_observation = await browser_crawler.enrich(
+                        crawl,
+                        auth_context=auth_context,
+                    )
+                    crawl.authenticated_browser_pages[
+                        auth_context.name
+                    ] = set(auth_observation.pages_rendered)
+                    crawl.authenticated_browser_network_requests[
+                        auth_context.name
+                    ] = auth_observation.network_requests
 
         openapi_endpoints = await discover_openapi_endpoints(crawl.target)
         crawl.endpoints.update(openapi_endpoints)

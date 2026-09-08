@@ -43,8 +43,14 @@ class DemoHandler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
 
         if path == "/":
+            user = self.headers.get("X-Demo-User")
+            authenticated_link = (
+                '<li><a href="/dashboard">Dashboard</a></li>'
+                if user in {"A", "B"}
+                else ""
+            )
             self._send(
-                """<!doctype html>
+                f"""<!doctype html>
 <html>
 <head><title>Magic Security vulnerable demo</title></head>
 <body>
@@ -56,6 +62,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     <li><a href="/products?page=2&sort=name">Products</a></li>
     <li><a href="/go?next=/products">Redirect helper</a></li>
     <li><a href="/cors">CORS demo</a></li>
+    {authenticated_link}
   </ul>
   <form action="/search" method="GET">
     <input name="q">
@@ -297,6 +304,50 @@ RuntimeError: demo exception
             )
             return
 
+        if path == "/dashboard":
+            user = self.headers.get("X-Demo-User")
+            if user not in {"A", "B"}:
+                self._send(
+                    "<html><body>authentication required</body></html>",
+                    status=401,
+                )
+                return
+
+            self._send(
+                f"""<!doctype html>
+<html>
+<body>
+  <h1>Dashboard {user}</h1>
+  <a href="/settings?tab=profile">Settings</a>
+  <script>
+    fetch('/api/user-settings');
+  </script>
+</body>
+</html>"""
+            )
+            return
+
+        if path == "/api/user-settings":
+            user = self.headers.get("X-Demo-User")
+            if user not in {"A", "B"}:
+                self._send(
+                    json.dumps({"detail": "authentication required"}),
+                    status=401,
+                    content_type="application/json",
+                )
+                return
+
+            self._send(
+                json.dumps(
+                    {
+                        "theme": "dark" if user == "A" else "light",
+                        "notifications": True,
+                    }
+                ),
+                content_type="application/json",
+            )
+            return
+
         if path.startswith("/api/accounts/"):
             user = self.headers.get("X-Demo-User")
             if user not in {"A", "B"}:
@@ -338,7 +389,7 @@ RuntimeError: demo exception
             )
             return
 
-        if path in {"/search", "/products", "/graphql"}:
+        if path in {"/search", "/products", "/graphql", "/settings"}:
             self._send("<html><body>demo response</body></html>")
             return
 

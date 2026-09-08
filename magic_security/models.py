@@ -99,6 +99,8 @@ class CrawlResult:
     source_maps: set[str] = field(default_factory=set)
     browser_pages: set[str] = field(default_factory=set)
     browser_network_requests: int = 0
+    authenticated_browser_pages: dict[str, set[str]] = field(default_factory=dict)
+    authenticated_browser_network_requests: dict[str, int] = field(default_factory=dict)
     response_groups: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 

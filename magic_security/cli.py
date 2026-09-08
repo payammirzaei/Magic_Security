@@ -26,7 +26,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--browser",
         action="store_true",
-        help="Use Playwright to discover runtime SPA routes, forms, and XHR/fetch calls",
+        help=(
+            "Use Playwright for anonymous runtime discovery and, when auth contexts "
+            "are supplied, authenticated runtime discovery for each test context"
+        ),
     )
     parser.add_argument(
         "--active",
@@ -81,6 +84,8 @@ async def _run(
         modes.append("safe-active")
     if auth_contexts:
         modes.append("authz-read-only")
+        if browser:
+            modes.append("authenticated-browser")
 
     print(f"\nTarget: {crawl.target}")
     print(f"Mode:   {' + '.join(modes)}")
@@ -95,9 +100,22 @@ async def _run(
     print(f"Parameters:            {len(crawl.parameters)}")
     print(f"Source maps:           {len(crawl.source_maps)}")
     print(f"Response groups:       {len(crawl.response_groups)}")
+
     if browser:
         print(f"Browser pages:         {len(crawl.browser_pages)}")
         print(f"Browser API reqs:      {crawl.browser_network_requests}")
+
+    if browser and auth_contexts:
+        for context in sorted(crawl.authenticated_browser_pages):
+            pages = len(crawl.authenticated_browser_pages[context])
+            requests = crawl.authenticated_browser_network_requests.get(
+                context,
+                0,
+            )
+            print(
+                f"Auth browser {context}: "
+                f"pages={pages}, api_reqs={requests}"
+            )
 
     if active and crawl.endpoint_observations:
         counts = Counter(

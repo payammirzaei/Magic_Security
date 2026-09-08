@@ -7,6 +7,7 @@ A local-first web security scanner focused on **evidence, not checklist noise**.
 ```
 URL
  -> HTTP / Browser / OpenAPI Discovery
+ -> Authenticated Browser Discovery (optional)
  -> Normalize Attack Surface
  -> Anonymous Endpoint Classification
  -> Test-Account Auth Boundary Mapping
@@ -19,19 +20,52 @@ URL
 
 The current milestone intentionally has no SaaS layer: no auth UI, billing, database, queue, or frontend.
 
-## What it can do now
+## Discovery
 
-### Discovery
+Magic_Security currently combines:
 
-- same-origin HTTP crawl
+- same-origin HTTP crawling
 - HTML links/forms/parameters
 - frontend JavaScript API extraction
 - OpenAPI / Swagger ingestion
 - source-map discovery
-- optional Playwright runtime discovery
-- endpoint normalization across HTTP / JS / browser / OpenAPI sources
+- optional anonymous Playwright discovery
+- optional authenticated Playwright discovery for every supplied test context
+- endpoint normalization across all discovery sources
 
-### Anonymous response classification
+## Authenticated Browser Discovery
+
+When both `--browser` and `--auth-contexts` are supplied, Playwright creates a separate isolated browser context for each test account.
+
+Each context receives only its own:
+
+- custom headers
+- cookies
+
+Then Magic_Security renders the target and same-origin pages without clicking buttons or submitting forms.
+
+It captures:
+
+- authenticated-only links
+- authenticated-only forms
+- XHR / fetch requests
+- runtime query/body parameter names
+- scripts loaded after authentication
+
+Discovery provenance is context-aware.
+
+Example:
+
+```
+GET /api/user-settings
+sources:
+  browser:user_a:network
+  browser:user_b:network
+```
+
+Only the context name is stored. Header values, cookie values, tokens, and authenticated response bodies are not serialized.
+
+## Anonymous response classification
 
 With `--active`, GET endpoints are requested without auth and classified as:
 
@@ -45,7 +79,7 @@ With `--active`, GET endpoints are requested without auth and classified as:
 - `empty`
 - `other`
 
-The scanner can also verify sensitive-looking JSON fields exposed without authentication. Field **names** are reported; values are not stored.
+The scanner can also verify sensitive-looking JSON fields exposed without authentication. Field names are reported; values are not stored.
 
 ## Test-account auth boundary mapping
 
@@ -57,7 +91,7 @@ User A
 User B
 ```
 
-The test contexts are provided through a local JSON file containing headers and/or cookies.
+Test contexts are supplied through a local JSON file.
 
 Example:
 
@@ -84,63 +118,27 @@ A fake ready-to-use example lives at:
 examples/auth_contexts.example.json
 ```
 
-Credentials are local input only and are not written into scan reports.
-
 ## Verified read-only IDOR / BOLA
 
-The first object-level authorization verifier is now implemented.
+The object-level authorization verifier:
 
-It does **not** brute-force IDs.
+1. learns IDs from each user's own authenticated JSON
+2. matches them to path templates such as `/api/accounts/{account_id}`
+3. establishes owner baselines
+4. cross-tests User A and User B
+5. reports only when cross-account HTTP 200 JSON matches the owner's object response
 
-It works like this:
+No brute force is used. Only GET requests are issued.
 
-1. Use the first two explicit test-account contexts.
-2. Request authenticated concrete GET endpoints.
-3. Learn IDs that the application itself returns, such as:
-   - `account_id`
-   - `user_id`
-   - `order_id`
-   - `invoice_id`
-4. Match those IDs to discovered path templates such as:
-
-```
-GET /api/accounts/{account_id}
-```
-
-5. Establish an owner baseline:
-   - User A -> User A object
-   - User B -> User B object
-6. Cross-test:
-   - User B -> User A object
-   - User A -> User B object
-7. Report a vulnerability only if the cross-account HTTP 200 JSON is identical to the owner's baseline for that object.
-
-Example:
+Example finding:
 
 ```
 HIGH
 Cross-account object access verified
 VERIFIED
-
-Endpoint:
-GET /api/accounts/{account_id}
-
-Evidence:
-User B retrieved User A's object.
-Cross-account HTTP 200 JSON matched the owner's baseline.
-
-Stored:
-- endpoint template
-- parameter name
-- status codes
-- verification result
-
-Not stored:
-- authentication credentials
-- raw object identifiers
 ```
 
-This is intended to be actual authorization proof, not a heuristic OWASP label.
+The report does not contain authentication secrets or raw object identifiers used during verification.
 
 ## Current checks
 
@@ -165,9 +163,10 @@ This is intended to be actual authorization proof, not a heuristic OWASP label.
 
 ### Authenticated read-only
 
+- authenticated browser discovery
 - auth boundary mapping
 - user-specific response detection
-- owned-ID discovery from authenticated JSON
+- owned-ID discovery
 - path-template matching
 - cross-account object-read verification
 - verified IDOR/BOLA finding
@@ -193,7 +192,7 @@ pip install -e ".[dev,browser]"
 playwright install chromium
 ```
 
-## Demo
+## Full local demo
 
 Terminal 1:
 
@@ -205,6 +204,7 @@ Terminal 2:
 
 ```bash
 magic-security http://127.0.0.1:8000 \
+  --browser \
   --active \
   --auth-contexts examples/auth_contexts.example.json \
   --json reports/demo.json
@@ -212,53 +212,57 @@ magic-security http://127.0.0.1:8000 \
 
 The demo uses fake data and fake auth headers only.
 
-It includes:
+Authenticated browser discovery should additionally find:
 
-- `/api/me`
-  - anonymous -> 401
-  - User A -> own `account_id`
-  - User B -> different own `account_id`
+- `/dashboard`, visible only to test users
+- `/settings?tab=profile`
+- runtime `GET /api/user-settings`
 
-- `/api/accounts/{account_id}`
-  - requires authentication
-  - intentionally fails object ownership checks
-  - either demo user can read either account
-  - expected scanner result: **verified cross-account object access**
+The normalized endpoint keeps provenance such as:
+
+```
+browser:user_a:network
+browser:user_b:network
+```
 
 ## JSON report
 
-The report contains:
+The report includes:
 
 - normalized and raw endpoints
+- anonymous browser pages
+- authenticated browser pages per context
+- authenticated browser network-request counts
+- endpoint discovery provenance
 - anonymous endpoint observations
 - auth-boundary comparisons
-- IDOR template observations
-- owner/cross-account status codes
-- `cross_account_verified`
-- finding fingerprints
-- affected URLs / occurrence counts
-- severity / confidence / verified status
+- IDOR observations
+- findings / fingerprints / affected URLs
 
 It does **not** serialize:
 
 - auth header values
 - cookie values
-- raw object identifiers used for IDOR verification
+- access tokens
 - authenticated response bodies
+- raw object IDs used for IDOR verification
 
 ## Safety default
 
 The MVP remains localhost/loopback only.
 
-The IDOR/BOLA verifier:
+Browser discovery:
+
+- blocks cross-origin requests
+- does not click buttons
+- does not submit forms
+
+IDOR/BOLA verification:
 
 - requires explicit test contexts
 - performs GET requests only
 - does not mutate application state
-- does not brute-force object identifiers
-- only reuses IDs discovered from the test users' own authenticated responses
-
-Browser mode blocks cross-origin requests and does not click buttons or submit forms.
+- does not brute-force identifiers
 
 ## Architecture
 
@@ -291,12 +295,12 @@ Tests run automatically through GitHub Actions.
 
 ## Next milestone
 
-The next useful coverage jump is to make authenticated discovery richer:
+Next useful coverage:
 
-- authenticated browser crawl for each test user
-- collect user-specific API routes that only appear after login
 - nested ownership relationships
-- multiple test-role pairs
-- safe session / CSRF checks
+- multiple role pairs
+- authenticated source-map/runtime asset discovery
+- session-security checks
+- safe CSRF verification
 
-State-changing authorization tests remain out of scope until the read-only verifier is mature.
+State-changing authorization tests remain out of scope until read-only verification is mature.
