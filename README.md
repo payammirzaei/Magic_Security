@@ -2,6 +2,8 @@
 
 Local-first black-box web security scanner focused on **verified evidence, not checklist noise**.
 
+> 📘 **Project direction:** See the [Master Product Plan, Architecture, and Roadmap](docs/MASTER_PLAN.md) for the complete Security Backtesting vision, milestones, safety model, and future architecture.
+
 ## v1.0 — Professional User-Side Coverage
 
 v1.0 expands the scanner toward the surface a professional external pentester can observe from the application/user side without source, cloud, or host access.
