@@ -5,6 +5,14 @@ import asyncio
 from collections import Counter
 
 from magic_security.auth import AuthConfigError, load_auth_contexts
+from magic_security.backtesting import (
+    SnapshotError,
+    apply_history,
+    build_scan_snapshot,
+    diff_snapshots,
+    load_snapshot,
+    write_snapshot,
+)
 from magic_security.browser import BrowserUnavailableError
 from magic_security.engine import ScannerEngine
 from magic_security.models import FindingKind
@@ -55,6 +63,22 @@ def _parser() -> argparse.ArgumentParser:
         dest="json_path",
         help="Write the complete scan report to a JSON file",
     )
+    parser.add_argument(
+        "--snapshot",
+        dest="snapshot_path",
+        help=(
+            "Write a compact security backtesting snapshot. "
+            "Snapshots contain stable finding identities, coverage, and attack surface."
+        ),
+    )
+    parser.add_argument(
+        "--baseline",
+        dest="baseline_path",
+        help=(
+            "Compare this scan against a previous Magic_Security snapshot "
+            "and print security regressions/resolutions."
+        ),
+    )
     return parser
 
 
@@ -65,6 +89,8 @@ async def _run(
     active: bool,
     auth_context_path: str | None,
     json_path: str | None,
+    snapshot_path: str | None,
+    baseline_path: str | None,
 ) -> int:
     engine = ScannerEngine(max_pages=max_pages)
 
@@ -95,6 +121,31 @@ async def _run(
         modes.append("external-verification")
     if auth_contexts:
         modes.append("auth-security-suite")
+
+    snapshot_modes = {
+        "http": True,
+        "browser": browser,
+        "active": active,
+        "auth_contexts": len(auth_contexts or []),
+    }
+    snapshot = build_scan_snapshot(
+        crawl,
+        findings,
+        modes=snapshot_modes,
+    )
+    backtest_diff = None
+    if baseline_path:
+        try:
+            baseline = load_snapshot(baseline_path)
+            backtest_diff = diff_snapshots(baseline, snapshot)
+            snapshot = apply_history(
+                baseline,
+                snapshot,
+                backtest_diff,
+            )
+        except SnapshotError as exc:
+            print(f"Error: {exc}")
+            return 2
 
     print(f"\nTarget: {crawl.target}")
     print(f"Mode:   {' + '.join(modes)}")
@@ -381,6 +432,48 @@ async def _run(
         for status, count in sorted(statuses.items()):
             print(f"{status:22} {count}")
 
+    if backtest_diff is not None:
+        summary = backtest_diff["summary"]
+        print("\nSecurity Backtest")
+        print("-----------------")
+        print(f"New:              {summary['new']}")
+        print(f"Reintroduced:     {summary['reintroduced']}")
+        print(f"Worsened:         {summary['worsened']}")
+        print(f"Improved:         {summary['improved']}")
+        print(f"Resolved:         {summary['resolved']}")
+        print(f"Unchanged:        {summary['unchanged']}")
+        print(f"Surface added:    {summary['surface_added']}")
+        print(f"Surface removed:  {summary['surface_removed']}")
+        print(f"Coverage changes: {summary['coverage_changed']}")
+        print(
+            "Coverage equivalent: "
+            + (
+                "yes"
+                if backtest_diff["coverage"]["equivalent"]
+                else "NO"
+            )
+        )
+
+        regression_groups = (
+            ("REINTRODUCED", backtest_diff["findings"]["reintroduced"]),
+            ("NEW", backtest_diff["findings"]["new"]),
+        )
+        for state, items in regression_groups:
+            for item in items[:10]:
+                print(
+                    f"  {state:12} "
+                    f"[{item['severity'].upper()}] "
+                    f"{item['title']}"
+                )
+
+        for item in backtest_diff["findings"]["worsened"][:10]:
+            after = item["after"]
+            print(
+                f"  {'WORSENED':12} "
+                f"[{after['severity'].upper()}] "
+                f"{after['title']}"
+            )
+
     groups = (
         (
             FindingKind.VULNERABILITY,
@@ -463,6 +556,13 @@ async def _run(
         )
         print(f"\nJSON report: {destination}")
 
+    if snapshot_path:
+        destination = write_snapshot(
+            snapshot_path,
+            snapshot,
+        )
+        print(f"Security snapshot: {destination}")
+
     return 0
 
 
@@ -477,6 +577,8 @@ def main() -> None:
                 args.active,
                 args.auth_contexts,
                 args.json_path,
+                args.snapshot_path,
+                args.baseline_path,
             )
         )
     )
