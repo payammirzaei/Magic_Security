@@ -219,8 +219,13 @@ def deduplicate_findings(findings: list[Finding]) -> list[Finding]:
         fingerprint = finding_root_fingerprint(
             replace(finding, check_id=check_id)
         )
-        occurrences[fingerprint] = occurrences.get(fingerprint, 0) + 1
-        urls.setdefault(fingerprint, set()).add(finding.url)
+        occurrences[fingerprint] = (
+            occurrences.get(fingerprint, 0)
+            + max(1, finding.occurrences)
+        )
+        urls.setdefault(fingerprint, set()).update(
+            finding.affected_urls or (finding.url,)
+        )
 
         current = grouped.get(fingerprint)
         if current is None:
