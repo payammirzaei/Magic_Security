@@ -3,6 +3,8 @@
     {
       "name": "user_a",
       "role": "customer",
+      "login_mechanism": "cookie",
+      "disposable": true,
       "headers": {},
       "cookies": {
         "demo_session": "A"
@@ -11,6 +13,8 @@
     {
       "name": "user_b",
       "role": "customer",
+      "login_mechanism": "cookie",
+      "disposable": true,
       "headers": {},
       "cookies": {
         "demo_session": "B"
@@ -19,6 +23,8 @@
     {
       "name": "admin",
       "role": "admin",
+      "login_mechanism": "cookie",
+      "disposable": false,
       "headers": {},
       "cookies": {
         "demo_session": "ADMIN"

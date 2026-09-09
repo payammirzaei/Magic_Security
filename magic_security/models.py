@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class Severity(str, Enum):
@@ -68,6 +69,10 @@ class AuthContext:
     headers: dict[str, str] = field(default_factory=dict)
     cookies: dict[str, str] = field(default_factory=dict)
     role: str | None = None
+    login_mechanism: str | None = None
+    browser_state: dict[str, Any] | None = None
+    expected_identity_marker: str | None = None
+    disposable: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -371,6 +376,19 @@ class CrawlResult:
     authenticated_browser_pages: dict[str, set[str]] = field(default_factory=dict)
     authenticated_browser_network_requests: dict[str, int] = field(default_factory=dict)
     response_groups: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    budget_coverage: dict[str, object] = field(default_factory=dict)
+    attack_surface_graph: dict[str, object] = field(default_factory=dict)
+    historical_endpoints: list[NormalizedEndpoint] = field(default_factory=list)
+    check_coverage: list[dict[str, str]] = field(default_factory=list)
+    pack_failures: list[dict[str, str]] = field(default_factory=list)
+    scan_metrics: dict[str, object] = field(default_factory=dict)
+    js_analysis: list[dict[str, object]] = field(default_factory=list)
+    pack_coverage: dict[str, object] = field(default_factory=dict)
+    authz_matrix: list[dict[str, object]] = field(default_factory=list)
+    identity_validation: dict[str, object] = field(default_factory=dict)
+    repo_findings: list[dict[str, object]] = field(default_factory=list)
+    repo_snapshot: dict[str, object] = field(default_factory=dict)
+    repo_correlations: list[dict[str, object]] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -389,6 +407,7 @@ class Finding:
     occurrences: int = 1
     check_id: str | None = None
     fingerprint: str | None = None
+    structured_evidence: dict | None = None
 
     @property
     def confidence_level(self) -> ConfidenceLevel:

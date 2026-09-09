@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
+from magic_security.evidence import EvidenceObject, attach_evidence
 from magic_security.models import Finding, FindingKind, PageSnapshot, Severity
 
 
@@ -41,6 +42,7 @@ class SecurityHeaderCheck:
                         ),
                         remediation=remediation,
                         confidence=1.0,
+                        check_id=f"hardening.header.missing.{header}",
                     )
                 )
 
@@ -69,6 +71,7 @@ class SecurityHeaderCheck:
                     ),
                     confidence=1.0,
                     cwe="CWE-1021",
+                    check_id="browser.clickjacking.missing-protection",
                 )
             )
 
@@ -99,6 +102,7 @@ class SecurityHeaderCheck:
                             "prefer nonces or hashes."
                         ),
                         confidence=1.0,
+                        check_id="browser.csp.risky-script-mode",
                     )
                 )
 
@@ -118,7 +122,23 @@ class SecurityHeaderCheck:
                         "Enable HSTS after confirming the domain is HTTPS-only."
                     ),
                     confidence=1.0,
+                    check_id="hardening.header.missing.strict-transport-security",
                 )
             )
 
+        for finding in findings:
+            attach_evidence(
+                finding,
+                EvidenceObject(
+                    check_id=finding.check_id or "hardening.header",
+                    proof_type="response_header_inspection",
+                    baseline_summary="Expected protective header/policy present",
+                    mutation_summary="none",
+                    observed_result=finding.evidence,
+                    confidence=(
+                        "verified" if finding.confidence >= 0.95 else "strong"
+                    ),
+                    sensitive_values_stored=False,
+                ),
+            )
         return findings

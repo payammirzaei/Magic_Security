@@ -15,6 +15,10 @@ from urllib.parse import parse_qs, urlparse
 
 class DemoHandler(BaseHTTPRequestHandler):
     server_version = "MagicDemo/0.9"
+    NOTES: dict[str, dict] = {}
+    UPLOADS: dict[str, dict] = {}
+    _NOTE_SEQ = 0
+    _UPLOAD_SEQ = 0
 
     def log_message(self, format: str, *args) -> None:
         print(f"[demo] {self.address_string()} - {format % args}")
@@ -897,6 +901,65 @@ RuntimeError: demo exception
             )
             return
 
+        if path.startswith("/notes/"):
+            note_id = path.rsplit("/", 1)[-1]
+            note = self.NOTES.get(note_id)
+            if note is None:
+                self._send("not found", status=404, content_type="text/plain")
+                return
+            # Intentionally reflects stored body without encoding (stored XSS demo).
+            self._send(
+                f"<!doctype html><html><body><h1>{note.get('title')}</h1>"
+                f"<div id='note'>{note.get('body')}</div></body></html>"
+            )
+            return
+
+        if path.startswith("/api/notes/"):
+            user = self._require_user()
+            if user is None:
+                return
+            note_id = path.rsplit("/", 1)[-1]
+            note = self.NOTES.get(note_id)
+            if note is None:
+                self._send(
+                    json.dumps({"detail": "not found"}),
+                    status=404,
+                    content_type="application/json",
+                )
+                return
+            self._send(
+                json.dumps(note),
+                content_type="application/json",
+            )
+            return
+
+        if path.startswith("/api/uploads/"):
+            user = self._require_user()
+            if user is None:
+                return
+            upload_id = path.rsplit("/", 1)[-1]
+            item = self.UPLOADS.get(upload_id)
+            if item is None:
+                self._send(
+                    json.dumps({"detail": "not found"}),
+                    status=404,
+                    content_type="application/json",
+                )
+                return
+            # Intentionally missing owner check (BOLA on uploads).
+            self._send(
+                json.dumps(
+                    {
+                        "id": upload_id,
+                        "owner": item["owner"],
+                        "filename": item["filename"],
+                        "size": len(item["content"]),
+                    }
+                ),
+                content_type="application/json",
+            )
+            return
+
         if path in {
             "/search",
             "/products",
@@ -924,11 +987,164 @@ RuntimeError: demo exception
         self._send(
             "",
             status=204,
-            headers={"Allow": "GET, POST, OPTIONS, TRACE"},
+            headers={"Allow": "GET, POST, PUT, DELETE, OPTIONS, TRACE"},
+        )
+
+    def do_PUT(self) -> None:
+        path = urlparse(self.path).path
+        if path.startswith("/api/notes/"):
+            user = self._require_user()
+            if user is None:
+                return
+            note_id = path.rsplit("/", 1)[-1]
+            note = self.NOTES.get(note_id)
+            if note is None:
+                self._send(
+                    json.dumps({"detail": "not found"}),
+                    status=404,
+                    content_type="application/json",
+                )
+                return
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            raw = self.rfile.read(length)
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = {}
+            # Intentionally no ownership check on mutate.
+            if "body" in payload:
+                note["body"] = payload["body"]
+            if "title" in payload:
+                note["title"] = payload["title"]
+            self._send(json.dumps(note), content_type="application/json")
+            return
+        self._send(
+            json.dumps({"detail": "not found"}),
+            status=404,
+            content_type="application/json",
+        )
+
+    def do_DELETE(self) -> None:
+        path = urlparse(self.path).path
+        if path.startswith("/api/notes/"):
+            user = self._require_user()
+            if user is None:
+                return
+            note_id = path.rsplit("/", 1)[-1]
+            note = self.NOTES.get(note_id)
+            if note is None:
+                self._send(
+                    json.dumps({"detail": "not found"}),
+                    status=404,
+                    content_type="application/json",
+                )
+                return
+            if note.get("owner") != user and user != "ADMIN":
+                self._send(
+                    json.dumps({"detail": "forbidden"}),
+                    status=403,
+                    content_type="application/json",
+                )
+                return
+            del self.NOTES[note_id]
+            self._send("{}", status=200, content_type="application/json")
+            return
+        if path.startswith("/api/uploads/"):
+            user = self._require_user()
+            if user is None:
+                return
+            upload_id = path.rsplit("/", 1)[-1]
+            item = self.UPLOADS.get(upload_id)
+            if item is None:
+                self._send(
+                    json.dumps({"detail": "not found"}),
+                    status=404,
+                    content_type="application/json",
+                )
+                return
+            if item.get("owner") != user and user != "ADMIN":
+                self._send(
+                    json.dumps({"detail": "forbidden"}),
+                    status=403,
+                    content_type="application/json",
+                )
+                return
+            del self.UPLOADS[upload_id]
+            self._send("{}", status=200, content_type="application/json")
+            return
+        self._send(
+            json.dumps({"detail": "not found"}),
+            status=404,
+            content_type="application/json",
         )
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+
+        if path == "/api/notes":
+            user = self._require_user()
+            if user is None:
+                return
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            raw = self.rfile.read(length)
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = {}
+            DemoHandler._NOTE_SEQ += 1
+            note_id = str(DemoHandler._NOTE_SEQ)
+            note = {
+                "id": note_id,
+                "owner": user,
+                "title": str(payload.get("title") or "note"),
+                "body": str(payload.get("body") or ""),
+            }
+            self.NOTES[note_id] = note
+            self._send(
+                json.dumps(note),
+                status=201,
+                content_type="application/json",
+            )
+            return
+
+        if path == "/api/uploads":
+            user = self._require_user()
+            if user is None:
+                return
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            raw = self.rfile.read(length)
+            DemoHandler._UPLOAD_SEQ += 1
+            upload_id = str(DemoHandler._UPLOAD_SEQ)
+            filename = self.headers.get("X-Filename", "upload.txt")
+            self.UPLOADS[upload_id] = {
+                "id": upload_id,
+                "owner": user,
+                "filename": filename,
+                "content": raw,
+                "content_type": self.headers.get(
+                    "Content-Type", "application/octet-stream"
+                ),
+            }
+            self._send(
+                json.dumps(
+                    {
+                        "id": upload_id,
+                        "filename": filename,
+                        "size": len(raw),
+                    }
+                ),
+                status=201,
+                content_type="application/json",
+            )
+            return
+
+        if path == "/api/logout":
+            self._send(
+                json.dumps({"ok": True}),
+                content_type="application/json",
+                cookie="demo_session=; Path=/; Max-Age=0",
+            )
+            return
 
         if path == "/api/login":
             length = int(
@@ -943,6 +1159,18 @@ RuntimeError: demo exception
             email = payload.get("email")
             username = payload.get("username")
             password = payload.get("password")
+
+            if (
+                isinstance(username, str)
+                and username in {"A", "B", "ADMIN"}
+                and password == "demo"
+            ):
+                self._send(
+                    json.dumps({"user": {"id": username}}),
+                    content_type="application/json",
+                    cookie=f"demo_session={username}; Path=/",
+                )
+                return
 
             sql_bypass = any(
                 isinstance(value, str)

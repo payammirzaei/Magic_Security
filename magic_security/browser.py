@@ -238,11 +238,15 @@ class BrowserCrawler:
                     request.post_data,
                     headers.get("content-type"),
                 )
+                post_data = request.post_data or ""
+                source = network_source
+                if "graphql" in request.url.lower() or '"query"' in post_data:
+                    source = browser_source("graphql", auth_context)
                 crawl.endpoints.add(
                     EndpointCandidate(
                         url=request.url,
                         method=request.method.upper(),
-                        source=network_source,
+                        source=source,
                         parameters=params,
                     )
                 )
@@ -294,13 +298,31 @@ class BrowserCrawler:
                                     .filter(Boolean)
                             })),
                             localKeys: Object.keys(window.localStorage || {}),
-                            sessionKeys: Object.keys(window.sessionStorage || {})
+                            sessionKeys: Object.keys(window.sessionStorage || {}),
+                            frames: Array.from(document.querySelectorAll('iframe[src],frame[src]'))
+                                .map(f => f.src)
+                                .filter(Boolean),
+                            sameDocumentRoutes: Array.from(document.querySelectorAll('a[href^="#/"], a[href^="/"]'))
+                                .map(a => a.getAttribute('href'))
+                                .filter(Boolean)
                         })"""
                     )
                 except Exception:
                     continue
 
                 links = list(surface.get("links", []))
+                from urllib.parse import urljoin as _urljoin
+
+                for route in surface.get("sameDocumentRoutes", []):
+                    if isinstance(route, str) and route.startswith("/") and not route.startswith("//"):
+                        links.append(_urljoin(crawl.target, route))
+
+                for frame_src in surface.get("frames", []):
+                    if isinstance(frame_src, str) and same_origin(frame_src, crawl.target):
+                        links.append(frame_src)
+                        if len(visited) + len(queue) < self.max_pages:
+                            queue.append(frame_src)
+
                 merge_rendered_surface(
                     crawl,
                     page_url=final_url,
@@ -309,6 +331,27 @@ class BrowserCrawler:
                     forms=list(surface.get("forms", [])),
                     auth_context=auth_context,
                 )
+
+                # Safe non-mutating SPA navigation: click same-origin anchors only.
+                try:
+                    safe_hrefs = await page.eval_on_selector_all(
+                        "a[href]",
+                        """els => els
+                            .map(a => ({href: a.href, target: a.target, download: a.hasAttribute('download')}))
+                            .filter(item => item.href && !item.download && (!item.target || item.target === '' || item.target === '_self'))
+                            .map(item => item.href)
+                            .slice(0, 5)""",
+                    )
+                    for href in safe_hrefs or []:
+                        if (
+                            same_origin(href, crawl.target)
+                            and href not in visited
+                            and href not in queue
+                            and len(visited) + len(queue) < self.max_pages
+                        ):
+                            queue.append(href)
+                except Exception:
+                    pass
 
                 observation.security_observations.extend(
                     storage_observations_from_keys(

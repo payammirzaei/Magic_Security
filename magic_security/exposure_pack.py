@@ -6,6 +6,8 @@ from urllib.parse import urljoin
 
 import httpx
 
+from magic_security.transport import SecureTransport
+
 from magic_security.models import (
     Finding,
     FindingKind,
@@ -21,7 +23,7 @@ _SECRET_KEY_RE = re.compile(
 
 
 async def _read_prefix(
-    client: httpx.AsyncClient,
+    client: SecureTransport,
     url: str,
     *,
     max_bytes: int = 200_000,
@@ -189,7 +191,7 @@ async def probe_sensitive_endpoints(
         ),
     )
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
         headers={

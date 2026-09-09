@@ -1,0 +1,4983 @@
+{
+  "target": "http://127.0.0.1:8000",
+  "attack_surface": {
+    "pages": 13,
+    "links": 20,
+    "forms": 13,
+    "js_assets": 1,
+    "endpoints": 31,
+    "raw_endpoints": 93,
+    "normalized_endpoints": 31,
+    "classified_endpoints": 26,
+    "auth_compared_endpoints": 26,
+    "ownership_signals": 4,
+    "idor_pairwise_tests": 4,
+    "csrf_candidates": 4,
+    "session_cookie_observations": 3,
+    "injection_observations": 11,
+    "graphql_observations": 1,
+    "client_artifacts_scanned": 2,
+    "browser_security_observations": 21,
+    "server_security_observations": 17,
+    "websocket_endpoints": 1,
+    "protected_cors_observations": 6,
+    "cache_observations": 4,
+    "rate_limit_observations": 8,
+    "parameter_security_observations": 84,
+    "protocol_security_observations": 3,
+    "parameters": 19,
+    "source_maps": 1,
+    "browser_pages": 18,
+    "browser_network_requests": 2,
+    "authenticated_browser_contexts": 3,
+    "authenticated_browser_network_requests": 9,
+    "response_fingerprint_groups": 11,
+    "robots_entries": 2,
+    "sitemap_entries": 2,
+    "sensitive_endpoint_observations": 17,
+    "user_surface_observations": 29
+  },
+  "coverage": {
+    "auth_security": {
+      "total_endpoints": 31,
+      "read_endpoints": 27,
+      "state_changing_endpoints": 4,
+      "auth_compared_endpoints": 26,
+      "protected_endpoints": 2,
+      "public_or_unprotected_endpoints": 16,
+      "user_specific_endpoints": 2,
+      "ownership_signals": 4,
+      "idor_pairwise_tests": 4,
+      "idor_verified": 4,
+      "csrf_state_changing_candidates": 4,
+      "csrf_needs_verification": 4,
+      "session_cookies_observed": 3,
+      "weak_session_cookie_observations": 3
+    },
+    "external_security": {
+      "injection_tests": 11,
+      "html_injection_verified": 3,
+      "xss_execution_verified": 1,
+      "graphql_endpoints_tested": 1,
+      "graphql_introspection_exposed": 1,
+      "graphql_detailed_errors": 0,
+      "client_artifacts_scanned": 2,
+      "secret_like_artifacts": 2,
+      "internal_topology_artifacts": 2,
+      "protected_cors_tests": 6,
+      "protected_cors_exposed": 3,
+      "authenticated_cache_tests": 4,
+      "risky_shared_cache": 2,
+      "rate_limit_endpoints_tested": 8,
+      "rate_limit_throttled": 0,
+      "parameter_security_tests": 84,
+      "database_error_triggers": 1,
+      "ssti_verified": 2,
+      "crlf_verified": 3,
+      "parameter_pollution_observations": 21,
+      "protocol_observations": 3
+    },
+    "browser_security": {
+      "artifacts_scanned": 2,
+      "dom_source_sink_candidates": 1,
+      "dom_xss_verified": 0,
+      "message_handlers": 1,
+      "message_handlers_missing_origin": 1,
+      "client_redirect_candidates": 1,
+      "sensitive_storage_keys": 17,
+      "websocket_endpoints": 1
+    },
+    "server_security": {
+      "total_probes": 101,
+      "database_error_triggers": 1,
+      "ssti_verified": 2,
+      "crlf_verified": 3,
+      "path_traversal_verified": 1,
+      "ssrf_verified": 1,
+      "auth_sqli_verified": 1,
+      "auth_nosqli_verified": 1,
+      "host_header_influences": 1
+    },
+    "user_side_security": {
+      "robots_entries": 2,
+      "sitemap_entries": 2,
+      "sensitive_endpoint_probes": 17,
+      "sensitive_endpoint_verified": 1,
+      "sensitive_url_parameters": 1,
+      "sensitive_get_forms": 1,
+      "mixed_content_pages": 0,
+      "null_origin_cors_exposed": 1,
+      "jsonp_exposed": 1
+    },
+    "categories": [
+      {
+        "category": "Authentication",
+        "status": "Partially Tested",
+        "note": "Auth boundaries, login/token behavior, SQL/NoSQL auth-bypass signals and rate behavior are tested when discoverable. Password-reset/MFA/business workflows still need configuration."
+      },
+      {
+        "category": "Authorization / Access Control",
+        "status": "Partially Tested",
+        "note": "Same-role read-only path/query IDOR/BOLA is verified with test accounts. Complex workflow and state-changing authorization remain configuration-driven."
+      },
+      {
+        "category": "Session Security",
+        "status": "Partially Tested",
+        "note": "Cookie attributes and authenticated cache behavior are tested. Login-time rotation/fixation and logout invalidation require explicit disposable workflow configuration."
+      },
+      {
+        "category": "SQL / Database",
+        "status": "Partially Tested",
+        "note": "Database-error behavior plus SQL/NoSQL login-bypass proofs are tested when relevant endpoints are discovered; this is not exhaustive SQLi coverage."
+      },
+      {
+        "category": "Injection",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "XSS",
+        "status": "Partially Tested",
+        "note": "Reflected and DOM execution can be verified with Playwright; stored XSS requires a configured write/read workflow."
+      },
+      {
+        "category": "CSRF",
+        "status": "Partially Tested",
+        "note": "Cookie/header auth posture and token signals are mapped. State-changing proof requires an explicitly configured disposable action."
+      },
+      {
+        "category": "SSRF",
+        "status": "Partially Tested",
+        "note": "URL-like GET parameters are tested only against a scanner-owned 127.0.0.1 callback. Cloud metadata/private services are not probed."
+      },
+      {
+        "category": "File Upload",
+        "status": "Requires Config",
+        "note": "Upload security needs a disposable workflow definition so files can be safely created, retrieved, and removed."
+      },
+      {
+        "category": "Path / File Handling",
+        "status": "Partially Tested",
+        "note": "Traversal candidates use known non-secret marker files; public backup/config/deployment artifacts are also signature-probed."
+      },
+      {
+        "category": "API Security",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "REST / HTTP",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "GraphQL",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "WebSockets",
+        "status": "Partially Tested",
+        "note": "Endpoints and mixed ws:// usage are discovered. Full origin/auth handshake and message authorization testing needs a realtime workflow pack."
+      },
+      {
+        "category": "Business Logic",
+        "status": "Requires Config",
+        "note": "Requires explicit user journeys, invariants, and disposable test data."
+      },
+      {
+        "category": "Race Conditions",
+        "status": "Requires Config",
+        "note": "Requires explicit idempotent/disposable concurrent workflows."
+      },
+      {
+        "category": "Payments",
+        "status": "Requires Config",
+        "note": "Requires sandbox payment flows and business invariants."
+      },
+      {
+        "category": "Cryptography",
+        "status": "Partial",
+        "note": ""
+      },
+      {
+        "category": "Secrets",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "Security Headers",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "CORS",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "Clickjacking",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "Redirects / URLs",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "Information Disclosure",
+        "status": "Partially Tested",
+        "note": "Covers unauthenticated JSON, source maps, client artifacts, debug/status endpoints, backup archives, config files, heapdump exposure and sensitive URL parameters."
+      },
+      {
+        "category": "Error Handling",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "DoS / Resource Exhaustion",
+        "status": "Requires Config",
+        "note": ""
+      },
+      {
+        "category": "Rate Limiting",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "Cloud / Infrastructure",
+        "status": "Partial",
+        "note": ""
+      },
+      {
+        "category": "Docker / Container",
+        "status": "Requires Repo Access",
+        "note": ""
+      },
+      {
+        "category": "CI/CD",
+        "status": "Requires Repo Access",
+        "note": ""
+      },
+      {
+        "category": "Supply Chain",
+        "status": "Requires Repo Access",
+        "note": ""
+      },
+      {
+        "category": "Frontend",
+        "status": "Partially Tested",
+        "note": "Covers DOM XSS signals, storage keys, postMessage, client redirects, mixed content, sensitive URLs, source maps and WebSocket discovery."
+      },
+      {
+        "category": "React / Next.js / SPA",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "Backend Framework",
+        "status": "Partial",
+        "note": ""
+      },
+      {
+        "category": "Cache",
+        "status": "Partially Tested",
+        "note": ""
+      },
+      {
+        "category": "Email",
+        "status": "Requires Config",
+        "note": ""
+      },
+      {
+        "category": "Account Takeover",
+        "status": "Requires Config",
+        "note": "Needs configured password-reset/MFA/session-rotation workflows to prove takeover paths safely."
+      },
+      {
+        "category": "Admin Panels",
+        "status": "Partial",
+        "note": "robots.txt/sitemap.xml and discovered routes can reveal hidden admin surfaces, but admin authorization workflows are not assumed."
+      },
+      {
+        "category": "Logging / Monitoring",
+        "status": "Requires Repo Access",
+        "note": ""
+      },
+      {
+        "category": "Privacy / Data Exposure",
+        "status": "Partially Tested",
+        "note": "Covers sensitive JSON fields, sensitive URL/query exposure, GET-form leakage and authenticated cross-account reads."
+      },
+      {
+        "category": "Misconfiguration",
+        "status": "Partially Tested",
+        "note": "Covers headers, CORS, debug/status endpoints, source-control metadata, dependency manifests, backups and management endpoints."
+      },
+      {
+        "category": "AI / LLM features",
+        "status": "Requires Config",
+        "note": ""
+      }
+    ]
+  },
+  "user_side_security": {
+    "index_discovery": {
+      "robots_entries": 2,
+      "sitemap_entries": 2
+    },
+    "sensitive_endpoints": [
+      {
+        "url": "http://127.0.0.1:8000/.svn/entries",
+        "category": "source_control_metadata",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/.hg/requires",
+        "category": "source_control_metadata",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/.DS_Store",
+        "category": "filesystem_metadata",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/server-status",
+        "category": "server_status",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/phpinfo.php",
+        "category": "runtime_debug",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/debug/vars",
+        "category": "runtime_debug",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/WEB-INF/web.xml",
+        "category": "application_config",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/package.json",
+        "category": "dependency_manifest",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/composer.json",
+        "category": "dependency_manifest",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/backup.zip",
+        "category": "backup_archive",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/site.zip",
+        "category": "backup_archive",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/www.zip",
+        "category": "backup_archive",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/database.sql",
+        "category": "database_dump",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/dump.sql",
+        "category": "database_dump",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/config.json",
+        "category": "public_config",
+        "status_code": 200,
+        "verified": true,
+        "detail": "json_signature_matched"
+      },
+      {
+        "url": "http://127.0.0.1:8000/actuator/env",
+        "category": "spring_actuator_env",
+        "status_code": 404,
+        "verified": false,
+        "detail": "not_verified"
+      },
+      {
+        "url": "http://127.0.0.1:8000/actuator/heapdump",
+        "category": "heapdump",
+        "status_code": 501,
+        "verified": false,
+        "detail": "not_verified"
+      }
+    ],
+    "surface_observations": [
+      {
+        "category": "sensitive_url_parameter",
+        "url": "http://127.0.0.1:8000/reset",
+        "parameter": "token",
+        "verified": true,
+        "detail": "secret_like"
+      },
+      {
+        "category": "sensitive_get_form",
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "password",
+        "verified": true,
+        "detail": "sensitive_fields_submitted_with_get"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/admin-hidden",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/api/account-detail",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/api/me",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/api/private",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/api/public",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/api/user-settings",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/api/users",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/crlf",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/download",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/fetch",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/go",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/graphql",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/header",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/jsonp",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "jsonp",
+        "url": "http://127.0.0.1:8000/jsonp",
+        "parameter": "callback",
+        "verified": true,
+        "detail": "arbitrary_callback_wrapping"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/null-cors",
+        "parameter": null,
+        "verified": true,
+        "detail": "credentials_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/public-hidden",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/reflect",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/reset",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/settings",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/sql",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/sql-search",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/ssti",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      },
+      {
+        "category": "null_origin_cors",
+        "url": "http://127.0.0.1:8000/template",
+        "parameter": null,
+        "verified": false,
+        "detail": "not_allowed"
+      }
+    ]
+  },
+  "browser_security": {
+    "websockets": [
+      "ws://127.0.0.1:8000/ws"
+    ],
+    "observations": [
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/dashboard",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_a"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/dashboard",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_b"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/files",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_b"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/files/",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_b"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/files/backup.txt",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_b"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/products",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_b"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/jsonp?callback=demo",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_b"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/public-hidden",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_b"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "user_b"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/dashboard",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "admin"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/files",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "admin"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/files/",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "admin"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/files/backup.txt",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "admin"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/products",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "admin"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/jsonp?callback=demo",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "admin"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/public-hidden",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "admin"
+      },
+      {
+        "category": "browser_storage",
+        "url": "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "status": "sensitive_key_observed",
+        "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+        "context": "admin"
+      },
+      {
+        "category": "dom_xss",
+        "url": "http://127.0.0.1:8000/static/app.js",
+        "status": "source_sink_candidate",
+        "evidence": "frontend JavaScript contains browser-controlled source(s) location.search, location.hash and unsafe DOM sink(s) innerHTML.",
+        "context": null
+      },
+      {
+        "category": "client_redirect",
+        "url": "http://127.0.0.1:8000/static/app.js",
+        "status": "source_sink_candidate",
+        "evidence": "frontend JavaScript combines URL source(s) location.search, location.hash with navigation sink(s) location.href.",
+        "context": null
+      },
+      {
+        "category": "web_messaging",
+        "url": "http://127.0.0.1:8000/static/app.js",
+        "status": "missing_origin_check_signal",
+        "evidence": "A message event handler was found; no obvious event.origin validation signal was found.",
+        "context": null
+      },
+      {
+        "category": "websocket",
+        "url": "ws://127.0.0.1:8000/ws",
+        "status": "discovered",
+        "evidence": "WebSocket endpoint referenced by frontend JavaScript.",
+        "context": null
+      }
+    ]
+  },
+  "auth_security": {
+    "ownership": [
+      {
+        "context": "user_a",
+        "parameter": "account_id",
+        "discovered_values": 1,
+        "source_endpoints": [
+          "http://127.0.0.1:8000/api/me"
+        ]
+      },
+      {
+        "context": "user_a",
+        "parameter": "id",
+        "discovered_values": 1,
+        "source_endpoints": [
+          "http://127.0.0.1:8000/api/me"
+        ]
+      },
+      {
+        "context": "user_b",
+        "parameter": "account_id",
+        "discovered_values": 1,
+        "source_endpoints": [
+          "http://127.0.0.1:8000/api/me"
+        ]
+      },
+      {
+        "context": "user_b",
+        "parameter": "id",
+        "discovered_values": 1,
+        "source_endpoints": [
+          "http://127.0.0.1:8000/api/me"
+        ]
+      }
+    ],
+    "pairwise_idor": [
+      {
+        "endpoint": "http://127.0.0.1:8000/api/account-detail",
+        "parameter": "account_id",
+        "parameter_location": "query",
+        "owner_context": "user_a",
+        "requester_context": "user_b",
+        "owner_status": 200,
+        "requester_status": 200,
+        "cross_account_verified": true
+      },
+      {
+        "endpoint": "http://127.0.0.1:8000/api/account-detail",
+        "parameter": "account_id",
+        "parameter_location": "query",
+        "owner_context": "user_b",
+        "requester_context": "user_a",
+        "owner_status": 200,
+        "requester_status": 200,
+        "cross_account_verified": true
+      },
+      {
+        "endpoint": "http://127.0.0.1:8000/api/accounts/{account_id}",
+        "parameter": "account_id",
+        "parameter_location": "path",
+        "owner_context": "user_a",
+        "requester_context": "user_b",
+        "owner_status": 200,
+        "requester_status": 200,
+        "cross_account_verified": true
+      },
+      {
+        "endpoint": "http://127.0.0.1:8000/api/accounts/{account_id}",
+        "parameter": "account_id",
+        "parameter_location": "path",
+        "owner_context": "user_b",
+        "requester_context": "user_a",
+        "owner_status": 200,
+        "requester_status": 200,
+        "cross_account_verified": true
+      }
+    ],
+    "session_cookies": [
+      {
+        "context": "user_a",
+        "source_url": "http://127.0.0.1:8000/api/me",
+        "cookie_name": "demo_session",
+        "auth_like": true,
+        "secure": false,
+        "httponly": false,
+        "same_site": null
+      },
+      {
+        "context": "user_b",
+        "source_url": "http://127.0.0.1:8000/api/me",
+        "cookie_name": "demo_session",
+        "auth_like": true,
+        "secure": false,
+        "httponly": false,
+        "same_site": null
+      },
+      {
+        "context": "admin",
+        "source_url": "http://127.0.0.1:8000/api/me",
+        "cookie_name": "demo_session",
+        "auth_like": true,
+        "secure": false,
+        "httponly": false,
+        "same_site": null
+      }
+    ],
+    "csrf_posture": [
+      {
+        "url": "http://127.0.0.1:8000/api/login",
+        "method": "POST",
+        "parameters": [
+          "email",
+          "password",
+          "username"
+        ],
+        "auth_style": "cookie",
+        "token_signal_present": false,
+        "posture": "cookie_authenticated_needs_verification"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/orders",
+        "method": "POST",
+        "parameters": [
+          "item"
+        ],
+        "auth_style": "cookie",
+        "token_signal_present": false,
+        "posture": "cookie_authenticated_needs_verification"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/profile",
+        "method": "POST",
+        "parameters": [
+          "display_name"
+        ],
+        "auth_style": "cookie",
+        "token_signal_present": false,
+        "posture": "cookie_authenticated_needs_verification"
+      },
+      {
+        "url": "http://127.0.0.1:8000/graphql",
+        "method": "POST",
+        "parameters": [],
+        "auth_style": "cookie",
+        "token_signal_present": false,
+        "posture": "cookie_authenticated_needs_verification"
+      }
+    ]
+  },
+  "external_security": {
+    "injection": [
+      {
+        "url": "http://127.0.0.1:8000/reflect",
+        "parameter": "q",
+        "raw_reflected": true,
+        "html_injection_verified": true,
+        "script_execution_verified": true
+      },
+      {
+        "url": "http://127.0.0.1:8000/crlf",
+        "parameter": "value",
+        "raw_reflected": false,
+        "html_injection_verified": false,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/header",
+        "parameter": "name",
+        "raw_reflected": false,
+        "html_injection_verified": false,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "page",
+        "raw_reflected": false,
+        "html_injection_verified": false,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "sort",
+        "raw_reflected": false,
+        "html_injection_verified": false,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "category",
+        "raw_reflected": false,
+        "html_injection_verified": false,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "q",
+        "raw_reflected": false,
+        "html_injection_verified": false,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/settings",
+        "parameter": "tab",
+        "raw_reflected": false,
+        "html_injection_verified": false,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql",
+        "parameter": "q",
+        "raw_reflected": false,
+        "html_injection_verified": false,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/ssti",
+        "parameter": "name",
+        "raw_reflected": true,
+        "html_injection_verified": true,
+        "script_execution_verified": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/template",
+        "parameter": "name",
+        "raw_reflected": true,
+        "html_injection_verified": true,
+        "script_execution_verified": false
+      }
+    ],
+    "graphql": [
+      {
+        "url": "http://127.0.0.1:8000/graphql",
+        "status_code": 200,
+        "anonymous_introspection": true,
+        "detailed_errors": false
+      }
+    ],
+    "client_artifacts": [
+      {
+        "url": "http://127.0.0.1:8000/static/app.js",
+        "artifact_type": "javascript",
+        "secret_like_names": [
+          "API_SECRET"
+        ],
+        "token_shapes": [],
+        "internal_url_count": 1
+      },
+      {
+        "url": "http://127.0.0.1:8000/static/app.js.map",
+        "artifact_type": "source_map",
+        "secret_like_names": [
+          "API_SECRET"
+        ],
+        "token_shapes": [],
+        "internal_url_count": 1
+      }
+    ],
+    "protected_cors": [
+      {
+        "url": "http://127.0.0.1:8000/api/me",
+        "context": "user_a",
+        "status_code": 200,
+        "origin_reflected": true,
+        "credentials_allowed": true,
+        "protected_response_exposed": true
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/user-settings",
+        "context": "user_a",
+        "status_code": 200,
+        "origin_reflected": false,
+        "credentials_allowed": false,
+        "protected_response_exposed": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/me",
+        "context": "user_b",
+        "status_code": 200,
+        "origin_reflected": true,
+        "credentials_allowed": true,
+        "protected_response_exposed": true
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/user-settings",
+        "context": "user_b",
+        "status_code": 200,
+        "origin_reflected": false,
+        "credentials_allowed": false,
+        "protected_response_exposed": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/me",
+        "context": "admin",
+        "status_code": 200,
+        "origin_reflected": true,
+        "credentials_allowed": true,
+        "protected_response_exposed": true
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/user-settings",
+        "context": "admin",
+        "status_code": 200,
+        "origin_reflected": false,
+        "credentials_allowed": false,
+        "protected_response_exposed": false
+      }
+    ],
+    "authenticated_cache": [
+      {
+        "url": "http://127.0.0.1:8000/api/me",
+        "context": "user_a",
+        "cache_control": "public, max-age=120",
+        "risky_shared_cache": true
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/me",
+        "context": "user_b",
+        "cache_control": "public, max-age=120",
+        "risky_shared_cache": true
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/user-settings",
+        "context": "user_a",
+        "cache_control": "",
+        "risky_shared_cache": false
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/user-settings",
+        "context": "user_b",
+        "cache_control": "",
+        "risky_shared_cache": false
+      }
+    ],
+    "rate_limits": [
+      {
+        "url": "http://127.0.0.1:8000/api/login",
+        "method": "POST",
+        "requests_sent": 6,
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401
+        ],
+        "throttled": false,
+        "rate_limit_headers": []
+      },
+      {
+        "url": "http://127.0.0.1:8000/admin-hidden",
+        "method": "GET",
+        "requests_sent": 6,
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "throttled": false,
+        "rate_limit_headers": []
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/account-detail",
+        "method": "GET",
+        "requests_sent": 6,
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401
+        ],
+        "throttled": false,
+        "rate_limit_headers": []
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/me",
+        "method": "GET",
+        "requests_sent": 6,
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401
+        ],
+        "throttled": false,
+        "rate_limit_headers": []
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/private",
+        "method": "GET",
+        "requests_sent": 6,
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401
+        ],
+        "throttled": false,
+        "rate_limit_headers": []
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/public",
+        "method": "GET",
+        "requests_sent": 6,
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "throttled": false,
+        "rate_limit_headers": []
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/user-settings",
+        "method": "GET",
+        "requests_sent": 6,
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401
+        ],
+        "throttled": false,
+        "rate_limit_headers": []
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/users",
+        "method": "GET",
+        "requests_sent": 6,
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "throttled": false,
+        "rate_limit_headers": []
+      }
+    ],
+    "parameter_security": [
+      {
+        "url": "http://127.0.0.1:8000/api/account-detail",
+        "parameter": "account_id",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/account-detail",
+        "parameter": "account_id",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/account-detail",
+        "parameter": "account_id",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/account-detail",
+        "parameter": "account_id",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/users",
+        "parameter": "limit",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/users",
+        "parameter": "limit",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/users",
+        "parameter": "limit",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/api/users",
+        "parameter": "limit",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/crlf",
+        "parameter": "value",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/crlf",
+        "parameter": "value",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/crlf",
+        "parameter": "value",
+        "category": "crlf_header_injection",
+        "verified": true,
+        "detail": "controlled response header injected"
+      },
+      {
+        "url": "http://127.0.0.1:8000/crlf",
+        "parameter": "value",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/download",
+        "parameter": "file",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/download",
+        "parameter": "file",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/download",
+        "parameter": "file",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/download",
+        "parameter": "file",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/fetch",
+        "parameter": "url",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/fetch",
+        "parameter": "url",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/fetch",
+        "parameter": "url",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/fetch",
+        "parameter": "url",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/go",
+        "parameter": "next",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/go",
+        "parameter": "next",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/go",
+        "parameter": "next",
+        "category": "crlf_header_injection",
+        "verified": true,
+        "detail": "controlled response header injected"
+      },
+      {
+        "url": "http://127.0.0.1:8000/go",
+        "parameter": "next",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/header",
+        "parameter": "name",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/header",
+        "parameter": "name",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/header",
+        "parameter": "name",
+        "category": "crlf_header_injection",
+        "verified": true,
+        "detail": "controlled response header injected"
+      },
+      {
+        "url": "http://127.0.0.1:8000/header",
+        "parameter": "name",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/jsonp",
+        "parameter": "callback",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/jsonp",
+        "parameter": "callback",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/jsonp",
+        "parameter": "callback",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/jsonp",
+        "parameter": "callback",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter changed response behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "password",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "password",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "password",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "password",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "username",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "username",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "username",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/legacy-login",
+        "parameter": "username",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "page",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "page",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "page",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "page",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "sort",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "sort",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "sort",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/products",
+        "parameter": "sort",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/reflect",
+        "parameter": "q",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/reflect",
+        "parameter": "q",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/reflect",
+        "parameter": "q",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/reflect",
+        "parameter": "q",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter changed response behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/reset",
+        "parameter": "token",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/reset",
+        "parameter": "token",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/reset",
+        "parameter": "token",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/reset",
+        "parameter": "token",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "category",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "category",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "category",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "category",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "q",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "q",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "q",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/search",
+        "parameter": "q",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/settings",
+        "parameter": "tab",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/settings",
+        "parameter": "tab",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/settings",
+        "parameter": "tab",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/settings",
+        "parameter": "tab",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql",
+        "parameter": "q",
+        "category": "database_error",
+        "verified": true,
+        "detail": "database error signature triggered"
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql",
+        "parameter": "q",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql",
+        "parameter": "q",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql",
+        "parameter": "q",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql-search",
+        "parameter": "q",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql-search",
+        "parameter": "q",
+        "category": "ssti",
+        "verified": false,
+        "detail": "no template evaluation observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql-search",
+        "parameter": "q",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/sql-search",
+        "parameter": "q",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter matched baseline behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/ssti",
+        "parameter": "name",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/ssti",
+        "parameter": "name",
+        "category": "ssti",
+        "verified": true,
+        "detail": "template arithmetic evaluated"
+      },
+      {
+        "url": "http://127.0.0.1:8000/ssti",
+        "parameter": "name",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/ssti",
+        "parameter": "name",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter changed response behavior"
+      },
+      {
+        "url": "http://127.0.0.1:8000/template",
+        "parameter": "name",
+        "category": "database_error",
+        "verified": false,
+        "detail": "no new database error signature"
+      },
+      {
+        "url": "http://127.0.0.1:8000/template",
+        "parameter": "name",
+        "category": "ssti",
+        "verified": true,
+        "detail": "template arithmetic evaluated"
+      },
+      {
+        "url": "http://127.0.0.1:8000/template",
+        "parameter": "name",
+        "category": "crlf_header_injection",
+        "verified": false,
+        "detail": "no response-header injection observed"
+      },
+      {
+        "url": "http://127.0.0.1:8000/template",
+        "parameter": "name",
+        "category": "parameter_pollution",
+        "verified": false,
+        "detail": "duplicate parameter changed response behavior"
+      }
+    ],
+    "protocol_security": [
+      {
+        "category": "server_fingerprint",
+        "method": "GET",
+        "status_code": 200,
+        "detail": "Server header disclosed product information"
+      },
+      {
+        "category": "trace_method",
+        "method": "TRACE",
+        "status_code": 200,
+        "detail": "TRACE reflected request data"
+      },
+      {
+        "category": "allowed_methods",
+        "method": "OPTIONS",
+        "status_code": 204,
+        "detail": "allowed methods: GET, OPTIONS, POST, TRACE"
+      }
+    ]
+  },
+  "browser_pages": [
+    "http://127.0.0.1:8000/",
+    "http://127.0.0.1:8000/absolute",
+    "http://127.0.0.1:8000/admin-hidden",
+    "http://127.0.0.1:8000/cors",
+    "http://127.0.0.1:8000/crlf?value=hello",
+    "http://127.0.0.1:8000/docs",
+    "http://127.0.0.1:8000/files",
+    "http://127.0.0.1:8000/files/",
+    "http://127.0.0.1:8000/files/backup.txt",
+    "http://127.0.0.1:8000/jsonp?callback=demo",
+    "http://127.0.0.1:8000/products",
+    "http://127.0.0.1:8000/products?page=2&sort=name",
+    "http://127.0.0.1:8000/public-hidden",
+    "http://127.0.0.1:8000/reflect?q=hello",
+    "http://127.0.0.1:8000/reset?token=fake-reset-token",
+    "http://127.0.0.1:8000/sql?q=hello",
+    "http://127.0.0.1:8000/ssti?name=hello",
+    "http://127.0.0.1:8000/stacktrace"
+  ],
+  "authenticated_browser": [
+    {
+      "context": "admin",
+      "pages": [
+        "http://127.0.0.1:8000/",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/admin-hidden",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/dashboard",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/files/",
+        "http://127.0.0.1:8000/files/backup.txt",
+        "http://127.0.0.1:8000/jsonp?callback=demo",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/public-hidden",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "network_requests": 3
+    },
+    {
+      "context": "user_a",
+      "pages": [
+        "http://127.0.0.1:8000/",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/admin-hidden",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/dashboard",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/files/",
+        "http://127.0.0.1:8000/files/backup.txt",
+        "http://127.0.0.1:8000/jsonp?callback=demo",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/public-hidden",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "network_requests": 3
+    },
+    {
+      "context": "user_b",
+      "pages": [
+        "http://127.0.0.1:8000/",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/admin-hidden",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/dashboard",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/files/",
+        "http://127.0.0.1:8000/files/backup.txt",
+        "http://127.0.0.1:8000/jsonp?callback=demo",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/public-hidden",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "network_requests": 3
+    }
+  ],
+  "response_groups": [
+    {
+      "fingerprint": "12d44838d1e8b280",
+      "urls": [
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name"
+      ],
+      "count": 2
+    },
+    {
+      "fingerprint": "1f8798724e17f2b4",
+      "urls": [
+        "http://127.0.0.1:8000/ssti?name=hello"
+      ],
+      "count": 1
+    },
+    {
+      "fingerprint": "42d0e37d31bb8584",
+      "urls": [
+        "http://127.0.0.1:8000/crlf?value=hello"
+      ],
+      "count": 1
+    },
+    {
+      "fingerprint": "a0ec8608ff36a14e",
+      "urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "count": 1
+    },
+    {
+      "fingerprint": "b3c03fcb752fc28c",
+      "urls": [
+        "http://127.0.0.1:8000/cors"
+      ],
+      "count": 1
+    },
+    {
+      "fingerprint": "bbe994d6b9234fec",
+      "urls": [
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token"
+      ],
+      "count": 2
+    },
+    {
+      "fingerprint": "c7a7581be5b66c1b",
+      "urls": [
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "count": 1
+    },
+    {
+      "fingerprint": "f1b1ef68844fa8a6",
+      "urls": [
+        "http://127.0.0.1:8000/reflect?q=hello"
+      ],
+      "count": 1
+    },
+    {
+      "fingerprint": "f4dc820f80f00962",
+      "urls": [
+        "http://127.0.0.1:8000/absolute"
+      ],
+      "count": 1
+    },
+    {
+      "fingerprint": "f7df0171ca095fa7",
+      "urls": [
+        "http://127.0.0.1:8000/sql?q=hello"
+      ],
+      "count": 1
+    },
+    {
+      "fingerprint": "fe4d5172edbdd65f",
+      "urls": [
+        "http://127.0.0.1:8000/docs"
+      ],
+      "count": 1
+    }
+  ],
+  "normalized_endpoints": [
+    {
+      "url": "http://127.0.0.1:8000/admin-hidden",
+      "method": "GET",
+      "parameters": [],
+      "sources": [
+        "robots"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/account-detail",
+      "method": "GET",
+      "parameters": [
+        "account_id"
+      ],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/accounts/{account_id}",
+      "method": "GET",
+      "parameters": [
+        "account_id"
+      ],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/login",
+      "method": "POST",
+      "parameters": [
+        "email",
+        "password",
+        "username"
+      ],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "parameters": [],
+      "sources": [
+        "browser:admin:network",
+        "browser:network",
+        "browser:user_a:network",
+        "browser:user_b:network",
+        "javascript:fetch",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/orders",
+      "method": "POST",
+      "parameters": [
+        "item"
+      ],
+      "sources": [
+        "javascript:axios",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/private",
+      "method": "GET",
+      "parameters": [],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/profile",
+      "method": "POST",
+      "parameters": [
+        "display_name"
+      ],
+      "sources": [
+        "browser:admin:form",
+        "browser:user_a:form",
+        "browser:user_b:form",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/public",
+      "method": "GET",
+      "parameters": [],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/user-settings",
+      "method": "GET",
+      "parameters": [],
+      "sources": [
+        "browser:admin:network",
+        "browser:user_a:network",
+        "browser:user_b:network",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users",
+      "method": "GET",
+      "parameters": [
+        "limit"
+      ],
+      "sources": [
+        "browser:admin:network",
+        "browser:network",
+        "browser:user_a:network",
+        "browser:user_b:network",
+        "javascript:fetch",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf",
+      "method": "GET",
+      "parameters": [
+        "value"
+      ],
+      "sources": [
+        "browser:admin:link",
+        "browser:link",
+        "browser:user_a:link",
+        "browser:user_b:link",
+        "html:link",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/download",
+      "method": "GET",
+      "parameters": [
+        "file"
+      ],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/fetch",
+      "method": "GET",
+      "parameters": [
+        "url"
+      ],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/go",
+      "method": "GET",
+      "parameters": [
+        "next"
+      ],
+      "sources": [
+        "browser:admin:link",
+        "browser:link",
+        "browser:user_a:link",
+        "browser:user_b:link",
+        "html:link",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/graphql",
+      "method": "GET",
+      "parameters": [],
+      "sources": [
+        "javascript:string"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/graphql",
+      "method": "POST",
+      "parameters": [],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/header",
+      "method": "GET",
+      "parameters": [
+        "name"
+      ],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/jsonp",
+      "method": "GET",
+      "parameters": [
+        "callback"
+      ],
+      "sources": [
+        "openapi",
+        "sitemap"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "method": "GET",
+      "parameters": [
+        "password",
+        "username"
+      ],
+      "sources": [
+        "browser:admin:form",
+        "browser:form",
+        "browser:user_a:form",
+        "browser:user_b:form",
+        "html:form"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/null-cors",
+      "method": "GET",
+      "parameters": [],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/products",
+      "method": "GET",
+      "parameters": [
+        "page",
+        "sort"
+      ],
+      "sources": [
+        "browser:admin:link",
+        "browser:link",
+        "browser:user_a:link",
+        "browser:user_b:link",
+        "html:link",
+        "sitemap"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/public-hidden",
+      "method": "GET",
+      "parameters": [],
+      "sources": [
+        "robots"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect",
+      "method": "GET",
+      "parameters": [
+        "q"
+      ],
+      "sources": [
+        "browser:admin:link",
+        "browser:link",
+        "browser:user_a:link",
+        "browser:user_b:link",
+        "html:link",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reset",
+      "method": "GET",
+      "parameters": [
+        "token"
+      ],
+      "sources": [
+        "browser:admin:link",
+        "browser:link",
+        "browser:user_a:link",
+        "browser:user_b:link",
+        "html:link"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/search",
+      "method": "GET",
+      "parameters": [
+        "category",
+        "q"
+      ],
+      "sources": [
+        "browser:admin:form",
+        "browser:form",
+        "browser:user_a:form",
+        "browser:user_b:form",
+        "html:form"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/settings",
+      "method": "GET",
+      "parameters": [
+        "tab"
+      ],
+      "sources": [
+        "browser:admin:link",
+        "browser:user_a:link",
+        "browser:user_b:link"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql",
+      "method": "GET",
+      "parameters": [
+        "q"
+      ],
+      "sources": [
+        "browser:admin:link",
+        "browser:link",
+        "browser:user_a:link",
+        "browser:user_b:link",
+        "html:link",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql-search",
+      "method": "GET",
+      "parameters": [
+        "q"
+      ],
+      "sources": [
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti",
+      "method": "GET",
+      "parameters": [
+        "name"
+      ],
+      "sources": [
+        "browser:admin:link",
+        "browser:link",
+        "browser:user_a:link",
+        "browser:user_b:link",
+        "html:link",
+        "openapi"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/template",
+      "method": "GET",
+      "parameters": [
+        "name"
+      ],
+      "sources": [
+        "openapi"
+      ]
+    }
+  ],
+  "endpoint_observations": [
+    {
+      "url": "http://127.0.0.1:8000/admin-hidden",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/account-detail",
+      "method": "GET",
+      "status_code": 401,
+      "classification": "auth_required",
+      "content_type": "application/json",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "status_code": 401,
+      "classification": "auth_required",
+      "content_type": "application/json",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/private",
+      "method": "GET",
+      "status_code": 401,
+      "classification": "auth_required",
+      "content_type": "application/json",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/public",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "json",
+      "content_type": "application/json",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/user-settings",
+      "method": "GET",
+      "status_code": 401,
+      "classification": "auth_required",
+      "content_type": "application/json",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "json",
+      "content_type": "application/json",
+      "sensitive_fields": [
+        "users.email",
+        "users.phone"
+      ],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/download",
+      "method": "GET",
+      "status_code": 404,
+      "classification": "not_found",
+      "content_type": "text/plain",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/fetch",
+      "method": "GET",
+      "status_code": 400,
+      "classification": "client_error",
+      "content_type": "application/json",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/go",
+      "method": "GET",
+      "status_code": 302,
+      "classification": "redirect",
+      "content_type": "",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/graphql",
+      "method": "GET",
+      "status_code": 404,
+      "classification": "not_found",
+      "content_type": "text/plain",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/header",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/jsonp",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "other",
+      "content_type": "application/javascript",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "method": "GET",
+      "status_code": 404,
+      "classification": "not_found",
+      "content_type": "text/plain",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/null-cors",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "json",
+      "content_type": "application/json",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/products",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/public-hidden",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/reset",
+      "method": "GET",
+      "status_code": 404,
+      "classification": "not_found",
+      "content_type": "text/plain",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/search",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/settings",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql-search",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "other",
+      "content_type": "text/plain",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/template",
+      "method": "GET",
+      "status_code": 200,
+      "classification": "html",
+      "content_type": "text/html",
+      "sensitive_fields": [],
+      "secret_fields": []
+    }
+  ],
+  "auth_comparisons": [
+    {
+      "url": "http://127.0.0.1:8000/admin-hidden",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/account-detail",
+      "method": "GET",
+      "boundary": "denied_for_all",
+      "anonymous_status": 401,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 404
+        },
+        {
+          "context": "user_a",
+          "status_code": 404
+        },
+        {
+          "context": "user_b",
+          "status_code": 404
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "boundary": "protected",
+      "anonymous_status": 401,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": true
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/private",
+      "method": "GET",
+      "boundary": "denied_for_all",
+      "anonymous_status": 401,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 401
+        },
+        {
+          "context": "user_a",
+          "status_code": 401
+        },
+        {
+          "context": "user_b",
+          "status_code": 401
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/public",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/user-settings",
+      "method": "GET",
+      "boundary": "protected",
+      "anonymous_status": 401,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": true
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/download",
+      "method": "GET",
+      "boundary": "inconsistent",
+      "anonymous_status": 404,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 404
+        },
+        {
+          "context": "user_a",
+          "status_code": 404
+        },
+        {
+          "context": "user_b",
+          "status_code": 404
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/fetch",
+      "method": "GET",
+      "boundary": "inconsistent",
+      "anonymous_status": 400,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 400
+        },
+        {
+          "context": "user_a",
+          "status_code": 400
+        },
+        {
+          "context": "user_b",
+          "status_code": 400
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/go",
+      "method": "GET",
+      "boundary": "inconsistent",
+      "anonymous_status": 302,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 302
+        },
+        {
+          "context": "user_a",
+          "status_code": 302
+        },
+        {
+          "context": "user_b",
+          "status_code": 302
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/graphql",
+      "method": "GET",
+      "boundary": "inconsistent",
+      "anonymous_status": 404,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 404
+        },
+        {
+          "context": "user_a",
+          "status_code": 404
+        },
+        {
+          "context": "user_b",
+          "status_code": 404
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/header",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/jsonp",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "method": "GET",
+      "boundary": "inconsistent",
+      "anonymous_status": 404,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 404
+        },
+        {
+          "context": "user_a",
+          "status_code": 404
+        },
+        {
+          "context": "user_b",
+          "status_code": 404
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/null-cors",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/products",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/public-hidden",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/reset",
+      "method": "GET",
+      "boundary": "inconsistent",
+      "anonymous_status": 404,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 404
+        },
+        {
+          "context": "user_a",
+          "status_code": 404
+        },
+        {
+          "context": "user_b",
+          "status_code": 404
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/search",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/settings",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql-search",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    },
+    {
+      "url": "http://127.0.0.1:8000/template",
+      "method": "GET",
+      "boundary": "public_or_unprotected",
+      "anonymous_status": 200,
+      "context_statuses": [
+        {
+          "context": "admin",
+          "status_code": 200
+        },
+        {
+          "context": "user_a",
+          "status_code": 200
+        },
+        {
+          "context": "user_b",
+          "status_code": 200
+        }
+      ],
+      "authenticated_responses_differ": false
+    }
+  ],
+  "raw_endpoints": [
+    {
+      "url": "http://127.0.0.1:8000/admin-hidden",
+      "method": "GET",
+      "source": "robots",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/account-detail",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "account_id"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/accounts/{account_id}",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "account_id"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/login",
+      "method": "POST",
+      "source": "openapi",
+      "parameters": [
+        "email",
+        "password",
+        "username"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "source": "browser:admin:network",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "source": "browser:network",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "source": "browser:user_a:network",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "source": "browser:user_b:network",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "source": "javascript:fetch",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/me",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/orders",
+      "method": "POST",
+      "source": "javascript:axios",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/orders",
+      "method": "POST",
+      "source": "openapi",
+      "parameters": [
+        "item"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/private",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/profile",
+      "method": "POST",
+      "source": "browser:admin:form",
+      "parameters": [
+        "display_name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/profile",
+      "method": "POST",
+      "source": "browser:user_a:form",
+      "parameters": [
+        "display_name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/profile",
+      "method": "POST",
+      "source": "browser:user_b:form",
+      "parameters": [
+        "display_name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/profile",
+      "method": "POST",
+      "source": "openapi",
+      "parameters": [
+        "display_name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/public",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/user-settings",
+      "method": "GET",
+      "source": "browser:admin:network",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/user-settings",
+      "method": "GET",
+      "source": "browser:user_a:network",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/user-settings",
+      "method": "GET",
+      "source": "browser:user_b:network",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/user-settings",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "limit"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users?limit=20",
+      "method": "GET",
+      "source": "browser:admin:network",
+      "parameters": [
+        "limit"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users?limit=20",
+      "method": "GET",
+      "source": "browser:network",
+      "parameters": [
+        "limit"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users?limit=20",
+      "method": "GET",
+      "source": "browser:user_a:network",
+      "parameters": [
+        "limit"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users?limit=20",
+      "method": "GET",
+      "source": "browser:user_b:network",
+      "parameters": [
+        "limit"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/users?limit=20",
+      "method": "GET",
+      "source": "javascript:fetch",
+      "parameters": [
+        "limit"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "value"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf?value=hello",
+      "method": "GET",
+      "source": "browser:admin:link",
+      "parameters": [
+        "value"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf?value=hello",
+      "method": "GET",
+      "source": "browser:link",
+      "parameters": [
+        "value"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf?value=hello",
+      "method": "GET",
+      "source": "browser:user_a:link",
+      "parameters": [
+        "value"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf?value=hello",
+      "method": "GET",
+      "source": "browser:user_b:link",
+      "parameters": [
+        "value"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/crlf?value=hello",
+      "method": "GET",
+      "source": "html:link",
+      "parameters": [
+        "value"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/download",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "file"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/fetch",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "url"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/go",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "next"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/go?next=/products",
+      "method": "GET",
+      "source": "browser:admin:link",
+      "parameters": [
+        "next"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/go?next=/products",
+      "method": "GET",
+      "source": "browser:link",
+      "parameters": [
+        "next"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/go?next=/products",
+      "method": "GET",
+      "source": "browser:user_a:link",
+      "parameters": [
+        "next"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/go?next=/products",
+      "method": "GET",
+      "source": "browser:user_b:link",
+      "parameters": [
+        "next"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/go?next=/products",
+      "method": "GET",
+      "source": "html:link",
+      "parameters": [
+        "next"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/graphql",
+      "method": "GET",
+      "source": "javascript:string",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/graphql",
+      "method": "POST",
+      "source": "openapi",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/header",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/jsonp",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "callback"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/jsonp?callback=demo",
+      "method": "GET",
+      "source": "sitemap",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "method": "GET",
+      "source": "browser:admin:form",
+      "parameters": [
+        "password",
+        "username"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "method": "GET",
+      "source": "browser:form",
+      "parameters": [
+        "password",
+        "username"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "method": "GET",
+      "source": "browser:user_a:form",
+      "parameters": [
+        "password",
+        "username"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "method": "GET",
+      "source": "browser:user_b:form",
+      "parameters": [
+        "password",
+        "username"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "method": "GET",
+      "source": "html:form",
+      "parameters": [
+        "password",
+        "username"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/null-cors",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/products",
+      "method": "GET",
+      "source": "sitemap",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/products?page=2&sort=name",
+      "method": "GET",
+      "source": "browser:admin:link",
+      "parameters": [
+        "page",
+        "sort"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/products?page=2&sort=name",
+      "method": "GET",
+      "source": "browser:link",
+      "parameters": [
+        "page",
+        "sort"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/products?page=2&sort=name",
+      "method": "GET",
+      "source": "browser:user_a:link",
+      "parameters": [
+        "page",
+        "sort"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/products?page=2&sort=name",
+      "method": "GET",
+      "source": "browser:user_b:link",
+      "parameters": [
+        "page",
+        "sort"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/products?page=2&sort=name",
+      "method": "GET",
+      "source": "html:link",
+      "parameters": [
+        "page",
+        "sort"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/public-hidden",
+      "method": "GET",
+      "source": "robots",
+      "parameters": []
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect?q=hello",
+      "method": "GET",
+      "source": "browser:admin:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect?q=hello",
+      "method": "GET",
+      "source": "browser:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect?q=hello",
+      "method": "GET",
+      "source": "browser:user_a:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect?q=hello",
+      "method": "GET",
+      "source": "browser:user_b:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reflect?q=hello",
+      "method": "GET",
+      "source": "html:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reset?token=fake-reset-token",
+      "method": "GET",
+      "source": "browser:admin:link",
+      "parameters": [
+        "token"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reset?token=fake-reset-token",
+      "method": "GET",
+      "source": "browser:link",
+      "parameters": [
+        "token"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reset?token=fake-reset-token",
+      "method": "GET",
+      "source": "browser:user_a:link",
+      "parameters": [
+        "token"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reset?token=fake-reset-token",
+      "method": "GET",
+      "source": "browser:user_b:link",
+      "parameters": [
+        "token"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/reset?token=fake-reset-token",
+      "method": "GET",
+      "source": "html:link",
+      "parameters": [
+        "token"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/search",
+      "method": "GET",
+      "source": "browser:admin:form",
+      "parameters": [
+        "category",
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/search",
+      "method": "GET",
+      "source": "browser:form",
+      "parameters": [
+        "category",
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/search",
+      "method": "GET",
+      "source": "browser:user_a:form",
+      "parameters": [
+        "category",
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/search",
+      "method": "GET",
+      "source": "browser:user_b:form",
+      "parameters": [
+        "category",
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/search",
+      "method": "GET",
+      "source": "html:form",
+      "parameters": [
+        "category",
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/settings?tab=profile",
+      "method": "GET",
+      "source": "browser:admin:link",
+      "parameters": [
+        "tab"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/settings?tab=profile",
+      "method": "GET",
+      "source": "browser:user_a:link",
+      "parameters": [
+        "tab"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/settings?tab=profile",
+      "method": "GET",
+      "source": "browser:user_b:link",
+      "parameters": [
+        "tab"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql-search",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql?q=hello",
+      "method": "GET",
+      "source": "browser:admin:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql?q=hello",
+      "method": "GET",
+      "source": "browser:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql?q=hello",
+      "method": "GET",
+      "source": "browser:user_a:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql?q=hello",
+      "method": "GET",
+      "source": "browser:user_b:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/sql?q=hello",
+      "method": "GET",
+      "source": "html:link",
+      "parameters": [
+        "q"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti?name=hello",
+      "method": "GET",
+      "source": "browser:admin:link",
+      "parameters": [
+        "name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti?name=hello",
+      "method": "GET",
+      "source": "browser:link",
+      "parameters": [
+        "name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti?name=hello",
+      "method": "GET",
+      "source": "browser:user_a:link",
+      "parameters": [
+        "name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti?name=hello",
+      "method": "GET",
+      "source": "browser:user_b:link",
+      "parameters": [
+        "name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/ssti?name=hello",
+      "method": "GET",
+      "source": "html:link",
+      "parameters": [
+        "name"
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:8000/template",
+      "method": "GET",
+      "source": "openapi",
+      "parameters": [
+        "name"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "title": "Environment file is publicly exposed",
+      "severity": "critical",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/.env",
+      "description": "A publicly reachable .env response was confirmed.",
+      "evidence": "Environment-style secret keys were exposed: API_KEY, DATABASE_URL. Values were redacted.",
+      "remediation": "Block access immediately and rotate every credential that may have been exposed.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000/.env"
+      ],
+      "occurrences": 1,
+      "check_id": "exposure.env.public",
+      "fingerprint": "fac69b11f13d83b61f94",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "NoSQL operator authentication bypass verified",
+      "severity": "critical",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/api/login",
+      "description": "Synthetic NoSQL operator objects changed an invalid-login baseline into an authenticated success signal.",
+      "evidence": "The baseline invalid login was not successful; the $ne probe returned 2xx plus a session/token signal. No real credentials were used.",
+      "remediation": "Enforce scalar credential schemas and never pass untrusted query objects/operators into database credential lookups.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-943",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/login"
+      ],
+      "occurrences": 1,
+      "check_id": "authentication.nosqli.bypass",
+      "fingerprint": "9cc3d725eec38cde1beb",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "SQL-style authentication bypass verified",
+      "severity": "critical",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/api/login",
+      "description": "Synthetic SQL-style credentials changed an invalid-login baseline into an authenticated success signal.",
+      "evidence": "The baseline invalid login was not successful; the SQL-style probe returned 2xx plus a session/token signal. No real credentials were used.",
+      "remediation": "Use parameterized credential lookups and enforce strict scalar input schemas.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-89",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/login"
+      ],
+      "occurrences": 1,
+      "check_id": "authentication.sqli.bypass",
+      "fingerprint": "d9acfb882f0def162642",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Arbitrary CORS origin accepted with credentials",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/cors",
+      "description": "The server reflected an untrusted Origin and explicitly allows credentials.",
+      "evidence": "Request Origin 'https://magic-security.invalid' was reflected as Access-Control-Allow-Origin. Access-Control-Allow-Credentials=true.",
+      "remediation": "Use an explicit allowlist of trusted origins and only enable credentials where required.",
+      "confidence": 1.0,
+      "owasp": "A02:2025 Security Misconfiguration",
+      "cwe": "CWE-942",
+      "affected_urls": [
+        "http://127.0.0.1:8000/cors"
+      ],
+      "occurrences": 1,
+      "check_id": "cors.arbitrary-origin",
+      "fingerprint": "fbd49d9a0813f0553e4f",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Arbitrary CORS origin accepted with credentials",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/null-cors",
+      "description": "The server reflected an untrusted Origin and explicitly allows credentials.",
+      "evidence": "Request Origin 'https://magic-security.invalid' was reflected as Access-Control-Allow-Origin. Access-Control-Allow-Credentials=true.",
+      "remediation": "Use an explicit allowlist of trusted origins and only enable credentials where required.",
+      "confidence": 1.0,
+      "owasp": "A02:2025 Security Misconfiguration",
+      "cwe": "CWE-942",
+      "affected_urls": [
+        "http://127.0.0.1:8000/null-cors"
+      ],
+      "occurrences": 1,
+      "check_id": "cors.arbitrary-origin",
+      "fingerprint": "394b4b4936edc42fc2f2",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "CORS accepts null Origin with credentials",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/null-cors",
+      "description": "The endpoint explicitly allows the null Origin used by sandboxed/file-like browser contexts.",
+      "evidence": "Origin: null was returned in Access-Control-Allow-Origin; credentials=true.",
+      "remediation": "Do not allow the null Origin unless a specific, reviewed use case requires it.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-942",
+      "affected_urls": [
+        "http://127.0.0.1:8000/null-cors"
+      ],
+      "occurrences": 1,
+      "check_id": "cors.null-origin",
+      "fingerprint": "f2c36b80bbe3d1cc21d9",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Client artifact exposes secret-like material",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "description": "A browser-downloadable JavaScript/source-map artifact contains secret-like assignments or credential token shapes.",
+      "evidence": "Detected secret-like identifiers/types: API_SECRET. Values were intentionally redacted and not stored.",
+      "remediation": "Remove server credentials from frontend bundles/source maps and rotate any real secret that has already been published.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js",
+        "http://127.0.0.1:8000/static/app.js.map"
+      ],
+      "occurrences": 2,
+      "check_id": "client.secret-like-material",
+      "fingerprint": "f96721e684c64b884da6",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Credentialed CORS policy exposes a protected endpoint",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/api/me",
+      "description": "A protected authenticated endpoint reflected an untrusted Origin and enabled credentials.",
+      "evidence": "Context 'user_a' received HTTP 200 while Origin 'https://magic-security.invalid' was reflected and Access-Control-Allow-Credentials was true. Response body and credential values were not stored.",
+      "remediation": "Use an explicit trusted-origin allowlist and never reflect arbitrary origins on credentialed protected endpoints.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-942",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/me"
+      ],
+      "occurrences": 3,
+      "check_id": "cors.protected.credentialed",
+      "fingerprint": "4e1d9045ca9ca8107e06",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Cross-account object access verified (path)",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/api/accounts/{account_id}",
+      "description": "Authenticated same-role test contexts verified cross-account read access through path parameter 'account_id'.",
+      "evidence": "'user_b' retrieved an object belonging to 'user_a' through a path parameter 'account_id'. Owner and cross-account responses were HTTP 200 and identical JSON. Credentials and raw object identifiers were not stored.",
+      "remediation": "Enforce object-level authorization for every request. Resolve requested resources through the authenticated principal's allowed scope rather than trusting client IDs.",
+      "confidence": 1.0,
+      "owasp": "A01:2025 Broken Access Control",
+      "cwe": "CWE-639",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/accounts/{account_id}"
+      ],
+      "occurrences": 2,
+      "check_id": "authorization.bola.read",
+      "fingerprint": "308ec3e782da4ef68586",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Cross-account object access verified (query)",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/api/account-detail",
+      "description": "Authenticated same-role test contexts verified cross-account read access through query parameter 'account_id'.",
+      "evidence": "'user_b' retrieved an object belonging to 'user_a' through a query parameter 'account_id'. Owner and cross-account responses were HTTP 200 and identical JSON. Credentials and raw object identifiers were not stored.",
+      "remediation": "Enforce object-level authorization for every request. Resolve requested resources through the authenticated principal's allowed scope rather than trusting client IDs.",
+      "confidence": 1.0,
+      "owasp": "A01:2025 Broken Access Control",
+      "cwe": "CWE-639",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/account-detail"
+      ],
+      "occurrences": 2,
+      "check_id": "authorization.bola.read",
+      "fingerprint": "dda83cb7c5204e9c82cc",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Git metadata is publicly exposed",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/.git/HEAD",
+      "description": "The repository HEAD file is reachable over HTTP.",
+      "evidence": "Server returned a Git HEAD reference: 'ref: refs/heads/main'.",
+      "remediation": "Block access to .git and review whether repository history exposed credentials or sensitive files.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000/.git/HEAD"
+      ],
+      "occurrences": 1,
+      "check_id": "exposure.git.public",
+      "fingerprint": "12eb644282f55a0fe1ec",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "HTTP response header injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/crlf",
+      "description": "A query parameter injected a new HTTP response header.",
+      "evidence": "Parameter 'value' caused the inert scanner header X-Magic-Security-Probe: verified to appear in the response.",
+      "remediation": "Reject CR/LF characters in header-derived input and use framework header APIs that prevent response splitting.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-113",
+      "affected_urls": [
+        "http://127.0.0.1:8000/crlf"
+      ],
+      "occurrences": 1,
+      "check_id": "injection.crlf.response-header",
+      "fingerprint": "cb6708d2d538169a6283",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "HTTP response header injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/go",
+      "description": "A query parameter injected a new HTTP response header.",
+      "evidence": "Parameter 'next' caused the inert scanner header X-Magic-Security-Probe: verified to appear in the response.",
+      "remediation": "Reject CR/LF characters in header-derived input and use framework header APIs that prevent response splitting.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-113",
+      "affected_urls": [
+        "http://127.0.0.1:8000/go"
+      ],
+      "occurrences": 1,
+      "check_id": "injection.crlf.response-header",
+      "fingerprint": "e2ff59e8ecb36981069a",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "HTTP response header injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/header",
+      "description": "A query parameter injected a new HTTP response header.",
+      "evidence": "Parameter 'name' caused the inert scanner header X-Magic-Security-Probe: verified to appear in the response.",
+      "remediation": "Reject CR/LF characters in header-derived input and use framework header APIs that prevent response splitting.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-113",
+      "affected_urls": [
+        "http://127.0.0.1:8000/header"
+      ],
+      "occurrences": 1,
+      "check_id": "injection.crlf.response-header",
+      "fingerprint": "b8374a26b6e92666d309",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Path traversal / local file read verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/download",
+      "description": "Parameter 'file' allowed a traversal sequence to read a known operating-system marker file.",
+      "evidence": "The response matched the non-secret marker set 'unix_hosts'. File contents were not stored.",
+      "remediation": "Resolve files from a fixed allowlisted root, reject traversal segments, and avoid accepting raw filesystem paths.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-22",
+      "affected_urls": [
+        "http://127.0.0.1:8000/download"
+      ],
+      "occurrences": 1,
+      "check_id": "path.traversal.local-file-read",
+      "fingerprint": "1e67fadfc1e503157961",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Public configuration exposes secret-like keys",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/config.json",
+      "description": "A public JSON configuration/debug endpoint revealed environment or secret-like key names.",
+      "evidence": "Detected secret-like key names: api_key. Values were not stored.",
+      "remediation": "Restrict the endpoint and rotate any credential that may have been publicly exposed.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000/config.json"
+      ],
+      "occurrences": 1,
+      "check_id": "exposure.config.secret-keys",
+      "fingerprint": "92d07385c92d6f0a82cd",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Reflected XSS execution verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/reflect",
+      "description": "A controlled reflected value executed JavaScript in the target browser origin.",
+      "evidence": "Parameter 'q' executed a non-network DOM-only canary in a headless browser. No cookies, storage values, or external callbacks were read.",
+      "remediation": "Use context-aware output encoding, remove unsafe raw HTML rendering, and deploy a restrictive CSP as defense in depth.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-79",
+      "affected_urls": [
+        "http://127.0.0.1:8000/reflect"
+      ],
+      "occurrences": 1,
+      "check_id": "xss.reflected.execution",
+      "fingerprint": "ae7eb9c0e63763e1639c",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Secret/authentication material appears in URL",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/reset",
+      "description": "Parameter 'token' was observed with a value in a URL. URLs can leak through browser history, logs, analytics, screenshots, and referrers.",
+      "evidence": "Observed populated URL parameter name: token. The parameter value was not stored.",
+      "remediation": "Move sensitive values to request bodies or secure cookies/headers and avoid placing credentials or PII in URLs.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-598",
+      "affected_urls": [
+        "http://127.0.0.1:8000/reset"
+      ],
+      "occurrences": 1,
+      "check_id": "privacy.url.secret",
+      "fingerprint": "c86c75076021da9e4f2c",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Sensitive form fields are submitted with GET",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "description": "A discovered GET form contains credential, token, personal, or payment-like field names.",
+      "evidence": "Sensitive field names: password. Values were not captured.",
+      "remediation": "Submit sensitive forms with POST over HTTPS and keep secret values out of query strings.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-598",
+      "affected_urls": [
+        "http://127.0.0.1:8000/legacy-login"
+      ],
+      "occurrences": 1,
+      "check_id": "privacy.form.get-sensitive",
+      "fingerprint": "f622ceac2eace3691d07",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Server-side request forgery verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/fetch",
+      "description": "Parameter 'url' caused the target server to request a scanner-owned loopback callback.",
+      "evidence": "A unique callback token was received by the local scanner callback server. No external host or metadata endpoint was contacted.",
+      "remediation": "Allowlist outbound destinations and block loopback/private/link-local targets after DNS resolution and redirect handling.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-918",
+      "affected_urls": [
+        "http://127.0.0.1:8000/fetch"
+      ],
+      "occurrences": 1,
+      "check_id": "ssrf.loopback-callback",
+      "fingerprint": "ae004249ff38aed79f4f",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Server-side template injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/ssti",
+      "description": "A harmless arithmetic template expression was evaluated server-side and its computed result appeared in the response.",
+      "evidence": "Parameter 'name' evaluated the scanner's arithmetic-only template canary. No file, process, network, or environment access was attempted.",
+      "remediation": "Never render untrusted input as a template. Pass user values as data and use sandboxed template configuration where available.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-1336",
+      "affected_urls": [
+        "http://127.0.0.1:8000/ssti"
+      ],
+      "occurrences": 1,
+      "check_id": "injection.ssti.arithmetic",
+      "fingerprint": "fa6583430db02fee43cd",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Server-side template injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/template",
+      "description": "A harmless arithmetic template expression was evaluated server-side and its computed result appeared in the response.",
+      "evidence": "Parameter 'name' evaluated the scanner's arithmetic-only template canary. No file, process, network, or environment access was attempted.",
+      "remediation": "Never render untrusted input as a template. Pass user values as data and use sandboxed template configuration where available.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-1336",
+      "affected_urls": [
+        "http://127.0.0.1:8000/template"
+      ],
+      "occurrences": 1,
+      "check_id": "injection.ssti.arithmetic",
+      "fingerprint": "82d3a4cb42b9a7ce1464",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "User-specific authenticated response is marked for shared caching",
+      "severity": "high",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/api/me",
+      "description": "A protected response that differs between users is explicitly cacheable by shared caches.",
+      "evidence": "Context 'user_a' received HTTP 200 with Cache-Control='public, max-age=120'. The authenticated response body was not stored.",
+      "remediation": "Use Cache-Control: private or no-store for user-specific authenticated responses and review CDN/proxy cache rules.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-525",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/me"
+      ],
+      "occurrences": 2,
+      "check_id": "cache.authenticated.shared",
+      "fingerprint": "fd838b1f0f13abd534e3",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Debug or stack-trace information exposed",
+      "severity": "medium",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/stacktrace",
+      "description": "The response appears to contain framework or exception debug output.",
+      "evidence": "Matched debug signature: 'Traceback (most recent call last)'.",
+      "remediation": "Disable debug output in production and return generic error responses.",
+      "confidence": 0.85,
+      "owasp": null,
+      "cwe": "CWE-209",
+      "affected_urls": [
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 1,
+      "check_id": "exposure.debug-output",
+      "fingerprint": "d00d08b4dc96cc87c017",
+      "verified": false,
+      "confidence_level": "strong"
+    },
+    {
+      "title": "Input triggers a database error response",
+      "severity": "medium",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/sql",
+      "description": "A controlled query mutation caused a database-specific error signature that was absent from the baseline.",
+      "evidence": "Parameter 'q' triggered a database error signature after an apostrophe probe. The response body and database details were not retained.",
+      "remediation": "Use parameterized queries and generic production error handling. Review this endpoint manually for SQL injection.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-209",
+      "affected_urls": [
+        "http://127.0.0.1:8000/sql"
+      ],
+      "occurrences": 1,
+      "check_id": "database.error-trigger",
+      "fingerprint": "682e0c09785382ff6490",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "JSONP-style arbitrary callback wrapping verified",
+      "severity": "medium",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/jsonp",
+      "description": "A caller-controlled callback name was used to wrap the endpoint response as executable JavaScript.",
+      "evidence": "Parameter 'callback' accepted the scanner callback identifier. Response data was not stored and no script was executed.",
+      "remediation": "Prefer CORS-protected JSON APIs instead of JSONP, especially for authenticated or sensitive data.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-79",
+      "affected_urls": [
+        "http://127.0.0.1:8000/jsonp"
+      ],
+      "occurrences": 1,
+      "check_id": "jsonp.callback.arbitrary",
+      "fingerprint": "cca9a05a3defbca612b9",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Open redirect verified",
+      "severity": "medium",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/go",
+      "description": "The 'next' parameter can redirect a visitor to an arbitrary external origin.",
+      "evidence": "A controlled request set 'next' to 'https://magic-security.invalid/verified-redirect'; the server returned HTTP 302 with Location='https://magic-security.invalid/verified-redirect'.",
+      "remediation": "Allow only relative paths or validate redirect destinations against an explicit allowlist.",
+      "confidence": 1.0,
+      "owasp": "A01:2025 Broken Access Control",
+      "cwe": "CWE-601",
+      "affected_urls": [
+        "http://127.0.0.1:8000/go"
+      ],
+      "occurrences": 1,
+      "check_id": "redirect.open",
+      "fingerprint": "9293b524b03786f00d9d",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Open redirect verified",
+      "severity": "medium",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/go?next=/products",
+      "description": "The 'next' parameter can redirect a visitor to an arbitrary external origin.",
+      "evidence": "A controlled request set 'next' to 'https://magic-security.invalid/verified-redirect'; the server returned HTTP 302 with Location='https://magic-security.invalid/verified-redirect'.",
+      "remediation": "Allow only relative paths or validate redirect destinations against an explicit allowlist.",
+      "confidence": 1.0,
+      "owasp": "A01:2025 Broken Access Control",
+      "cwe": "CWE-601",
+      "affected_urls": [
+        "http://127.0.0.1:8000/go?next=/products"
+      ],
+      "occurrences": 1,
+      "check_id": "redirect.open",
+      "fingerprint": "146505833d260c447204",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Reflected HTML injection verified",
+      "severity": "medium",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/ssti",
+      "description": "A controlled query value was inserted into returned HTML as markup instead of being safely encoded.",
+      "evidence": "Parameter 'name' created the scanner's inert custom HTML element in the parsed response. The random canary value was not retained.",
+      "remediation": "Apply context-aware output encoding and avoid inserting untrusted values with raw HTML rendering APIs.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-79",
+      "affected_urls": [
+        "http://127.0.0.1:8000/ssti"
+      ],
+      "occurrences": 1,
+      "check_id": "injection.html.reflected",
+      "fingerprint": "2270f9afe2b1dbbf5a2f",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Reflected HTML injection verified",
+      "severity": "medium",
+      "kind": "vulnerability",
+      "url": "http://127.0.0.1:8000/template",
+      "description": "A controlled query value was inserted into returned HTML as markup instead of being safely encoded.",
+      "evidence": "Parameter 'name' created the scanner's inert custom HTML element in the parsed response. The random canary value was not retained.",
+      "remediation": "Apply context-aware output encoding and avoid inserting untrusted values with raw HTML rendering APIs.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-79",
+      "affected_urls": [
+        "http://127.0.0.1:8000/template"
+      ],
+      "occurrences": 1,
+      "check_id": "injection.html.reflected",
+      "fingerprint": "c7548c91f94b3193ddfe",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Unauthenticated JSON exposes sensitive-looking fields",
+      "severity": "medium",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/api/users",
+      "description": "A GET request with no authentication or session cookies returned HTTP 200 JSON containing these security-relevant field names: email, phone.",
+      "evidence": "Unauthenticated HTTP 200 JSON contained field paths: users.email, users.phone. Values were intentionally not stored.",
+      "remediation": "Confirm the data is intended to be public. If not, require authentication and enforce object/field-level authorization.",
+      "confidence": 1.0,
+      "owasp": "A01:2025 Broken Access Control",
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/users"
+      ],
+      "occurrences": 1,
+      "check_id": "legacy.c78e7cdec5c7",
+      "fingerprint": "18756ad56a5d8adfa71b",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Untrusted Host header influences response content",
+      "severity": "medium",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/absolute",
+      "description": "A scanner-controlled Host/X-Forwarded-Host value was incorporated into response content or Location.",
+      "evidence": "The marker host appeared only in the poisoned-host response. No password-reset poisoning was claimed.",
+      "remediation": "Validate Host against an explicit allowlist and configure trusted proxy host handling correctly.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-346",
+      "affected_urls": [
+        "http://127.0.0.1:8000/absolute"
+      ],
+      "occurrences": 1,
+      "check_id": "http.host-header.influence",
+      "fingerprint": "125ef19492842677ffb7",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Client artifact reveals internal network locations",
+      "severity": "low",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "description": "A browser-downloadable artifact references private/internal network URLs.",
+      "evidence": "Detected 1 unique private/internal URL reference(s); values were not listed.",
+      "remediation": "Remove unnecessary internal topology references from production client artifacts.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js",
+        "http://127.0.0.1:8000/static/app.js.map"
+      ],
+      "occurrences": 2,
+      "check_id": "client.internal-topology",
+      "fingerprint": "8cd8023e261f8229ae88",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Cookie session is missing security attributes",
+      "severity": "low",
+      "kind": "hardening",
+      "url": "http://127.0.0.1:8000",
+      "description": "The cookie is missing: HttpOnly, SameSite.",
+      "evidence": "Set-Cookie for session lacked HttpOnly, SameSite. Cookie value is intentionally redacted.",
+      "remediation": "Add the appropriate Secure, HttpOnly, and SameSite attributes based on the cookie purpose.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": null,
+      "affected_urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "occurrences": 1,
+      "check_id": "session.cookie.missing-attributes",
+      "fingerprint": "3288b87356039e4f3300",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Frontend source map is publicly exposed",
+      "severity": "low",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/static/app.js.map",
+      "description": "A valid JavaScript source map is publicly downloadable.",
+      "evidence": "HTTP 200 returned a valid source map referencing 1 source file(s). Embedded source content: yes.",
+      "remediation": "Disable production source-map publication unless it is intentionally required.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js.map"
+      ],
+      "occurrences": 1,
+      "check_id": "exposure.sourcemap.public",
+      "fingerprint": "da8a4c2b356c402cae46",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "HTTP TRACE method reflects request data",
+      "severity": "low",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000",
+      "description": "The server accepted TRACE and reflected a controlled request header.",
+      "evidence": "TRACE returned the scanner's inert marker. No credentials or browser data were sent.",
+      "remediation": "Disable TRACE unless it is explicitly required.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "occurrences": 1,
+      "check_id": "http.trace.reflection",
+      "fingerprint": "583601e77cfe666f5253",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Page lacks clickjacking frame protection",
+      "severity": "low",
+      "kind": "hardening",
+      "url": "http://127.0.0.1:8000",
+      "description": "The HTML response has no observed anti-framing policy.",
+      "evidence": "Neither X-Frame-Options nor CSP frame-ancestors was present.",
+      "remediation": "Set CSP frame-ancestors to the intended embedding policy and optionally X-Frame-Options for legacy clients.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-1021",
+      "affected_urls": [
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 10,
+      "check_id": "browser.clickjacking.missing-protection",
+      "fingerprint": "26e1c0fe66f9cf0de5cc",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Potential DOM XSS source-to-sink path",
+      "severity": "low",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "description": "Browser-controlled input sources and unsafe DOM sinks coexist in a client artifact.",
+      "evidence": "frontend JavaScript contains browser-controlled source(s) location.search, location.hash and unsafe DOM sink(s) innerHTML.",
+      "remediation": "Trace the data flow and replace unsafe sinks or apply context-appropriate sanitization.",
+      "confidence": 0.65,
+      "owasp": null,
+      "cwe": "CWE-79",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js"
+      ],
+      "occurrences": 1,
+      "check_id": "xss.dom.candidate",
+      "fingerprint": "c73222721aa1db80f95e",
+      "verified": false,
+      "confidence_level": "likely"
+    },
+    {
+      "title": "Potential client-side redirect flow",
+      "severity": "low",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "description": "Client code combines browser-controlled URL input with client-side navigation sinks.",
+      "evidence": "frontend JavaScript combines URL source(s) location.search, location.hash with navigation sink(s) location.href.",
+      "remediation": "Restrict client-side redirect destinations to safe relative paths or an explicit allowlist.",
+      "confidence": 0.6,
+      "owasp": null,
+      "cwe": "CWE-601",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js"
+      ],
+      "occurrences": 1,
+      "check_id": "redirect.client.candidate",
+      "fingerprint": "f199a34cd754e23e7508",
+      "verified": false,
+      "confidence_level": "likely"
+    },
+    {
+      "title": "Potentially dangerous HTTP methods advertised",
+      "severity": "low",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000",
+      "description": "The server advertises HTTP methods that are rarely required for ordinary web applications.",
+      "evidence": "OPTIONS advertised: TRACE",
+      "remediation": "Restrict allowed HTTP methods at the application and proxy layers.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-749",
+      "affected_urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "occurrences": 1,
+      "check_id": "http.methods.dangerous-advertised",
+      "fingerprint": "0b344d0dd9649ddedd4d",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Sensitive-looking browser storage key observed",
+      "severity": "low",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/dashboard",
+      "description": "A JavaScript-accessible browser storage entry has a security-relevant key name.",
+      "evidence": "localStorage contains security-relevant key 'access_token'. The stored value was not read or recorded.",
+      "remediation": "Avoid keeping bearer credentials or sensitive session material in localStorage/sessionStorage when a safer server-side or HttpOnly-cookie design is available.",
+      "confidence": 0.9,
+      "owasp": null,
+      "cwe": "CWE-922",
+      "affected_urls": [
+        "http://127.0.0.1:8000/dashboard",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/files/",
+        "http://127.0.0.1:8000/files/backup.txt",
+        "http://127.0.0.1:8000/jsonp?callback=demo",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/public-hidden",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token"
+      ],
+      "occurrences": 17,
+      "check_id": "browser.storage.sensitive-key",
+      "fingerprint": "ca718e40d63210403c89",
+      "verified": false,
+      "confidence_level": "strong"
+    },
+    {
+      "title": "Session-like cookie demo_session lacks protective attributes",
+      "severity": "low",
+      "kind": "hardening",
+      "url": "http://127.0.0.1:8000/api/me",
+      "description": "An authenticated response set a session-like cookie without all expected browser-side protections.",
+      "evidence": "Cookie 'demo_session' was observed for context 'user_a'; missing: HttpOnly, SameSite. The cookie value was not stored.",
+      "remediation": "Use HttpOnly for session cookies, set an explicit SameSite policy, and use Secure whenever the cookie is transported over HTTPS.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-614",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/me"
+      ],
+      "occurrences": 3,
+      "check_id": "session.cookie.missing-attributes",
+      "fingerprint": "47cfbcc843db4f2cd156",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Web message handler lacks an obvious origin check",
+      "severity": "low",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "description": "Frontend code registers a cross-window message handler without an obvious origin-validation signal.",
+      "evidence": "A message event handler was found; no obvious event.origin validation signal was found.",
+      "remediation": "Validate event.origin against a strict trusted-origin allowlist before processing message data.",
+      "confidence": 0.7,
+      "owasp": null,
+      "cwe": "CWE-346",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js"
+      ],
+      "occurrences": 1,
+      "check_id": "browser.postmessage.origin-check",
+      "fingerprint": "18055e358f99af6e371a",
+      "verified": false,
+      "confidence_level": "likely"
+    },
+    {
+      "title": "API documentation is publicly exposed",
+      "severity": "info",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/docs",
+      "description": "Swagger/OpenAPI documentation appears reachable from the scanned surface.",
+      "evidence": "The page path and response content both contain API documentation markers.",
+      "remediation": "Keep public API docs only if intentional; otherwise restrict access in production.",
+      "confidence": 0.98,
+      "owasp": null,
+      "cwe": null,
+      "affected_urls": [
+        "http://127.0.0.1:8000/docs"
+      ],
+      "occurrences": 1,
+      "check_id": "exposure.api-docs.public",
+      "fingerprint": "5cb7deff3cf5cbd6fa6b",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Anonymous GraphQL introspection is enabled",
+      "severity": "info",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/graphql",
+      "description": "The GraphQL schema can be introspected without authentication.",
+      "evidence": "A minimal introspection query returned __schema metadata with HTTP 200.",
+      "remediation": "Keep introspection public only when intentional. Otherwise restrict it in production while preserving schema access for trusted tooling.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000/graphql"
+      ],
+      "occurrences": 1,
+      "check_id": "graphql.introspection.anonymous",
+      "fingerprint": "63b5afb01b21efaea0db",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Missing content-security-policy",
+      "severity": "info",
+      "kind": "hardening",
+      "url": "http://127.0.0.1:8000",
+      "description": "Content-Security-Policy is not configured.",
+      "evidence": "Response did not contain the content-security-policy header.",
+      "remediation": "Add a restrictive CSP appropriate for the application.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": null,
+      "affected_urls": [
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 13,
+      "check_id": "hardening.header.missing.content-security-policy",
+      "fingerprint": "221290347aef31b3746b",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Missing referrer-policy",
+      "severity": "info",
+      "kind": "hardening",
+      "url": "http://127.0.0.1:8000",
+      "description": "Referrer-Policy is not configured.",
+      "evidence": "Response did not contain the referrer-policy header.",
+      "remediation": "Set an explicit Referrer-Policy suitable for the application.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": null,
+      "affected_urls": [
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 13,
+      "check_id": "hardening.header.missing.referrer-policy",
+      "fingerprint": "d947b8697fe1de910f7a",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Missing x-content-type-options",
+      "severity": "info",
+      "kind": "hardening",
+      "url": "http://127.0.0.1:8000",
+      "description": "X-Content-Type-Options is not configured.",
+      "evidence": "Response did not contain the x-content-type-options header.",
+      "remediation": "Set X-Content-Type-Options: nosniff.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": null,
+      "affected_urls": [
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 13,
+      "check_id": "hardening.header.missing.x-content-type-options",
+      "fingerprint": "91c40cdbf1a136b2b0e6",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "OpenAPI specification is publicly exposed",
+      "severity": "info",
+      "kind": "exposure",
+      "url": "http://127.0.0.1:8000/openapi.json",
+      "description": "A machine-readable API specification is publicly reachable.",
+      "evidence": "HTTP 200 returned JSON containing openapi metadata.",
+      "remediation": "Keep it public only if intentional; otherwise restrict production access.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": null,
+      "affected_urls": [
+        "http://127.0.0.1:8000/openapi.json",
+        "http://127.0.0.1:8000/swagger.json"
+      ],
+      "occurrences": 2,
+      "check_id": "exposure.openapi.public",
+      "fingerprint": "d1f018d1483c9c60842d",
+      "verified": true,
+      "confidence_level": "verified"
+    },
+    {
+      "title": "Server reveals server technology",
+      "severity": "info",
+      "kind": "hardening",
+      "url": "http://127.0.0.1:8000",
+      "description": "The response exposes server/framework fingerprint information.",
+      "evidence": "Server header was present. The exact value is omitted.",
+      "remediation": "Remove unnecessary version/product disclosure where practical.",
+      "confidence": 1.0,
+      "owasp": null,
+      "cwe": "CWE-200",
+      "affected_urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "occurrences": 1,
+      "check_id": "hardening.server-technology-disclosure",
+      "fingerprint": "d4e251921728b91eaf78",
+      "verified": true,
+      "confidence_level": "verified"
+    }
+  ]
+}

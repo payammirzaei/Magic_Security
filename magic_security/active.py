@@ -5,6 +5,9 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
 
+from magic_security.transport import SecureTransport
+
+from magic_security.evidence import EvidenceObject, attach_evidence
 from magic_security.models import EndpointCandidate, Finding, FindingKind, Severity
 
 
@@ -66,7 +69,7 @@ async def verify_cors(
     findings: list[Finding] = []
     seen: set[str] = set()
 
-    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
+    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
         for url in sorted(set(urls))[:max_urls]:
             try:
                 response = await client.get(
@@ -93,34 +96,46 @@ async def verify_cors(
             seen.add(key)
 
             credentialed = allow_credentials == "true"
-            findings.append(
-                Finding(
-                    title=(
-                        "Arbitrary CORS origin accepted with credentials"
-                        if credentialed
-                        else "Arbitrary CORS origin is reflected"
-                    ),
-                    severity=Severity.HIGH if credentialed else Severity.MEDIUM,
-                    kind=FindingKind.EXPOSURE,
-                    url=url,
-                    description=(
-                        "The server reflected an untrusted Origin and explicitly allows credentials."
-                        if credentialed
-                        else "The server reflected an arbitrary untrusted Origin in its CORS policy."
-                    ),
-                    evidence=(
-                        f"Request Origin {_PROBE_ORIGIN!r} was reflected as "
-                        f"Access-Control-Allow-Origin. "
-                        f"Access-Control-Allow-Credentials={allow_credentials or 'absent'}."
-                    ),
-                    remediation=(
-                        "Use an explicit allowlist of trusted origins and only enable credentials where required."
-                    ),
-                    confidence=1.0,
-                    owasp="A02:2025 Security Misconfiguration",
-                    cwe="CWE-942",
-                )
+            finding = Finding(
+                title=(
+                    "Arbitrary CORS origin accepted with credentials"
+                    if credentialed
+                    else "Arbitrary CORS origin is reflected"
+                ),
+                severity=Severity.HIGH if credentialed else Severity.MEDIUM,
+                kind=FindingKind.EXPOSURE,
+                url=url,
+                description=(
+                    "The server reflected an untrusted Origin and explicitly allows credentials."
+                    if credentialed
+                    else "The server reflected an arbitrary untrusted Origin in its CORS policy."
+                ),
+                evidence=(
+                    f"Request Origin {_PROBE_ORIGIN!r} was reflected as "
+                    f"Access-Control-Allow-Origin. "
+                    f"Access-Control-Allow-Credentials={allow_credentials or 'absent'}."
+                ),
+                remediation=(
+                    "Use an explicit allowlist of trusted origins and only enable credentials where required."
+                ),
+                confidence=1.0,
+                owasp="A02:2025 Security Misconfiguration",
+                cwe="CWE-942",
+                check_id="cors.arbitrary-origin",
             )
+            attach_evidence(
+                finding,
+                EvidenceObject(
+                    check_id="cors.arbitrary-origin",
+                    proof_type="reflected_acao_origin",
+                    baseline_summary="Trusted CORS allowlist expected",
+                    mutation_summary=f"Sent Origin {_PROBE_ORIGIN}",
+                    observed_result=finding.evidence,
+                    confidence="verified",
+                    sensitive_values_stored=False,
+                ),
+            )
+            findings.append(finding)
 
     return findings
 
@@ -137,7 +152,7 @@ async def verify_open_redirects(
     tested = 0
     reported: set[tuple[str, str]] = set()
 
-    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
+    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
         for endpoint in sorted(
             set(endpoints),
             key=lambda item: (item.url, item.method, item.source),

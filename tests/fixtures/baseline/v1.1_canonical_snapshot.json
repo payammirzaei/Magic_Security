@@ -1,0 +1,1041 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-09T11:26:39.452645+00:00",
+  "scanner_version": "1.1.0",
+  "target": "http://127.0.0.1:8000",
+  "modes": {
+    "http": true,
+    "browser": true,
+    "active": true,
+    "auth_contexts": 3
+  },
+  "attack_surface": {
+    "fingerprint": "7ba368caf5468f07e65c",
+    "items": [
+      "endpoint:GET:http://127.0.0.1:8000/admin-hidden:",
+      "endpoint:GET:http://127.0.0.1:8000/api/account-detail:account_id",
+      "endpoint:GET:http://127.0.0.1:8000/api/accounts/{account_id}:account_id",
+      "endpoint:GET:http://127.0.0.1:8000/api/me:",
+      "endpoint:GET:http://127.0.0.1:8000/api/private:",
+      "endpoint:GET:http://127.0.0.1:8000/api/public:",
+      "endpoint:GET:http://127.0.0.1:8000/api/user-settings:",
+      "endpoint:GET:http://127.0.0.1:8000/api/users:limit",
+      "endpoint:GET:http://127.0.0.1:8000/crlf:value",
+      "endpoint:GET:http://127.0.0.1:8000/download:file",
+      "endpoint:GET:http://127.0.0.1:8000/fetch:url",
+      "endpoint:GET:http://127.0.0.1:8000/go:next",
+      "endpoint:GET:http://127.0.0.1:8000/graphql:",
+      "endpoint:GET:http://127.0.0.1:8000/header:name",
+      "endpoint:GET:http://127.0.0.1:8000/jsonp:callback",
+      "endpoint:GET:http://127.0.0.1:8000/legacy-login:password,username",
+      "endpoint:GET:http://127.0.0.1:8000/null-cors:",
+      "endpoint:GET:http://127.0.0.1:8000/products:page,sort",
+      "endpoint:GET:http://127.0.0.1:8000/public-hidden:",
+      "endpoint:GET:http://127.0.0.1:8000/reflect:q",
+      "endpoint:GET:http://127.0.0.1:8000/reset:token",
+      "endpoint:GET:http://127.0.0.1:8000/search:category,q",
+      "endpoint:GET:http://127.0.0.1:8000/settings:tab",
+      "endpoint:GET:http://127.0.0.1:8000/sql-search:q",
+      "endpoint:GET:http://127.0.0.1:8000/sql:q",
+      "endpoint:GET:http://127.0.0.1:8000/ssti:name",
+      "endpoint:GET:http://127.0.0.1:8000/template:name",
+      "endpoint:POST:http://127.0.0.1:8000/api/login:email,password,username",
+      "endpoint:POST:http://127.0.0.1:8000/api/orders:item",
+      "endpoint:POST:http://127.0.0.1:8000/api/profile:display_name",
+      "endpoint:POST:http://127.0.0.1:8000/graphql:",
+      "javascript:http://127.0.0.1:8000/static/app.js",
+      "sourcemap:http://127.0.0.1:8000/static/app.js.map",
+      "websocket:ws://127.0.0.1:8000/ws"
+    ],
+    "counts": {
+      "pages": 13,
+      "links": 20,
+      "forms": 13,
+      "js_assets": 1,
+      "normalized_endpoints": 31,
+      "source_maps": 1,
+      "websocket_endpoints": 1
+    }
+  },
+  "coverage": [
+    {
+      "category": "AI / LLM features",
+      "status": "Requires Config"
+    },
+    {
+      "category": "API Security",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Account Takeover",
+      "status": "Requires Config"
+    },
+    {
+      "category": "Admin Panels",
+      "status": "Partial"
+    },
+    {
+      "category": "Authentication",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Authorization / Access Control",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Backend Framework",
+      "status": "Partial"
+    },
+    {
+      "category": "Business Logic",
+      "status": "Requires Config"
+    },
+    {
+      "category": "CI/CD",
+      "status": "Requires Repo Access"
+    },
+    {
+      "category": "CORS",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "CSRF",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Cache",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Clickjacking",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Cloud / Infrastructure",
+      "status": "Partial"
+    },
+    {
+      "category": "Cryptography",
+      "status": "Partial"
+    },
+    {
+      "category": "DoS / Resource Exhaustion",
+      "status": "Requires Config"
+    },
+    {
+      "category": "Docker / Container",
+      "status": "Requires Repo Access"
+    },
+    {
+      "category": "Email",
+      "status": "Requires Config"
+    },
+    {
+      "category": "Error Handling",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "File Upload",
+      "status": "Requires Config"
+    },
+    {
+      "category": "Frontend",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "GraphQL",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Information Disclosure",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Injection",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Logging / Monitoring",
+      "status": "Requires Repo Access"
+    },
+    {
+      "category": "Misconfiguration",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Path / File Handling",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Payments",
+      "status": "Requires Config"
+    },
+    {
+      "category": "Privacy / Data Exposure",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "REST / HTTP",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Race Conditions",
+      "status": "Requires Config"
+    },
+    {
+      "category": "Rate Limiting",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "React / Next.js / SPA",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Redirects / URLs",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "SQL / Database",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "SSRF",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Secrets",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Security Headers",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Session Security",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "Supply Chain",
+      "status": "Requires Repo Access"
+    },
+    {
+      "category": "WebSockets",
+      "status": "Partially Tested"
+    },
+    {
+      "category": "XSS",
+      "status": "Partially Tested"
+    }
+  ],
+  "findings": [
+    {
+      "fingerprint": "0b344d0dd9649ddedd4d",
+      "check_id": "http.methods.dangerous-advertised",
+      "title": "Potentially dangerous HTTP methods advertised",
+      "severity": "low",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000",
+      "affected_urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "125ef19492842677ffb7",
+      "check_id": "http.host-header.influence",
+      "title": "Untrusted Host header influences response content",
+      "severity": "medium",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/absolute",
+      "affected_urls": [
+        "http://127.0.0.1:8000/absolute"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "12eb644282f55a0fe1ec",
+      "check_id": "exposure.git.public",
+      "title": "Git metadata is publicly exposed",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/.git/HEAD",
+      "affected_urls": [
+        "http://127.0.0.1:8000/.git/HEAD"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "146505833d260c447204",
+      "check_id": "redirect.open",
+      "title": "Open redirect verified",
+      "severity": "medium",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/go?next=/products",
+      "affected_urls": [
+        "http://127.0.0.1:8000/go?next=/products"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "18055e358f99af6e371a",
+      "check_id": "browser.postmessage.origin-check",
+      "title": "Web message handler lacks an obvious origin check",
+      "severity": "low",
+      "kind": "exposure",
+      "confidence": 0.7,
+      "confidence_level": "likely",
+      "verified": false,
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "18756ad56a5d8adfa71b",
+      "check_id": "legacy.c78e7cdec5c7",
+      "title": "Unauthenticated JSON exposes sensitive-looking fields",
+      "severity": "medium",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/api/users",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/users"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "1e67fadfc1e503157961",
+      "check_id": "path.traversal.local-file-read",
+      "title": "Path traversal / local file read verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/download",
+      "affected_urls": [
+        "http://127.0.0.1:8000/download"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "221290347aef31b3746b",
+      "check_id": "hardening.header.missing.content-security-policy",
+      "title": "Missing content-security-policy",
+      "severity": "info",
+      "kind": "hardening",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000",
+      "affected_urls": [
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 13
+    },
+    {
+      "fingerprint": "2270f9afe2b1dbbf5a2f",
+      "check_id": "injection.html.reflected",
+      "title": "Reflected HTML injection verified",
+      "severity": "medium",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/ssti",
+      "affected_urls": [
+        "http://127.0.0.1:8000/ssti"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "26e1c0fe66f9cf0de5cc",
+      "check_id": "browser.clickjacking.missing-protection",
+      "title": "Page lacks clickjacking frame protection",
+      "severity": "low",
+      "kind": "hardening",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000",
+      "affected_urls": [
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 10
+    },
+    {
+      "fingerprint": "308ec3e782da4ef68586",
+      "check_id": "authorization.bola.read",
+      "title": "Cross-account object access verified (path)",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/api/accounts/{account_id}",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/accounts/{account_id}"
+      ],
+      "occurrences": 2
+    },
+    {
+      "fingerprint": "3288b87356039e4f3300",
+      "check_id": "session.cookie.missing-attributes",
+      "title": "Cookie session is missing security attributes",
+      "severity": "low",
+      "kind": "hardening",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000",
+      "affected_urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "394b4b4936edc42fc2f2",
+      "check_id": "cors.arbitrary-origin",
+      "title": "Arbitrary CORS origin accepted with credentials",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/null-cors",
+      "affected_urls": [
+        "http://127.0.0.1:8000/null-cors"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "47cfbcc843db4f2cd156",
+      "check_id": "session.cookie.missing-attributes",
+      "title": "Session-like cookie demo_session lacks protective attributes",
+      "severity": "low",
+      "kind": "hardening",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/api/me",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/me"
+      ],
+      "occurrences": 3
+    },
+    {
+      "fingerprint": "4e1d9045ca9ca8107e06",
+      "check_id": "cors.protected.credentialed",
+      "title": "Credentialed CORS policy exposes a protected endpoint",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/api/me",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/me"
+      ],
+      "occurrences": 3
+    },
+    {
+      "fingerprint": "583601e77cfe666f5253",
+      "check_id": "http.trace.reflection",
+      "title": "HTTP TRACE method reflects request data",
+      "severity": "low",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000",
+      "affected_urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "5cb7deff3cf5cbd6fa6b",
+      "check_id": "exposure.api-docs.public",
+      "title": "API documentation is publicly exposed",
+      "severity": "info",
+      "kind": "exposure",
+      "confidence": 0.98,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/docs",
+      "affected_urls": [
+        "http://127.0.0.1:8000/docs"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "63b5afb01b21efaea0db",
+      "check_id": "graphql.introspection.anonymous",
+      "title": "Anonymous GraphQL introspection is enabled",
+      "severity": "info",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/graphql",
+      "affected_urls": [
+        "http://127.0.0.1:8000/graphql"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "682e0c09785382ff6490",
+      "check_id": "database.error-trigger",
+      "title": "Input triggers a database error response",
+      "severity": "medium",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/sql",
+      "affected_urls": [
+        "http://127.0.0.1:8000/sql"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "82d3a4cb42b9a7ce1464",
+      "check_id": "injection.ssti.arithmetic",
+      "title": "Server-side template injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/template",
+      "affected_urls": [
+        "http://127.0.0.1:8000/template"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "8cd8023e261f8229ae88",
+      "check_id": "client.internal-topology",
+      "title": "Client artifact reveals internal network locations",
+      "severity": "low",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js",
+        "http://127.0.0.1:8000/static/app.js.map"
+      ],
+      "occurrences": 2
+    },
+    {
+      "fingerprint": "91c40cdbf1a136b2b0e6",
+      "check_id": "hardening.header.missing.x-content-type-options",
+      "title": "Missing x-content-type-options",
+      "severity": "info",
+      "kind": "hardening",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000",
+      "affected_urls": [
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 13
+    },
+    {
+      "fingerprint": "9293b524b03786f00d9d",
+      "check_id": "redirect.open",
+      "title": "Open redirect verified",
+      "severity": "medium",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/go",
+      "affected_urls": [
+        "http://127.0.0.1:8000/go"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "92d07385c92d6f0a82cd",
+      "check_id": "exposure.config.secret-keys",
+      "title": "Public configuration exposes secret-like keys",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/config.json",
+      "affected_urls": [
+        "http://127.0.0.1:8000/config.json"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "9cc3d725eec38cde1beb",
+      "check_id": "authentication.nosqli.bypass",
+      "title": "NoSQL operator authentication bypass verified",
+      "severity": "critical",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/api/login",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/login"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "ae004249ff38aed79f4f",
+      "check_id": "ssrf.loopback-callback",
+      "title": "Server-side request forgery verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/fetch",
+      "affected_urls": [
+        "http://127.0.0.1:8000/fetch"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "ae7eb9c0e63763e1639c",
+      "check_id": "xss.reflected.execution",
+      "title": "Reflected XSS execution verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/reflect",
+      "affected_urls": [
+        "http://127.0.0.1:8000/reflect"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "b8374a26b6e92666d309",
+      "check_id": "injection.crlf.response-header",
+      "title": "HTTP response header injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/header",
+      "affected_urls": [
+        "http://127.0.0.1:8000/header"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "c73222721aa1db80f95e",
+      "check_id": "xss.dom.candidate",
+      "title": "Potential DOM XSS source-to-sink path",
+      "severity": "low",
+      "kind": "exposure",
+      "confidence": 0.65,
+      "confidence_level": "likely",
+      "verified": false,
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "c7548c91f94b3193ddfe",
+      "check_id": "injection.html.reflected",
+      "title": "Reflected HTML injection verified",
+      "severity": "medium",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/template",
+      "affected_urls": [
+        "http://127.0.0.1:8000/template"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "c86c75076021da9e4f2c",
+      "check_id": "privacy.url.secret",
+      "title": "Secret/authentication material appears in URL",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/reset",
+      "affected_urls": [
+        "http://127.0.0.1:8000/reset"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "ca718e40d63210403c89",
+      "check_id": "browser.storage.sensitive-key",
+      "title": "Sensitive-looking browser storage key observed",
+      "severity": "low",
+      "kind": "exposure",
+      "confidence": 0.9,
+      "confidence_level": "strong",
+      "verified": false,
+      "url": "http://127.0.0.1:8000/dashboard",
+      "affected_urls": [
+        "http://127.0.0.1:8000/dashboard",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/files/",
+        "http://127.0.0.1:8000/files/backup.txt",
+        "http://127.0.0.1:8000/jsonp?callback=demo",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/public-hidden",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token"
+      ],
+      "occurrences": 17
+    },
+    {
+      "fingerprint": "cb6708d2d538169a6283",
+      "check_id": "injection.crlf.response-header",
+      "title": "HTTP response header injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/crlf",
+      "affected_urls": [
+        "http://127.0.0.1:8000/crlf"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "cca9a05a3defbca612b9",
+      "check_id": "jsonp.callback.arbitrary",
+      "title": "JSONP-style arbitrary callback wrapping verified",
+      "severity": "medium",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/jsonp",
+      "affected_urls": [
+        "http://127.0.0.1:8000/jsonp"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "d00d08b4dc96cc87c017",
+      "check_id": "exposure.debug-output",
+      "title": "Debug or stack-trace information exposed",
+      "severity": "medium",
+      "kind": "exposure",
+      "confidence": 0.85,
+      "confidence_level": "strong",
+      "verified": false,
+      "url": "http://127.0.0.1:8000/stacktrace",
+      "affected_urls": [
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "d1f018d1483c9c60842d",
+      "check_id": "exposure.openapi.public",
+      "title": "OpenAPI specification is publicly exposed",
+      "severity": "info",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/openapi.json",
+      "affected_urls": [
+        "http://127.0.0.1:8000/openapi.json",
+        "http://127.0.0.1:8000/swagger.json"
+      ],
+      "occurrences": 2
+    },
+    {
+      "fingerprint": "d4e251921728b91eaf78",
+      "check_id": "hardening.server-technology-disclosure",
+      "title": "Server reveals server technology",
+      "severity": "info",
+      "kind": "hardening",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000",
+      "affected_urls": [
+        "http://127.0.0.1:8000"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "d947b8697fe1de910f7a",
+      "check_id": "hardening.header.missing.referrer-policy",
+      "title": "Missing referrer-policy",
+      "severity": "info",
+      "kind": "hardening",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000",
+      "affected_urls": [
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8000/absolute",
+        "http://127.0.0.1:8000/cors",
+        "http://127.0.0.1:8000/crlf?value=hello",
+        "http://127.0.0.1:8000/docs",
+        "http://127.0.0.1:8000/files",
+        "http://127.0.0.1:8000/products",
+        "http://127.0.0.1:8000/products?page=2&sort=name",
+        "http://127.0.0.1:8000/reflect?q=hello",
+        "http://127.0.0.1:8000/reset?token=fake-reset-token",
+        "http://127.0.0.1:8000/sql?q=hello",
+        "http://127.0.0.1:8000/ssti?name=hello",
+        "http://127.0.0.1:8000/stacktrace"
+      ],
+      "occurrences": 13
+    },
+    {
+      "fingerprint": "d9acfb882f0def162642",
+      "check_id": "authentication.sqli.bypass",
+      "title": "SQL-style authentication bypass verified",
+      "severity": "critical",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/api/login",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/login"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "da8a4c2b356c402cae46",
+      "check_id": "exposure.sourcemap.public",
+      "title": "Frontend source map is publicly exposed",
+      "severity": "low",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/static/app.js.map",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js.map"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "dda83cb7c5204e9c82cc",
+      "check_id": "authorization.bola.read",
+      "title": "Cross-account object access verified (query)",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/api/account-detail",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/account-detail"
+      ],
+      "occurrences": 2
+    },
+    {
+      "fingerprint": "e2ff59e8ecb36981069a",
+      "check_id": "injection.crlf.response-header",
+      "title": "HTTP response header injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/go",
+      "affected_urls": [
+        "http://127.0.0.1:8000/go"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "f199a34cd754e23e7508",
+      "check_id": "redirect.client.candidate",
+      "title": "Potential client-side redirect flow",
+      "severity": "low",
+      "kind": "exposure",
+      "confidence": 0.6,
+      "confidence_level": "likely",
+      "verified": false,
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "f2c36b80bbe3d1cc21d9",
+      "check_id": "cors.null-origin",
+      "title": "CORS accepts null Origin with credentials",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/null-cors",
+      "affected_urls": [
+        "http://127.0.0.1:8000/null-cors"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "f622ceac2eace3691d07",
+      "check_id": "privacy.form.get-sensitive",
+      "title": "Sensitive form fields are submitted with GET",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/legacy-login",
+      "affected_urls": [
+        "http://127.0.0.1:8000/legacy-login"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "f96721e684c64b884da6",
+      "check_id": "client.secret-like-material",
+      "title": "Client artifact exposes secret-like material",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/static/app.js",
+      "affected_urls": [
+        "http://127.0.0.1:8000/static/app.js",
+        "http://127.0.0.1:8000/static/app.js.map"
+      ],
+      "occurrences": 2
+    },
+    {
+      "fingerprint": "fa6583430db02fee43cd",
+      "check_id": "injection.ssti.arithmetic",
+      "title": "Server-side template injection verified",
+      "severity": "high",
+      "kind": "vulnerability",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/ssti",
+      "affected_urls": [
+        "http://127.0.0.1:8000/ssti"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "fac69b11f13d83b61f94",
+      "check_id": "exposure.env.public",
+      "title": "Environment file is publicly exposed",
+      "severity": "critical",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/.env",
+      "affected_urls": [
+        "http://127.0.0.1:8000/.env"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "fbd49d9a0813f0553e4f",
+      "check_id": "cors.arbitrary-origin",
+      "title": "Arbitrary CORS origin accepted with credentials",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/cors",
+      "affected_urls": [
+        "http://127.0.0.1:8000/cors"
+      ],
+      "occurrences": 1
+    },
+    {
+      "fingerprint": "fd838b1f0f13abd534e3",
+      "check_id": "cache.authenticated.shared",
+      "title": "User-specific authenticated response is marked for shared caching",
+      "severity": "high",
+      "kind": "exposure",
+      "confidence": 1.0,
+      "confidence_level": "verified",
+      "verified": true,
+      "url": "http://127.0.0.1:8000/api/me",
+      "affected_urls": [
+        "http://127.0.0.1:8000/api/me"
+      ],
+      "occurrences": 2
+    }
+  ],
+  "history": {
+    "known_fingerprints": [],
+    "resolved_fingerprints": []
+  }
+}

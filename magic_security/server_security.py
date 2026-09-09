@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import json
 import re
 import secrets
@@ -11,6 +10,8 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import httpx
 
+from magic_security.transport import SecureTransport
+
 from magic_security.models import (
     Finding,
     FindingKind,
@@ -18,6 +19,7 @@ from magic_security.models import (
     ServerProbeObservation,
     Severity,
 )
+from magic_security.scope import is_loopback_url as _is_loopback_url
 
 
 _FILE_PARAMETERS = {
@@ -57,18 +59,6 @@ _AUTH_PATH_MARKERS = (
     "/oauth/token",
     "/token",
 )
-
-
-def _is_loopback_url(url: str) -> bool:
-    host = urlsplit(url).hostname
-    if not host:
-        return False
-    if host == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
 
 
 def _set_query(url: str, parameter: str, value: str) -> str:
@@ -129,7 +119,7 @@ async def verify_path_traversal(
         ),
     )
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
         headers={
@@ -258,7 +248,7 @@ async def verify_ssrf_callback(
     port = int(callback_server.server_address[1])
 
     try:
-        async with httpx.AsyncClient(
+        async with SecureTransport(
             follow_redirects=False,
             timeout=timeout,
             headers={
@@ -406,7 +396,7 @@ async def verify_auth_injection_bypass(
     observations: list[ServerProbeObservation] = []
     findings: list[Finding] = []
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
         headers={
@@ -574,7 +564,7 @@ async def verify_host_header_poisoning(
     findings: list[Finding] = []
     marker = "magic-security.invalid"
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
         headers={

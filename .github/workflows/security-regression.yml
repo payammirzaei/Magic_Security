@@ -1,0 +1,50 @@
+name: Magic Security CI Regression Gate
+
+# STEP 49 — conceptual CI integration.
+# Fails on regression policy / coverage equivalence, not "any finding exists".
+
+on:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  security-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scanner
+        run: |
+          python -m pip install -e ".[dev]"
+
+      - name: Run policy-gated scan against staging target
+        env:
+          MAGIC_TARGET: ${{ vars.MAGIC_SECURITY_TARGET }}
+          MAGIC_AUTH_CONTEXTS: ${{ vars.MAGIC_SECURITY_AUTH_CONTEXTS }}
+          MAGIC_BASELINE: ${{ vars.MAGIC_SECURITY_BASELINE }}
+        run: |
+          if [ -z "$MAGIC_TARGET" ]; then
+            echo "Set MAGIC_SECURITY_TARGET repository variable to enable this gate."
+            exit 0
+          fi
+          ARGS=("$MAGIC_TARGET" --active --persist-history --fail-on-policy --snapshot scan.snapshot.json)
+          if [ -n "$MAGIC_AUTH_CONTEXTS" ]; then
+            ARGS+=(--auth-contexts "$MAGIC_AUTH_CONTEXTS")
+          fi
+          if [ -n "$MAGIC_BASELINE" ]; then
+            ARGS+=(--baseline "$MAGIC_BASELINE")
+          fi
+          magic-security "${ARGS[@]}"
+
+      - name: Upload snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: magic-security-snapshot
+          path: scan.snapshot.json
+          if-no-files-found: ignore

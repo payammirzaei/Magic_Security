@@ -20,6 +20,8 @@ async def test_verified_cross_account_read(monkeypatch):
         request = httpx.Request("GET", url)
 
         if url.endswith("/api/me"):
+            if marker not in {"A", "B"}:
+                return httpx.Response(401, request=request)
             account_id = 101 if marker == "A" else 202
             return httpx.Response(
                 200,
@@ -28,6 +30,8 @@ async def test_verified_cross_account_read(monkeypatch):
             )
 
         if "/api/accounts/" in url:
+            if marker not in {"A", "B"}:
+                return httpx.Response(401, request=request)
             account_id = int(url.rsplit("/", 1)[-1])
             return httpx.Response(
                 200,
@@ -67,8 +71,11 @@ async def test_verified_cross_account_read(monkeypatch):
     assert len(findings) >= 1
     assert findings[0].kind is FindingKind.VULNERABILITY
     assert findings[0].verified
+    assert findings[0].structured_evidence is not None
+    assert findings[0].structured_evidence["sensitive_values_stored"] is False
     assert "101" not in findings[0].evidence
     assert "202" not in findings[0].evidence
+    assert "user-" not in findings[0].evidence
 
 
 @pytest.mark.asyncio
@@ -78,6 +85,8 @@ async def test_query_parameter_idor_is_verified(monkeypatch):
         request = httpx.Request("GET", url)
 
         if url.endswith("/api/me"):
+            if marker not in {"A", "B"}:
+                return httpx.Response(401, request=request)
             account_id = 101 if marker == "A" else 202
             return httpx.Response(
                 200,
@@ -86,6 +95,8 @@ async def test_query_parameter_idor_is_verified(monkeypatch):
             )
 
         if "/api/account-detail" in url:
+            if marker not in {"A", "B"}:
+                return httpx.Response(401, request=request)
             account_id = int(url.split("account_id=", 1)[1].split("&", 1)[0])
             return httpx.Response(
                 200,
@@ -143,6 +154,8 @@ async def test_roles_limit_pairwise_idor_to_same_role(monkeypatch):
         request = httpx.Request("GET", url)
 
         if url.endswith("/api/me"):
+            if marker not in ids:
+                return httpx.Response(401, request=request)
             return httpx.Response(
                 200,
                 request=request,
@@ -150,6 +163,8 @@ async def test_roles_limit_pairwise_idor_to_same_role(monkeypatch):
             )
 
         if "/api/accounts/" in url:
+            if marker not in ids:
+                return httpx.Response(401, request=request)
             account_id = int(url.rsplit("/", 1)[-1])
             return httpx.Response(
                 200,
@@ -199,3 +214,90 @@ async def test_roles_limit_pairwise_idor_to_same_role(monkeypatch):
     assert ("user_b", "user_a") in pairs
     assert ("user_a", "admin") not in pairs
     assert ("admin", "user_b") not in pairs
+
+
+@pytest.mark.asyncio
+async def test_public_object_not_reported_as_idor(monkeypatch):
+    async def fake_get(self, url, **kwargs):
+        request = httpx.Request("GET", url)
+        if url.endswith("/api/me"):
+            marker = self.headers.get("X-Test-User")
+            account_id = 101 if marker == "A" else 202
+            return httpx.Response(
+                200,
+                request=request,
+                json={"account_id": account_id},
+            )
+        if "/api/accounts/" in url:
+            account_id = int(url.rsplit("/", 1)[-1])
+            return httpx.Response(
+                200,
+                request=request,
+                json={"account_id": account_id, "public": True},
+            )
+        return httpx.Response(404, request=request)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    endpoints = [
+        NormalizedEndpoint(url="http://localhost/api/me", method="GET"),
+        NormalizedEndpoint(
+            url="http://localhost/api/accounts/{account_id}",
+            method="GET",
+        ),
+    ]
+    contexts = [
+        AuthContext(name="user_a", headers={"X-Test-User": "A"}),
+        AuthContext(name="user_b", headers={"X-Test-User": "B"}),
+    ]
+    _, observations, findings = await verify_pairwise_idor_read_access(
+        endpoints,
+        contexts,
+    )
+    assert all(not item.cross_account_verified for item in observations)
+    assert not any(item.kind is FindingKind.VULNERABILITY for item in findings)
+
+
+@pytest.mark.asyncio
+async def test_nested_path_idor_fixture(monkeypatch):
+    async def fake_get(self, url, **kwargs):
+        marker = self.headers.get("X-Test-User")
+        request = httpx.Request("GET", url)
+        if url.endswith("/api/me"):
+            if marker not in {"A", "B"}:
+                return httpx.Response(401, request=request)
+            return httpx.Response(
+                200,
+                request=request,
+                json={"org_id": 1, "user_id": 101 if marker == "A" else 202},
+            )
+        if "/api/orgs/" in url and "/users/" in url:
+            if marker not in {"A", "B"}:
+                return httpx.Response(401, request=request)
+            user_id = int(url.rsplit("/", 1)[-1])
+            return httpx.Response(
+                200,
+                request=request,
+                json={"user_id": user_id, "profile": "x"},
+            )
+        return httpx.Response(404, request=request)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    endpoints = [
+        NormalizedEndpoint(url="http://localhost/api/me", method="GET"),
+        NormalizedEndpoint(
+            url="http://localhost/api/orgs/{org_id}/users/{user_id}",
+            method="GET",
+        ),
+    ]
+    contexts = [
+        AuthContext(name="user_a", headers={"X-Test-User": "A"}),
+        AuthContext(name="user_b", headers={"X-Test-User": "B"}),
+    ]
+    _, observations, findings = await verify_pairwise_idor_read_access(
+        endpoints,
+        contexts,
+    )
+    assert any(item.parameter == "user_id" for item in observations)
+    assert any(item.cross_account_verified for item in observations)
+    assert findings
+    assert findings[0].structured_evidence["sensitive_values_stored"] is False

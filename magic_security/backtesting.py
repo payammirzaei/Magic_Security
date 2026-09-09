@@ -12,9 +12,10 @@ from magic_security.fingerprints import (
     normalize_finding_url,
 )
 from magic_security.models import CrawlResult, Finding, Severity
-
-
-SNAPSHOT_SCHEMA_VERSION = 1
+from magic_security.version import (
+    SNAPSHOT_SCHEMA_MIN_SUPPORTED,
+    SNAPSHOT_SCHEMA_VERSION,
+)
 
 _SEVERITY_RANK = {
     Severity.INFO.value: 0,
@@ -96,6 +97,9 @@ def build_scan_snapshot(
     modes: dict[str, Any] | None = None,
     created_at: str | None = None,
     scanner_version: str | None = None,
+    scan_profile: str | None = None,
+    commit: str | None = None,
+    deployment: str | None = None,
 ) -> dict[str, Any]:
     normalized_findings = deduplicate_findings(findings)
     surface_items = _surface_items(crawl)
@@ -103,13 +107,37 @@ def build_scan_snapshot(
         "\n".join(surface_items).encode("utf-8")
     ).hexdigest()[:20]
 
+    finding_records = sorted(
+        (_finding_record(item) for item in normalized_findings),
+        key=lambda item: (item["fingerprint"], item["title"]),
+    )
+    evidence_fingerprints = sorted(
+        {
+            item.get("fingerprint")
+            for item in finding_records
+            if item.get("verified") and item.get("fingerprint")
+        }
+    )
+
     timestamp = created_at or datetime.now(timezone.utc).isoformat()
-    return {
+    resolved_modes = modes or {}
+    snapshot = {
         "schema_version": SNAPSHOT_SCHEMA_VERSION,
         "created_at": timestamp,
         "scanner_version": scanner_version or __version__,
         "target": crawl.target,
-        "modes": modes or {},
+        "target_identity": {
+            "url": crawl.target,
+        },
+        "scan_profile": scan_profile
+        or (
+            "active+browser+auth"
+            if resolved_modes.get("browser")
+            and resolved_modes.get("active")
+            and resolved_modes.get("auth_contexts")
+            else "custom"
+        ),
+        "modes": resolved_modes,
         "attack_surface": {
             "fingerprint": surface_hash,
             "items": surface_items,
@@ -124,15 +152,60 @@ def build_scan_snapshot(
             },
         },
         "coverage": _coverage_state(crawl),
-        "findings": sorted(
-            (_finding_record(item) for item in normalized_findings),
-            key=lambda item: (item["fingerprint"], item["title"]),
-        ),
+        "findings": finding_records,
+        "evidence_fingerprints": evidence_fingerprints,
+        "timestamps": {
+            "created_at": timestamp,
+        },
+        "metadata": {
+            "commit": commit,
+            "deployment": deployment,
+        },
         "history": {
             "known_fingerprints": [],
             "resolved_fingerprints": [],
         },
+        "pack_coverage": getattr(crawl, "pack_coverage", {}) or {},
     }
+    from magic_security.redaction import Redactor
+
+    return Redactor().scrub_structure(snapshot)
+
+
+def migrate_snapshot(data: dict[str, Any]) -> dict[str, Any]:
+    """Migrate supported older snapshots to the current schema in-memory."""
+    version = data.get("schema_version")
+    if version == SNAPSHOT_SCHEMA_VERSION:
+        return data
+    if version == 1:
+        migrated = dict(data)
+        migrated["schema_version"] = SNAPSHOT_SCHEMA_VERSION
+        migrated.setdefault(
+            "target_identity",
+            {"url": data.get("target")},
+        )
+        migrated.setdefault("scan_profile", "legacy-v1")
+        migrated.setdefault(
+            "evidence_fingerprints",
+            sorted(
+                {
+                    item.get("fingerprint")
+                    for item in data.get("findings", [])
+                    if item.get("verified") and item.get("fingerprint")
+                }
+            ),
+        )
+        migrated.setdefault(
+            "timestamps",
+            {"created_at": data.get("created_at")},
+        )
+        migrated.setdefault("metadata", {"commit": None, "deployment": None})
+        migrated.setdefault("pack_coverage", {})
+        return migrated
+    raise SnapshotError(
+        f"Unsupported snapshot schema: {version!r}. "
+        f"Supported: {SNAPSHOT_SCHEMA_MIN_SUPPORTED}..{SNAPSHOT_SCHEMA_VERSION}"
+    )
 
 
 def write_snapshot(path: str | Path, snapshot: dict[str, Any]) -> Path:
@@ -152,13 +225,18 @@ def load_snapshot(path: str | Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise SnapshotError(f"Cannot load snapshot {source}: {exc}") from exc
 
-    if data.get("schema_version") != SNAPSHOT_SCHEMA_VERSION:
+    version = data.get("schema_version")
+    if version not in {
+        SNAPSHOT_SCHEMA_VERSION,
+        SNAPSHOT_SCHEMA_MIN_SUPPORTED,
+    }:
         raise SnapshotError(
-            f"Unsupported snapshot schema: {data.get('schema_version')!r}"
+            f"Unsupported snapshot schema: {version!r}. "
+            f"Supported: {SNAPSHOT_SCHEMA_MIN_SUPPORTED}..{SNAPSHOT_SCHEMA_VERSION}"
         )
     if not isinstance(data.get("findings"), list):
         raise SnapshotError("Snapshot is missing a valid findings list.")
-    return data
+    return migrate_snapshot(data)
 
 
 def _coverage_map(snapshot: dict[str, Any]) -> dict[str, str]:

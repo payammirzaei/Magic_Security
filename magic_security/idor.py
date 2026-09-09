@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
 from itertools import combinations
 from typing import Any
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import httpx
+
+from magic_security.evidence import EvidenceObject, attach_evidence
+from magic_security.transport import SecureTransport
 
 from magic_security.models import (
     AuthComparison,
@@ -31,13 +35,27 @@ _ID_NAMES = {
     "project_id",
     "organization_id",
     "org_id",
+    "uuid",
+    "uid",
+    "token",
 }
+
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    re.I,
+)
+_OPAQUE_RE = re.compile(r"^[A-Za-z0-9_\-]{16,128}$")
+_NUMERIC_RE = re.compile(r"^\d{1,18}$")
 
 
 def _collect_identifiers(
     value: Any,
     found: dict[str, set[str]],
+    *,
+    depth: int = 0,
 ) -> None:
+    if depth > 6:
+        return
     if isinstance(value, dict):
         for key, child in value.items():
             key_text = str(key).lower()
@@ -48,10 +66,20 @@ def _collect_identifiers(
                 text = str(child)
                 if text and len(text) <= 128:
                     found.setdefault(key_text, set()).add(text)
-            _collect_identifiers(child, found)
+            _collect_identifiers(child, found, depth=depth + 1)
     elif isinstance(value, list):
         for child in value[:20]:
-            _collect_identifiers(child, found)
+            _collect_identifiers(child, found, depth=depth + 1)
+
+
+def _looks_opaque_id(value: str) -> bool:
+    if _UUID_RE.fullmatch(value):
+        return True
+    if _NUMERIC_RE.fullmatch(value):
+        return True
+    if _OPAQUE_RE.fullmatch(value) and not value.isalpha():
+        return True
+    return False
 
 
 def _template_parameters(url: str) -> tuple[str, ...]:
@@ -102,11 +130,15 @@ def _set_query_parameter(url: str, parameter: str, value: str) -> str:
     )
 
 
-def _json_fingerprint(response: httpx.Response) -> str | None:
+def _semantic_fingerprint(response: httpx.Response) -> str | None:
     try:
         data = response.json()
     except ValueError:
-        return None
+        content_type = response.headers.get("content-type", "").split(";", 1)[0]
+        return (
+            f"{response.status_code}|{content_type.lower()}|"
+            f"{len(response.content)}"
+        )
 
     return json.dumps(
         data,
@@ -114,6 +146,24 @@ def _json_fingerprint(response: httpx.Response) -> str | None:
         separators=(",", ":"),
         ensure_ascii=False,
     )
+
+
+def _json_fingerprint(response: httpx.Response) -> str | None:
+    return _semantic_fingerprint(response)
+
+
+def _ownership_confidence(
+    *,
+    owner_reread_match: bool,
+    public_match: bool,
+    semantic_match: bool,
+) -> float:
+    if public_match or not semantic_match:
+        return 0.0
+    score = 0.7
+    if owner_reread_match:
+        score += 0.25
+    return min(score, 1.0)
 
 
 def _preferred_ownership_urls(
@@ -168,7 +218,7 @@ async def _discover_owned_ids(
 
     candidates = candidates[:max_endpoints]
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
         headers={
@@ -215,7 +265,14 @@ def _owned_id_for_parameter(
     direct = identifiers.get(key)
 
     if direct and len(direct) == 1:
-        return next(iter(direct))
+        value = next(iter(direct))
+        if _looks_opaque_id(value) or True:
+            return value
+
+    for name, values in identifiers.items():
+        if name.endswith(key) or key.endswith(name):
+            if len(values) == 1:
+                return next(iter(values))
 
     return None
 
@@ -230,8 +287,14 @@ def _candidate_specs(
             continue
 
         path_params = _template_parameters(endpoint.url)
-        if len(path_params) == 1 and _is_identifier_name(path_params[0]):
-            specs.append((endpoint, path_params[0], "path"))
+        id_path_params = [
+            name for name in path_params if _is_identifier_name(name)
+        ]
+        # Nested path IDs: exercise each identifier parameter when all
+        # path params look like IDs (e.g. /orgs/{org_id}/users/{user_id}).
+        if id_path_params and len(id_path_params) == len(path_params):
+            for name in id_path_params:
+                specs.append((endpoint, name, "path"))
             continue
 
         if path_params:
@@ -249,9 +312,15 @@ def _build_url(
     parameter: str,
     location: str,
     value: str,
+    *,
+    extra_path_values: dict[str, str] | None = None,
 ) -> str:
     if location == "path":
-        return _substitute_path(endpoint.url, parameter, value)
+        url = endpoint.url
+        if extra_path_values:
+            for name, raw in extra_path_values.items():
+                url = _substitute_path(url, name, raw)
+        return _substitute_path(url, parameter, value)
     return _set_query_parameter(endpoint.url, parameter, value)
 
 
@@ -306,7 +375,7 @@ async def _verify_pair(
     tested = 0
 
     async with (
-        httpx.AsyncClient(
+        SecureTransport(
             follow_redirects=False,
             timeout=timeout,
             headers={
@@ -316,7 +385,7 @@ async def _verify_pair(
             },
             cookies=owner.cookies,
         ) as owner_client,
-        httpx.AsyncClient(
+        SecureTransport(
             follow_redirects=False,
             timeout=timeout,
             headers={
@@ -326,6 +395,14 @@ async def _verify_pair(
             },
             cookies=requester.cookies,
         ) as requester_client,
+        SecureTransport(
+            follow_redirects=False,
+            timeout=timeout,
+            headers={
+                "User-Agent": "Magic-Security/0.8 local-security-scanner",
+                "Accept": "application/json,*/*;q=0.5",
+            },
+        ) as anon_client,
     ):
         for endpoint, parameter, location in _candidate_specs(endpoints):
             if tested >= max_candidates:
@@ -344,28 +421,86 @@ async def _verify_pair(
             ):
                 continue
 
+            extra: dict[str, str] = {}
+            if location == "path":
+                for sibling in _template_parameters(endpoint.url):
+                    if sibling == parameter:
+                        continue
+                    sibling_id = _owned_id_for_parameter(owner_ids, sibling)
+                    if sibling_id:
+                        extra[sibling] = sibling_id
+
             tested += 1
             owner_url = _build_url(
                 endpoint,
                 parameter,
                 location,
                 owner_id,
+                extra_path_values=extra or None,
             )
 
             try:
                 owner_response = await owner_client.get(owner_url)
-                cross_response = await requester_client.get(owner_url)
+                owner_reread = await owner_client.get(
+                    owner_url,
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Pragma": "no-cache",
+                    },
+                )
+                cross_response = await requester_client.get(
+                    owner_url,
+                    headers={"Cache-Control": "no-cache"},
+                )
             except httpx.HTTPError:
                 continue
 
-            owner_fp = _json_fingerprint(owner_response)
-            cross_fp = _json_fingerprint(cross_response)
+            try:
+                public_response = await anon_client.get(owner_url)
+            except httpx.HTTPError:
+                public_response = None
 
-            verified = (
+            owner_fp = _semantic_fingerprint(owner_response)
+            reread_fp = _semantic_fingerprint(owner_reread)
+            cross_fp = _semantic_fingerprint(cross_response)
+            public_fp = (
+                _semantic_fingerprint(public_response)
+                if public_response is not None
+                else None
+            )
+
+            owner_reread_match = (
+                owner_response.status_code == 200
+                and owner_reread.status_code == 200
+                and owner_fp is not None
+                and owner_fp == reread_fp
+            )
+            public_match = (
+                public_response is not None
+                and public_response.status_code == 200
+                and public_fp is not None
+                and public_fp == owner_fp
+            )
+            generic_empty = cross_response.status_code in {401, 403} or (
+                cross_response.status_code == 200
+                and len(cross_response.content) <= 2
+            )
+            semantic_match = (
                 owner_response.status_code == 200
                 and cross_response.status_code == 200
                 and owner_fp is not None
                 and cross_fp == owner_fp
+                and not generic_empty
+            )
+            confidence = _ownership_confidence(
+                owner_reread_match=owner_reread_match,
+                public_match=public_match,
+                semantic_match=semantic_match,
+            )
+            verified = (
+                confidence >= 0.95
+                and semantic_match
+                and not public_match
             )
 
             observations.append(
@@ -384,38 +519,69 @@ async def _verify_pair(
             if not verified:
                 continue
 
-            findings.append(
-                Finding(
-                    title=(
-                        f"Cross-account object access verified "
-                        f"({location})"
-                    ),
-                    severity=Severity.HIGH,
-                    kind=FindingKind.VULNERABILITY,
-                    url=endpoint.url,
-                    description=(
-                        "Authenticated same-role test contexts verified "
-                        "cross-account read access through "
-                        f"{location} parameter {parameter!r}."
-                    ),
-                    evidence=(
-                        f"{requester.name!r} retrieved an object belonging "
-                        f"to {owner.name!r} through a {location} parameter "
-                        f"{parameter!r}. Owner and cross-account responses "
-                        "were HTTP 200 and identical JSON. Credentials and "
-                        "raw object identifiers were not stored."
-                    ),
-                    remediation=(
-                        "Enforce object-level authorization for every "
-                        "request. Resolve requested resources through the "
-                        "authenticated principal's allowed scope rather "
-                        "than trusting client IDs."
-                    ),
-                    confidence=1.0,
-                    owasp="A01:2025 Broken Access Control",
-                    cwe="CWE-639",
-                )
+            finding = Finding(
+                title=(
+                    f"Cross-account object access verified "
+                    f"({location})"
+                ),
+                severity=Severity.HIGH,
+                kind=FindingKind.VULNERABILITY,
+                url=endpoint.url,
+                description=(
+                    "Authenticated same-role test contexts verified "
+                    "cross-account read access through "
+                    f"{location} parameter {parameter!r}."
+                ),
+                evidence=(
+                    f"{requester.name!r} retrieved an object belonging "
+                    f"to {owner.name!r} through a {location} parameter "
+                    f"{parameter!r}. Owner and cross-account semantic "
+                    "fingerprints matched after negative controls "
+                    f"(ownership_confidence={confidence:.2f}). "
+                    "Raw bodies, PII, and object identifiers were not stored."
+                ),
+                remediation=(
+                    "Enforce object-level authorization for every "
+                    "request. Resolve requested resources through the "
+                    "authenticated principal's allowed scope rather "
+                    "than trusting client IDs."
+                ),
+                confidence=1.0,
+                owasp="A01:2025 Broken Access Control",
+                cwe="CWE-639",
+                check_id="authorization.bola.read",
             )
+            attach_evidence(
+                finding,
+                EvidenceObject(
+                    check_id="authorization.bola.read",
+                    proof_type="pairwise_cross_account_read",
+                    baseline_summary=(
+                        f"Owner {owner.name} read own object "
+                        f"(status={owner_response.status_code}, "
+                        f"len={len(owner_response.content)})"
+                    ),
+                    mutation_summary=(
+                        f"Requester {requester.name} read owner object "
+                        "with cache-bust; public/anonymous control compared"
+                    ),
+                    observed_result=(
+                        f"semantic_match=true; public_match=false; "
+                        f"owner_reread_match={owner_reread_match}; "
+                        f"ownership_confidence={confidence:.2f}"
+                    ),
+                    redacted_artifacts={
+                        "owner_status": owner_response.status_code,
+                        "requester_status": cross_response.status_code,
+                        "owner_len": len(owner_response.content),
+                        "requester_len": len(cross_response.content),
+                        "ownership_confidence": confidence,
+                    },
+                    confidence="verified",
+                    sensitive_values_stored=False,
+                ),
+            )
+            findings.append(finding)
 
     return ownership, observations, findings
 

@@ -1,0 +1,897 @@
+# Magic_Security Capability Matrix
+# Frozen inventory for STEP 2 of CURSOR_50_STEP_BUILD_PLAN.md
+# Separates concrete checks from the 42-category coverage registry.
+# Maturity: verified | partial | passive | planned
+# Modes: http | browser | active | auth
+
+schema_version: 1
+scanner_baseline: "1.1.0"
+
+capabilities:
+  - id: hardening.header.missing
+    category: security_headers
+    source: magic_security/checks/headers.py
+    mode: [http]
+    prerequisites: []
+    proof: missing_response_header
+    finding_kind: Hardening
+    maturity: passive
+    test_file: tests/test_checks.py
+    known_gaps: "Does not prove exploitability of missing headers."
+
+  - id: browser.clickjacking.missing-protection
+    category: clickjacking
+    source: magic_security/checks/headers.py
+    mode: [http]
+    prerequisites: []
+    proof: missing_xfo_and_frame_ancestors
+    finding_kind: Hardening
+    maturity: passive
+    test_file: tests/test_clickjacking_headers.py
+    known_gaps: "No active clickjacking proof in a framed browser."
+
+  - id: browser.csp.risky-script-mode
+    category: security_headers
+    source: magic_security/checks/headers.py
+    mode: [http]
+    prerequisites: []
+    proof: csp_unsafe_inline_or_eval
+    finding_kind: Hardening
+    maturity: passive
+    test_file: tests/test_checks.py
+    known_gaps: "CSP parsing is heuristic, not a full policy evaluator."
+
+  - id: session.cookie.missing-attributes
+    category: session
+    source: magic_security/checks/cookies.py
+    mode: [http, auth]
+    prerequisites: []
+    proof: cookie_attribute_inspection
+    finding_kind: Hardening
+    maturity: partial
+    test_file: tests/test_checks.py
+    known_gaps: "Does not verify session fixation/rotation/logout."
+
+  - id: exposure.directory-listing
+    category: information_disclosure
+    source: magic_security/checks/exposures.py
+    mode: [http]
+    prerequisites: []
+    proof: directory_listing_signature
+    finding_kind: Exposure
+    maturity: passive
+    test_file: tests/test_checks.py
+    known_gaps: ""
+
+  - id: exposure.api-docs.public
+    category: information_disclosure
+    source: magic_security/checks/exposures.py
+    mode: [http]
+    prerequisites: []
+    proof: public_api_docs_page
+    finding_kind: Exposure
+    maturity: passive
+    test_file: tests/test_checks.py
+    known_gaps: ""
+
+  - id: exposure.debug-output
+    category: information_disclosure
+    source: magic_security/checks/exposures.py
+    mode: [http]
+    prerequisites: []
+    proof: stack_trace_or_debug_signature
+    finding_kind: Exposure
+    maturity: passive
+    test_file: tests/test_checks.py
+    known_gaps: ""
+
+  - id: exposure.env.public
+    category: secrets
+    source: magic_security/probes.py
+    mode: [http]
+    prerequisites: []
+    proof: public_env_file_signature
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_probes.py
+    known_gaps: "Values are redacted; impact of leaked secrets not proven."
+
+  - id: exposure.git.public
+    category: information_disclosure
+    source: magic_security/probes.py
+    mode: [http]
+    prerequisites: []
+    proof: public_git_metadata
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_probes.py
+    known_gaps: ""
+
+  - id: exposure.openapi.public
+    category: information_disclosure
+    source: magic_security/probes.py
+    mode: [http]
+    prerequisites: []
+    proof: public_openapi_document
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_probes.py
+    known_gaps: ""
+
+  - id: exposure.sourcemap.public
+    category: information_disclosure
+    source: magic_security/probes.py
+    mode: [http]
+    prerequisites: []
+    proof: public_source_map
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_probes.py
+    known_gaps: ""
+
+  - id: exposure.deployment-artifact.public
+    category: information_disclosure
+    source: magic_security/exposure_pack.py
+    mode: [http, active]
+    prerequisites: [active]
+    proof: backup_or_manifest_signature
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_exposure_pack.py
+    known_gaps: "Bounded prefix/HEAD only; contents not fully retrieved."
+
+  - id: exposure.debug-status.public
+    category: information_disclosure
+    source: magic_security/exposure_pack.py
+    mode: [http, active]
+    prerequisites: [active]
+    proof: debug_status_endpoint_signature
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_exposure_pack.py
+    known_gaps: ""
+
+  - id: exposure.spring-actuator.env
+    category: information_disclosure
+    source: magic_security/exposure_pack.py
+    mode: [http, active]
+    prerequisites: [active]
+    proof: actuator_env_signature
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_exposure_pack.py
+    known_gaps: ""
+
+  - id: exposure.config.secret-keys
+    category: secrets
+    source: magic_security/exposure_pack.py
+    mode: [http, active]
+    prerequisites: [active]
+    proof: public_config_secret_like_keys
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_exposure_pack.py
+    known_gaps: "Key names only; values not stored."
+
+  - id: exposure.heapdump.public
+    category: information_disclosure
+    source: magic_security/exposure_pack.py
+    mode: [http, active]
+    prerequisites: [active]
+    proof: heapdump_endpoint_signature_no_download
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_exposure_pack.py
+    known_gaps: "Large bodies are not downloaded."
+
+  - id: injection.html.reflected
+    category: injection
+    source: magic_security/injection.py
+    mode: [active]
+    prerequisites: [active]
+    proof: raw_html_reflection
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_injection.py
+    known_gaps: "Stored HTML injection requires workflow config."
+
+  - id: xss.reflected.execution
+    category: xss
+    source: magic_security/injection.py
+    mode: [browser, active]
+    prerequisites: [browser, active]
+    proof: runtime_canary_execution
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_injection.py
+    known_gaps: "Stored XSS requires workflow config."
+
+  - id: xss.dom.candidate
+    category: xss
+    source: magic_security/browser_security.py
+    mode: [browser]
+    prerequisites: [browser]
+    proof: static_source_sink_heuristic
+    finding_kind: Observation
+    maturity: partial
+    test_file: tests/test_browser_security.py
+    known_gaps: "Candidate only until runtime canary verifies."
+
+  - id: xss.dom.execution
+    category: xss
+    source: magic_security/browser_security.py
+    mode: [browser, active]
+    prerequisites: [browser, active]
+    proof: runtime_canary_execution
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_browser_security.py
+    known_gaps: "Not all SPA sinks are covered."
+
+  - id: authorization.bola.read
+    category: authorization
+    source: magic_security/idor.py
+    mode: [auth]
+    prerequisites: [auth_contexts]
+    proof: pairwise_cross_account_read
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_idor.py
+    known_gaps: "GET reads only; state-changing authz needs workflows."
+
+  - id: path.traversal.local-file-read
+    category: path_handling
+    source: magic_security/server_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: known_marker_file_content
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_server_security.py
+    known_gaps: "Only known non-secret markers; not arbitrary LFI."
+
+  - id: ssrf.loopback-callback
+    category: ssrf
+    source: magic_security/server_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: scanner_owned_loopback_callback
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_server_security.py
+    known_gaps: "No cloud metadata or private-network probing."
+
+  - id: authentication.sqli.bypass
+    category: authentication
+    source: magic_security/server_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: invalid_baseline_vs_sql_probe_success
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_server_security.py
+    known_gaps: "Only discoverable login/token POSTs; not exhaustive SQLi."
+
+  - id: authentication.nosqli.bypass
+    category: authentication
+    source: magic_security/server_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: invalid_baseline_vs_nosql_operator_success
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_server_security.py
+    known_gaps: "Operator-object probes only."
+
+  - id: http.host-header.influence
+    category: http
+    source: magic_security/server_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: controlled_host_appears_in_response
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_server_security.py
+    known_gaps: "Does not claim password-reset poisoning without workflow."
+
+  - id: cors.protected.credentialed
+    category: cors
+    source: magic_security/behavior_security.py
+    mode: [active, auth]
+    prerequisites: [active, auth_contexts]
+    proof: credentialed_cors_reads_protected_body
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_behavior_security.py
+    known_gaps: ""
+
+  - id: cors.arbitrary-origin
+    category: cors
+    source: magic_security/active.py
+    mode: [active]
+    prerequisites: [active]
+    proof: reflected_acao_origin
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_active.py
+    known_gaps: ""
+
+  - id: cors.null-origin
+    category: cors
+    source: magic_security/user_surface_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: null_origin_accepted
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_user_surface_security.py
+    known_gaps: ""
+
+  - id: cache.authenticated.shared
+    category: cache
+    source: magic_security/behavior_security.py
+    mode: [active, auth]
+    prerequisites: [active, auth_contexts]
+    proof: user_specific_response_shared_cache_headers
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_behavior_security.py
+    known_gaps: ""
+
+  - id: graphql.introspection.anonymous
+    category: graphql
+    source: magic_security/graphql_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: anonymous_introspection_success
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_graphql_security.py
+    known_gaps: "No field-level auth or depth/complexity abuse pack."
+
+  - id: graphql.errors.debug
+    category: graphql
+    source: magic_security/graphql_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: verbose_graphql_error_details
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_graphql_security.py
+    known_gaps: ""
+
+  - id: privacy.url.secret
+    category: privacy
+    source: magic_security/user_surface_security.py
+    mode: [http]
+    prerequisites: []
+    proof: secret_like_query_param_names
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_user_surface_security.py
+    known_gaps: "Param names only; values never stored."
+
+  - id: privacy.url.pii
+    category: privacy
+    source: magic_security/user_surface_security.py
+    mode: [http]
+    prerequisites: []
+    proof: pii_like_query_param_names
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_user_surface_security.py
+    known_gaps: "Heuristic name matching only."
+
+  - id: privacy.form.get-sensitive
+    category: privacy
+    source: magic_security/user_surface_security.py
+    mode: [http]
+    prerequisites: []
+    proof: sensitive_fields_on_get_form
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_user_surface_security.py
+    known_gaps: ""
+
+  - id: transport.mixed-content
+    category: transport
+    source: magic_security/user_surface_security.py
+    mode: [http]
+    prerequisites: []
+    proof: https_page_http_resource
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_user_surface_security.py
+    known_gaps: ""
+
+  - id: jsonp.callback.arbitrary
+    category: jsonp
+    source: magic_security/user_surface_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: arbitrary_callback_wrapping
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_user_surface_security.py
+    known_gaps: ""
+
+  - id: redirect.open
+    category: redirects
+    source: magic_security/active.py
+    mode: [active]
+    prerequisites: [active]
+    proof: external_redirect_location
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_active.py
+    known_gaps: ""
+
+  - id: browser.postmessage.origin-check
+    category: browser
+    source: magic_security/browser_security.py
+    mode: [browser]
+    prerequisites: [browser]
+    proof: missing_origin_validation_signal
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_browser_security.py
+    known_gaps: "Static signal only; not proven cross-origin message abuse."
+
+  - id: redirect.client.candidate
+    category: redirects
+    source: magic_security/browser_security.py
+    mode: [browser]
+    prerequisites: [browser]
+    proof: url_source_near_navigation_sink
+    finding_kind: Observation
+    maturity: partial
+    test_file: tests/test_browser_security.py
+    known_gaps: "Candidate until runtime control proven."
+
+  - id: websocket.plaintext-transport
+    category: websockets
+    source: magic_security/browser_security.py
+    mode: [browser]
+    prerequisites: [browser]
+    proof: https_page_ws_scheme
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_browser_security.py
+    known_gaps: "No CSWSH / message auth verification yet."
+
+  - id: browser.storage.sensitive-key
+    category: browser
+    source: magic_security/browser_security.py
+    mode: [browser]
+    prerequisites: [browser]
+    proof: sensitive_storage_key_name
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_browser_security.py
+    known_gaps: "Key names only; values never read."
+
+  - id: client.secret-like-material
+    category: secrets
+    source: magic_security/client_artifacts.py
+    mode: [http]
+    prerequisites: []
+    proof: js_or_sourcemap_secret_like_pattern
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_client_artifacts.py
+    known_gaps: "Values redacted; not proven live credential misuse."
+
+  - id: client.internal-topology
+    category: information_disclosure
+    source: magic_security/client_artifacts.py
+    mode: [http]
+    prerequisites: []
+    proof: private_network_url_in_client_artifact
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_client_artifacts.py
+    known_gaps: ""
+
+  - id: database.error-trigger
+    category: sql
+    source: magic_security/parameter_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: database_error_signature_on_probe
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_parameter_security.py
+    known_gaps: "Error trigger is not claimed as proven SQLi."
+
+  - id: injection.ssti.arithmetic
+    category: injection
+    source: magic_security/parameter_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: arithmetic_template_evaluation
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_parameter_security.py
+    known_gaps: "Arithmetic-only canary; no RCE payload."
+
+  - id: injection.crlf.response-header
+    category: injection
+    source: magic_security/parameter_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: inert_response_header_injection
+    finding_kind: Vulnerability
+    maturity: verified
+    test_file: tests/test_parameter_security.py
+    known_gaps: ""
+
+  - id: http.trace.reflection
+    category: http
+    source: magic_security/protocol_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: trace_echoes_request
+    finding_kind: Exposure
+    maturity: verified
+    test_file: tests/test_protocol_security.py
+    known_gaps: ""
+
+  - id: http.methods.dangerous-advertised
+    category: http
+    source: magic_security/protocol_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: options_advertise_dangerous_methods
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_protocol_security.py
+    known_gaps: "Advertisement only; method abuse not fully proven."
+
+  - id: hardening.server-technology-disclosure
+    category: information_disclosure
+    source: magic_security/protocol_security.py
+    mode: [http, active]
+    prerequisites: []
+    proof: server_or_x_powered_by_header
+    finding_kind: Hardening
+    maturity: passive
+    test_file: tests/test_protocol_security.py
+    known_gaps: ""
+
+  - id: csrf.posture.candidate
+    category: csrf
+    source: magic_security/csrf.py
+    mode: [auth]
+    prerequisites: [auth_contexts]
+    proof: cookie_auth_state_change_without_token_signal
+    finding_kind: Observation
+    maturity: partial
+    test_file: tests/test_csrf.py
+    known_gaps: "Posture only; state-changing CSRF proof needs disposable workflow."
+
+  - id: rate_limit.behavior.observation
+    category: rate_limiting
+    source: magic_security/behavior_security.py
+    mode: [active]
+    prerequisites: [active]
+    proof: bounded_request_throttle_classification
+    finding_kind: Observation
+    maturity: partial
+    test_file: tests/test_behavior_security.py
+    known_gaps: "Classification only; not a DoS engine."
+
+  - id: classifier.sensitive_json
+    category: privacy
+    source: magic_security/classifier.py
+    mode: [http, active]
+    prerequisites: []
+    proof: unauthenticated_sensitive_json_fields
+    finding_kind: Exposure
+    maturity: partial
+    test_file: tests/test_classifier.py
+    known_gaps: "Field names/signals only; values not stored."
+
+  - id: auth.boundary.mapping
+    category: authentication
+    source: magic_security/auth.py
+    mode: [auth]
+    prerequisites: [auth_contexts]
+    proof: anonymous_vs_auth_response_difference
+    finding_kind: Observation
+    maturity: partial
+    test_file: tests/test_auth.py
+    known_gaps: "Boundary mapping; not full auth bypass coverage."
+
+  - id: backtesting.snapshot_diff
+    category: backtesting
+    source: magic_security/backtesting.py
+    mode: [http]
+    prerequisites: [baseline_snapshot]
+    proof: stable_finding_fingerprint_diff
+    finding_kind: Observation
+    maturity: verified
+    test_file: tests/test_backtesting.py
+    known_gaps: "No persistent history store or CI policy exit codes yet."
+
+coverage_categories:
+  - category: Authentication
+    status_family: auth
+    check_ids:
+      - authentication.sqli.bypass
+      - authentication.nosqli.bypass
+      - auth.boundary.mapping
+      - rate_limit.behavior.observation
+    why_partial: "Reset/MFA/session-rotation workflows not configured."
+
+  - category: Authorization / Access Control
+    status_family: auth
+    check_ids:
+      - authorization.bola.read
+    why_partial: "Read-only same-role IDOR; state-changing authz needs workflows."
+
+  - category: Session Security
+    status_family: auth
+    check_ids:
+      - session.cookie.missing-attributes
+      - cache.authenticated.shared
+    why_partial: "No fixation/rotation/logout workflow proofs."
+
+  - category: SQL / Database
+    status_family: server
+    check_ids:
+      - database.error-trigger
+      - authentication.sqli.bypass
+      - authentication.nosqli.bypass
+    why_partial: "Not exhaustive SQLi; error trigger is exposure only."
+
+  - category: Injection
+    status_family: external
+    check_ids:
+      - injection.html.reflected
+      - injection.ssti.arithmetic
+      - injection.crlf.response-header
+    why_partial: "Command/LDAP/etc. not covered; stored injection needs workflows."
+
+  - category: XSS
+    status_family: browser
+    check_ids:
+      - xss.reflected.execution
+      - xss.dom.candidate
+      - xss.dom.execution
+    why_partial: "Stored XSS requires write/read workflow."
+
+  - category: CSRF
+    status_family: auth
+    check_ids:
+      - csrf.posture.candidate
+    why_partial: "Posture mapping only; no disposable action proof."
+
+  - category: SSRF
+    status_family: server
+    check_ids:
+      - ssrf.loopback-callback
+    why_partial: "Loopback callback only; no metadata/private network."
+
+  - category: File Upload
+    status_family: config
+    check_ids: []
+    why_partial: "Requires disposable upload workflow configuration."
+
+  - category: Path / File Handling
+    status_family: server
+    check_ids:
+      - path.traversal.local-file-read
+      - exposure.deployment-artifact.public
+    why_partial: "Marker-based traversal; not arbitrary file read."
+
+  - category: API Security
+    status_family: external
+    check_ids:
+      - authorization.bola.read
+      - classifier.sensitive_json
+      - cors.arbitrary-origin
+    why_partial: "No mass-assignment or BFLA pack yet."
+
+  - category: REST / HTTP
+    status_family: external
+    check_ids:
+      - http.trace.reflection
+      - http.methods.dangerous-advertised
+      - http.host-header.influence
+    why_partial: "Protocol subset only."
+
+  - category: GraphQL
+    status_family: external
+    check_ids:
+      - graphql.introspection.anonymous
+      - graphql.errors.debug
+    why_partial: "No field-level auth or complexity abuse."
+
+  - category: WebSockets
+    status_family: browser
+    check_ids:
+      - websocket.plaintext-transport
+    why_partial: "Discovery/transport only; no auth/origin handshake pack."
+
+  - category: Business Logic
+    status_family: config
+    check_ids: []
+    why_partial: "Requires explicit invariants and disposable journeys."
+
+  - category: Race Conditions
+    status_family: config
+    check_ids: []
+    why_partial: "Requires concurrent disposable workflows."
+
+  - category: Payments
+    status_family: config
+    check_ids: []
+    why_partial: "Requires sandbox payment flows."
+
+  - category: Cryptography
+    status_family: partial
+    check_ids: []
+    why_partial: "No dedicated crypto/TLS deep analysis pack."
+
+  - category: Secrets
+    status_family: external
+    check_ids:
+      - exposure.env.public
+      - exposure.config.secret-keys
+      - client.secret-like-material
+      - privacy.url.secret
+    why_partial: "Client/public artifacts only; repo secret scanning planned."
+
+  - category: Security Headers
+    status_family: passive
+    check_ids:
+      - hardening.header.missing
+      - browser.csp.risky-script-mode
+    why_partial: "Passive header inspection only."
+
+  - category: CORS
+    status_family: external
+    check_ids:
+      - cors.arbitrary-origin
+      - cors.null-origin
+      - cors.protected.credentialed
+    why_partial: "Common reflection/credentialed cases; not every CORS edge case."
+
+  - category: Clickjacking
+    status_family: passive
+    check_ids:
+      - browser.clickjacking.missing-protection
+    why_partial: "Header posture only; no framed click proof."
+
+  - category: Redirects / URLs
+    status_family: external
+    check_ids:
+      - redirect.open
+      - redirect.client.candidate
+    why_partial: "Client redirects remain candidates until runtime proof."
+
+  - category: Information Disclosure
+    status_family: external
+    check_ids:
+      - exposure.directory-listing
+      - exposure.debug-output
+      - exposure.git.public
+      - exposure.sourcemap.public
+      - client.internal-topology
+      - exposure.debug-status.public
+      - exposure.heapdump.public
+    why_partial: "Observable public surfaces only."
+
+  - category: Error Handling
+    status_family: external
+    check_ids:
+      - exposure.debug-output
+      - database.error-trigger
+      - graphql.errors.debug
+    why_partial: "Signature-based error disclosure only."
+
+  - category: DoS / Resource Exhaustion
+    status_family: config
+    check_ids: []
+    why_partial: "Intentionally unsupported without explicit config."
+
+  - category: Rate Limiting
+    status_family: external
+    check_ids:
+      - rate_limit.behavior.observation
+    why_partial: "Bounded classification; not enforcement testing."
+
+  - category: Cloud / Infrastructure
+    status_family: partial
+    check_ids: []
+    why_partial: "Requires infrastructure adapters (planned)."
+
+  - category: Docker / Container
+    status_family: repo
+    check_ids: []
+    why_partial: "Requires repo access."
+
+  - category: CI/CD
+    status_family: repo
+    check_ids: []
+    why_partial: "Requires repo access."
+
+  - category: Supply Chain
+    status_family: repo
+    check_ids: []
+    why_partial: "Requires repo/dependency manifests analysis."
+
+  - category: Frontend
+    status_family: browser
+    check_ids:
+      - xss.dom.candidate
+      - xss.dom.execution
+      - browser.storage.sensitive-key
+      - browser.postmessage.origin-check
+      - redirect.client.candidate
+      - transport.mixed-content
+      - websocket.plaintext-transport
+    why_partial: "Browser-observable subset only."
+
+  - category: React / Next.js / SPA
+    status_family: browser
+    check_ids:
+      - xss.dom.candidate
+      - exposure.sourcemap.public
+    why_partial: "Generic SPA signals; no framework-specific route analyzer yet."
+
+  - category: Backend Framework
+    status_family: partial
+    check_ids: []
+    why_partial: "No framework-aware source analysis yet."
+
+  - category: Cache
+    status_family: external
+    check_ids:
+      - cache.authenticated.shared
+    why_partial: "Authenticated shared-cache cases only."
+
+  - category: Email
+    status_family: config
+    check_ids: []
+    why_partial: "Requires configured email workflows."
+
+  - category: Account Takeover
+    status_family: config
+    check_ids: []
+    why_partial: "Needs reset/MFA/session-rotation workflows."
+
+  - category: Admin Panels
+    status_family: partial
+    check_ids: []
+    why_partial: "Discovery via robots/sitemap/routes only; no admin authz workflows."
+
+  - category: Logging / Monitoring
+    status_family: repo
+    check_ids: []
+    why_partial: "Requires repo/infra access."
+
+  - category: Privacy / Data Exposure
+    status_family: external
+    check_ids:
+      - privacy.url.secret
+      - privacy.url.pii
+      - privacy.form.get-sensitive
+      - classifier.sensitive_json
+      - authorization.bola.read
+    why_partial: "User-visible and black-box surfaces only."
+
+  - category: Misconfiguration
+    status_family: external
+    check_ids:
+      - hardening.header.missing
+      - cors.arbitrary-origin
+      - exposure.git.public
+      - exposure.debug-status.public
+      - exposure.deployment-artifact.public
+    why_partial: "Public misconfig signatures; not full config audit."
+
+  - category: AI / LLM features
+    status_family: config
+    check_ids: []
+    why_partial: "Requires explicit LLM feature workflows."

@@ -7,6 +7,8 @@ from typing import Any
 
 import httpx
 
+from magic_security.transport import SecureTransport
+
 from magic_security.models import AuthComparison, AuthContext, NormalizedEndpoint
 
 
@@ -54,6 +56,10 @@ def load_auth_contexts(path: str | Path) -> list[AuthContext]:
         headers = item.get("headers") or {}
         cookies = item.get("cookies") or {}
         role = item.get("role")
+        login_mechanism = item.get("login_mechanism")
+        browser_state = item.get("browser_state")
+        expected_identity_marker = item.get("expected_identity_marker")
+        disposable = item.get("disposable", False)
 
         if not isinstance(headers, dict) or not isinstance(cookies, dict):
             raise AuthConfigError(
@@ -63,6 +69,24 @@ def load_auth_contexts(path: str | Path) -> list[AuthContext]:
             raise AuthConfigError(
                 "role must be a string when provided."
             )
+        if login_mechanism is not None and not isinstance(
+            login_mechanism, str
+        ):
+            raise AuthConfigError(
+                "login_mechanism must be a string when provided."
+            )
+        if browser_state is not None and not isinstance(browser_state, dict):
+            raise AuthConfigError(
+                "browser_state must be a JSON object when provided."
+            )
+        if expected_identity_marker is not None and not isinstance(
+            expected_identity_marker, str
+        ):
+            raise AuthConfigError(
+                "expected_identity_marker must be a string when provided."
+            )
+        if not isinstance(disposable, bool):
+            raise AuthConfigError("disposable must be a boolean when provided.")
 
         contexts.append(
             AuthContext(
@@ -80,6 +104,20 @@ def load_auth_contexts(path: str | Path) -> list[AuthContext]:
                     if isinstance(role, str) and role.strip()
                     else None
                 ),
+                login_mechanism=(
+                    login_mechanism.strip()
+                    if isinstance(login_mechanism, str)
+                    and login_mechanism.strip()
+                    else None
+                ),
+                browser_state=browser_state,
+                expected_identity_marker=(
+                    expected_identity_marker.strip()
+                    if isinstance(expected_identity_marker, str)
+                    and expected_identity_marker.strip()
+                    else None
+                ),
+                disposable=disposable,
             )
         )
 
@@ -137,7 +175,7 @@ async def map_auth_boundaries(
             headers: dict[str, str] | None = None,
             cookies: dict[str, str] | None = None,
         ) -> None:
-            async with httpx.AsyncClient(
+            async with SecureTransport(
                 follow_redirects=False,
                 timeout=timeout,
                 headers={

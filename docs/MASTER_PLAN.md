@@ -1,7 +1,8 @@
 # Magic_Security — Master Product Plan, Architecture, and Roadmap
 
 > **Status:** Living design document  
-> **Current implementation:** v1.0 local-first black-box scanner  
+> **Current implementation:** v1.1 local-first black-box scanner + snapshot/diff backtesting foundation  
+> **Authoritative freeze of code reality:** [`docs/CURRENT_STATE.md`](CURRENT_STATE.md)  
 > **Long-term product:** Evidence-driven security backtesting platform for web applications, APIs, and their deployment/repository context
 
 ---
@@ -147,11 +148,17 @@ These layers should eventually converge into one report.
 
 ---
 
-# 4. Current State — v1.0
+# 4. Current State — v1.1 (with v1.0 historical notes)
+
+> **Reality check:** Package version is **1.1.0**. See `docs/CURRENT_STATE.md` and
+> `docs/CAPABILITY_MATRIX.yaml` for what the code actually implements today.
+> The bullet list below began as the **v1.0** black-box foundation and remains
+> accurate as historical capability notes; v1.1 additionally adds stable
+> `check_id` fingerprints and security snapshot/baseline diffing.
 
 The current repository already contains a meaningful black-box scanner.
 
-v1.0 currently includes:
+v1.0 historically included (still present in v1.1):
 
 - HTTP crawling;
 - browser crawling with Playwright;

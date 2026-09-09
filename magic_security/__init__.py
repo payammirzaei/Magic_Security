@@ -1,3 +1,5 @@
 """Magic Security scanner core."""
 
-__version__ = "1.1.0"
+from magic_security.version import SCANNER_VERSION
+
+__version__ = SCANNER_VERSION

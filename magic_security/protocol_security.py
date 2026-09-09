@@ -4,6 +4,8 @@ import re
 
 import httpx
 
+from magic_security.transport import SecureTransport
+
 from magic_security.models import (
     Finding,
     FindingKind,
@@ -20,7 +22,7 @@ async def analyze_protocol_security(
     observations: list[ProtocolSecurityObservation] = []
     findings: list[Finding] = []
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
         headers={"User-Agent": "Magic-Security/0.9 local-security-scanner"},

@@ -6,6 +6,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
+from magic_security.transport import SecureTransport
+
 from magic_security.models import (
     Finding,
     FindingKind,
@@ -94,7 +96,7 @@ async def verify_parameter_security(
         and endpoint.parameters
     ]
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
         headers={

@@ -4,6 +4,8 @@ import re
 
 import httpx
 
+from magic_security.transport import SecureTransport
+
 from magic_security.models import (
     AuthContext,
     Finding,
@@ -57,7 +59,7 @@ async def analyze_session_cookies(
     ][:max_endpoints]
 
     for context in contexts:
-        async with httpx.AsyncClient(
+        async with SecureTransport(
             follow_redirects=False,
             timeout=timeout,
             headers={

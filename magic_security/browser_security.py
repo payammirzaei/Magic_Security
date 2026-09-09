@@ -7,6 +7,8 @@ from urllib.parse import quote, urlsplit
 
 import httpx
 
+from magic_security.transport import SecureTransport
+
 from magic_security.models import (
     AuthContext,
     BrowserSecurityCoverage,
@@ -228,7 +230,7 @@ async def analyze_browser_artifacts(
         for url in sorted(set(source_maps))
     )
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
     ) as client:
@@ -406,9 +408,7 @@ def storage_findings(
     return findings
 
 
-def _is_loopback_url(url: str) -> bool:
-    host = urlsplit(url).hostname
-    return host in {"localhost", "127.0.0.1", "::1"}
+from magic_security.scope import is_loopback_url as _is_loopback_url
 
 
 async def verify_dom_xss_browser(

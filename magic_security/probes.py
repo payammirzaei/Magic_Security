@@ -8,15 +8,12 @@ from urllib.parse import urljoin
 import httpx
 
 from magic_security.models import Finding, FindingKind, Severity
-
-
-_SECRET_KEY = re.compile(
-    r"(?im)^\s*([A-Z0-9_]*(?:SECRET|PASSWORD|PASS|TOKEN|PRIVATE_KEY|DATABASE_URL|DB_URL|API_KEY)[A-Z0-9_]*)\s*="
-)
+from magic_security.redaction import env_secret_key_names
+from magic_security.transport import SecureTransport
 
 
 def _redacted_env_evidence(body: str) -> str:
-    names = sorted(set(_SECRET_KEY.findall(body)))
+    names = env_secret_key_names(body)
     if names:
         shown = ", ".join(names[:8])
         suffix = " ..." if len(names) > 8 else ""
@@ -24,17 +21,32 @@ def _redacted_env_evidence(body: str) -> str:
     return "The response looked like an environment file. Values were not included in the report."
 
 
-async def probe_common_exposures(target: str, timeout: float = 5.0) -> list[Finding]:
+async def probe_common_exposures(
+    target: str,
+    timeout: float = 5.0,
+    *,
+    scan_context: object | None = None,
+) -> list[Finding]:
     findings: list[Finding] = []
     probes = ["/.env", "/.git/HEAD", "/openapi.json", "/swagger.json"]
+    metrics = getattr(scan_context, "metrics", None)
 
-    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
+    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
         for path in probes:
+            if scan_context is not None and getattr(
+                scan_context,
+                "is_cancelled",
+                lambda: False,
+            )():
+                break
             url = urljoin(target.rstrip("/") + "/", path.lstrip("/"))
             try:
                 response = await client.get(url, headers={"User-Agent": "Magic-Security/0.2 local-security-scanner"})
             except httpx.HTTPError:
                 continue
+
+            if metrics is not None:
+                metrics.requests += 1
 
             if response.status_code != 200:
                 continue
@@ -42,7 +54,7 @@ async def probe_common_exposures(target: str, timeout: float = 5.0) -> list[Find
             body = response.text[:200_000]
 
             if path == "/.env":
-                matches = _SECRET_KEY.findall(body)
+                matches = env_secret_key_names(body)
                 env_shape = bool(re.search(r"(?m)^[A-Za-z_][A-Za-z0-9_]*\s*=.+$", body))
                 if matches or env_shape:
                     findings.append(
@@ -99,7 +111,7 @@ async def probe_common_exposures(target: str, timeout: float = 5.0) -> list[Find
 async def probe_source_maps(urls: Iterable[str], timeout: float = 5.0) -> list[Finding]:
     findings: list[Finding] = []
 
-    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
+    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
         for url in sorted(set(urls)):
             try:
                 response = await client.get(

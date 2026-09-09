@@ -1,57 +1,50 @@
 from __future__ import annotations
 
-import ipaddress
-import socket
-from urllib.parse import urlparse
+from pathlib import Path
 
 from magic_security.active import run_safe_active_checks
+from magic_security.api_security import run_api_security_pack
 from magic_security.auth import map_auth_boundaries
-from magic_security.behavior_security import (
-    analyze_authenticated_cache,
-    classify_rate_limits,
-    verify_protected_cors,
-)
+from magic_security.auth_context import validate_auth_identities
+from magic_security.auth_security import run_auth_security_pack
+from magic_security.authz_matrix import build_authz_matrix
+from magic_security.behavior_security import classify_rate_limits
 from magic_security.browser import BrowserCrawler
-from magic_security.browser_security import (
-    analyze_browser_artifacts,
-    build_browser_security_coverage,
-    storage_findings,
-    verify_dom_xss_browser,
-)
+from magic_security.browser_pack import run_browser_pack
 from magic_security.checks import DEFAULT_CHECKS
 from magic_security.classifier import classify_endpoints
-from magic_security.client_artifacts import analyze_client_artifacts
-from magic_security.coverage import build_auth_security_coverage
+from magic_security.config import ScanConfig, scan_config_from_flags
+from magic_security.context import ScanContext, create_scan_context
+from magic_security.budgets import RequestBudget
 from magic_security.coverage_registry import build_coverage_registry
-from magic_security.csrf import map_csrf_posture
 from magic_security.crawler import HttpCrawler
+from magic_security.exposure_pack_v2 import run_exposure_pack_v2
 from magic_security.external_coverage import build_external_security_coverage
-from magic_security.exposure_pack import probe_sensitive_endpoints
 from magic_security.fingerprints import (
     deduplicate_findings,
     group_response_fingerprints,
 )
-from magic_security.graphql_security import analyze_graphql
+from magic_security.graphql_pack import run_graphql_pack
+from magic_security.historical import seed_historical_endpoints
 from magic_security.idor import verify_pairwise_idor_read_access
 from magic_security.index_discovery import discover_index_documents
-from magic_security.injection import (
-    verify_reflected_html_injection,
-    verify_reflected_xss_browser,
-)
-from magic_security.parameter_security import verify_parameter_security
-from magic_security.protocol_security import analyze_protocol_security
-from magic_security.models import AuthContext, CrawlResult, Finding, Severity
+from magic_security.js_analysis import analyze_javascript
+from magic_security.logging_metrics import StructuredLogger
+from magic_security.pack_runner import run_isolated
+from magic_security.models import AuthContext, CrawlResult, EndpointCandidate, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
-from magic_security.probes import probe_common_exposures, probe_source_maps
-from magic_security.server_coverage import build_server_security_coverage
-from magic_security.server_security import run_server_security_pack
-from magic_security.session_security import analyze_session_cookies
+from magic_security.rate_limit import RateLimiter
+from magic_security.redaction import Redactor
+from magic_security.registry import CheckStatus, build_default_registry
+from magic_security.server_pack import run_server_pack
+from magic_security.scope import ScopePolicy, is_local_target
 from magic_security.surface import normalize_endpoints
+from magic_security.surface_graph import build_attack_surface_graph
 from magic_security.user_side_coverage import build_user_side_security_coverage
-from magic_security.user_surface_security import (
-    analyze_user_visible_surface,
-    verify_jsonp_and_null_origin_cors,
-)
+from magic_security.user_surface_security import verify_jsonp_and_null_origin_cors
+from magic_security.websocket_security import run_websocket_pack
+from magic_security.workflow_packs import run_workflow_packs
+from magic_security.workflow_schema import WorkflowSchemaError
 
 
 _SEVERITY_ORDER = {
@@ -63,53 +56,109 @@ _SEVERITY_ORDER = {
 }
 
 
-def _is_local_target(target: str) -> bool:
-    parsed = urlparse(target if "://" in target else f"http://{target}")
-    host = parsed.hostname
-    if not host:
-        return False
-    if host == "localhost":
-        return True
-
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        pass
-
-    try:
-        addresses = {item[4][0] for item in socket.getaddrinfo(host, None)}
-    except socket.gaierror:
-        return False
-
-    for address in addresses:
-        try:
-            if not ipaddress.ip_address(address).is_loopback:
-                return False
-        except ValueError:
-            return False
-    return bool(addresses)
-
-
 class ScannerEngine:
     def __init__(self, max_pages: int = 100) -> None:
         self.crawler = HttpCrawler(max_pages=max_pages)
+        self._default_max_pages = max_pages
 
     async def scan(
         self,
-        target: str,
+        target: str | ScanConfig | None = None,
         *,
+        config: ScanConfig | None = None,
         active: bool = False,
         browser: bool = False,
         auth_contexts: list[AuthContext] | None = None,
         allow_remote: bool = False,
     ) -> tuple[CrawlResult, list[Finding]]:
-        if not allow_remote and not _is_local_target(target):
+        if isinstance(target, ScanConfig):
+            config = target
+            target = config.target
+        elif config is None:
+            if target is None:
+                raise ValueError("scan() requires a target URL or ScanConfig")
+            config = scan_config_from_flags(
+                target=target,
+                max_pages=self._default_max_pages,
+                browser=browser,
+                active=active,
+                auth_contexts=auth_contexts,
+                allow_remote=allow_remote,
+            )
+        else:
+            target = config.target
+
+        active = config.active
+        browser = config.browser
+        auth_contexts = list(config.auth_contexts) or None
+        allow_remote = config.allow_remote
+
+        if self.crawler.max_pages != config.max_pages:
+            self.crawler = HttpCrawler(max_pages=config.max_pages)
+
+        if not allow_remote and not is_local_target(target):
             raise ValueError(
                 "Remote targets are disabled in the local MVP. "
                 "Scan localhost/loopback only."
             )
 
-        crawl = await self.crawler.crawl(target)
+        if config.active and allow_remote and not is_local_target(target):
+            from magic_security.target_registry import (
+                TargetRegistry,
+                TargetRegistryError,
+            )
+
+            try:
+                TargetRegistry().assert_active_allowed(
+                    target,
+                    active=True,
+                    allow_remote=True,
+                    trusted_local_override=config.trusted_local_override,
+                )
+            except TargetRegistryError as exc:
+                raise ValueError(str(exc)) from exc
+
+        context = create_scan_context(config)
+        context.scope = ScopePolicy(
+            config.scope,
+            target=config.target,
+            allow_remote=allow_remote,
+        )
+        context.budgets = RequestBudget(config.budgets)
+        context.metrics.budget_exhausted = False
+        context.redactor = Redactor()
+        context.logger = StructuredLogger(redactor=context.redactor)
+        context.registry = build_default_registry()
+        from magic_security.transport import attach_rate_limiter
+
+        attach_rate_limiter(context, config.rate)
+        context.logger.scan_start(
+            config.target,
+            {
+                "browser": browser,
+                "active": active,
+                "auth": bool(auth_contexts),
+            },
+        )
+        return await self._scan_body(
+            context,
+            active=active,
+            browser=browser,
+            auth_contexts=auth_contexts,
+        )
+
+    async def _scan_body(
+        self,
+        context: ScanContext,
+        *,
+        active: bool,
+        browser: bool,
+        auth_contexts: list[AuthContext] | None,
+    ) -> tuple[CrawlResult, list[Finding]]:
+        crawl = await self.crawler.crawl(
+            context.target,
+            scan_context=context,
+        )
         crawl.response_groups = group_response_fingerprints(crawl.pages)
 
         index_discovery = await discover_index_documents(crawl.target)
@@ -155,49 +204,104 @@ class ScannerEngine:
 
         crawl.normalized_endpoints = normalize_endpoints(crawl.endpoints)
 
+        if context.config.baseline_path:
+            try:
+                from magic_security.backtesting import load_snapshot
+
+                baseline = load_snapshot(context.config.baseline_path)
+                (
+                    crawl.normalized_endpoints,
+                    seeded,
+                ) = seed_historical_endpoints(
+                    crawl.normalized_endpoints,
+                    baseline,
+                )
+                crawl.historical_endpoints = seeded
+                for item in seeded:
+                    crawl.endpoints.add(
+                        EndpointCandidate(
+                            url=item.url,
+                            method=item.method,
+                            source="historical:snapshot",
+                            parameters=item.parameters,
+                        )
+                    )
+                context.logger.discovery_phase(
+                    "historical_seed",
+                    seeded=len(seeded),
+                )
+            except Exception as exc:  # noqa: BLE001
+                context.logger.check_error(
+                    "historical.seed",
+                    str(exc),
+                )
+
         findings: list[Finding] = []
+        registry = context.registry
+        context.logger.pack_start("passive")
 
-        for page in crawl.pages:
-            for check in DEFAULT_CHECKS:
-                findings.extend(check.run(page))
+        async def _run_passive_pages() -> list[Finding]:
+            page_findings: list[Finding] = []
+            for page in crawl.pages:
+                for check in DEFAULT_CHECKS:
+                    page_findings.extend(check.run(page))
+            return page_findings
 
-        findings.extend(await probe_common_exposures(crawl.target))
-        findings.extend(await probe_source_maps(crawl.source_maps))
-
-        (
-            passive_user_surface,
-            passive_user_findings,
-        ) = analyze_user_visible_surface(
-            target=crawl.target,
-            pages=crawl.pages,
-            links=crawl.links,
-            endpoints=crawl.normalized_endpoints,
+        passive_result = await run_isolated(
+            pack="passive",
+            check_id="passive.page_checks",
+            coro_factory=_run_passive_pages,
+            registry=registry,
         )
-        crawl.user_surface_observations.extend(passive_user_surface)
-        findings.extend(passive_user_findings)
+        findings.extend(passive_result.findings)
+        for failure in passive_result.failures:
+            crawl.pack_failures.append(
+                {
+                    "pack": failure.pack,
+                    "check_id": failure.check_id,
+                    "error_type": failure.error_type,
+                    "message": failure.message,
+                }
+            )
+        context.logger.pack_end("passive", findings=len(passive_result.findings))
 
-        (
-            crawl.client_artifact_observations,
-            artifact_findings,
-        ) = await analyze_client_artifacts(
-            crawl.js_assets,
-            crawl.source_maps,
+        exposure = await run_exposure_pack_v2(
+            crawl,
+            active=active,
+            scan_context=context,
         )
-        findings.extend(artifact_findings)
+        findings.extend(exposure.findings)
+        crawl.pack_coverage["exposure_v2"] = exposure.coverage
 
-        (
-            browser_static_observations,
-            static_websockets,
-            browser_static_findings,
-        ) = await analyze_browser_artifacts(
-            crawl.js_assets,
-            crawl.source_maps,
+        # STEP 20: structured JS analysis on discovered assets.
+        for asset_url in sorted(crawl.js_assets)[:40]:
+            try:
+                from magic_security.transport import SecureTransport
+
+                async with SecureTransport(follow_redirects=True, timeout=5.0) as client:
+                    response = await client.get(asset_url)
+                if response.status_code != 200:
+                    continue
+                analysis = analyze_javascript(response.text[:500_000], asset_url)
+                crawl.js_analysis.append(
+                    {"url": asset_url, **analysis.to_dict()}
+                )
+                crawl.endpoints.update(analysis.endpoints)
+                crawl.source_maps.update(analysis.source_maps)
+                crawl.websocket_endpoints.update(analysis.websocket_urls)
+            except Exception:
+                continue
+        if crawl.js_analysis:
+            crawl.normalized_endpoints = normalize_endpoints(crawl.endpoints)
+
+        browser_pack = await run_browser_pack(
+            crawl,
+            active=active,
+            browser=browser,
+            auth_contexts=auth_contexts,
         )
-        crawl.browser_security_observations.extend(
-            browser_static_observations
-        )
-        crawl.websocket_endpoints.update(static_websockets)
-        findings.extend(browser_static_findings)
+        findings.extend(browser_pack.findings)
+        crawl.pack_coverage["browser_v2"] = browser_pack.coverage
 
         if active:
             observations, classification_findings = await classify_endpoints(
@@ -214,12 +318,6 @@ class ScannerEngine:
             )
 
             (
-                crawl.sensitive_endpoint_observations,
-                sensitive_endpoint_findings,
-            ) = await probe_sensitive_endpoints(crawl.target)
-            findings.extend(sensitive_endpoint_findings)
-
-            (
                 active_user_surface,
                 active_user_findings,
             ) = await verify_jsonp_and_null_origin_cors(
@@ -228,174 +326,115 @@ class ScannerEngine:
             crawl.user_surface_observations.extend(active_user_surface)
             findings.extend(active_user_findings)
 
-            xss_urls: set[str] = set()
-            if browser:
-                (
-                    xss_observations,
-                    xss_findings,
-                ) = await verify_reflected_xss_browser(
-                    crawl.normalized_endpoints
-                )
-                crawl.injection_observations.extend(xss_observations)
-                findings.extend(xss_findings)
-                xss_urls = {
-                    item.url
-                    for item in xss_observations
-                    if item.script_execution_verified
-                }
-
-            html_candidates = [
-                endpoint
-                for endpoint in crawl.normalized_endpoints
-                if endpoint.url not in xss_urls
-            ]
-            (
-                html_observations,
-                html_findings,
-            ) = await verify_reflected_html_injection(
-                html_candidates
+            graphql_pack = await run_graphql_pack(
+                crawl,
+                auth_contexts=auth_contexts,
             )
-            crawl.injection_observations.extend(html_observations)
-            findings.extend(html_findings)
-
-            (
-                crawl.graphql_observations,
-                graphql_findings,
-            ) = await analyze_graphql(crawl.normalized_endpoints)
-            findings.extend(graphql_findings)
+            findings.extend(graphql_pack.findings)
+            crawl.pack_coverage["graphql_v2"] = graphql_pack.coverage
 
             crawl.rate_limit_observations = await classify_rate_limits(
                 crawl.normalized_endpoints
             )
 
-            (
-                crawl.parameter_security_observations,
-                parameter_findings,
-            ) = await verify_parameter_security(
-                crawl.normalized_endpoints
-            )
-            findings.extend(parameter_findings)
+            server_pack = await run_server_pack(crawl)
+            findings.extend(server_pack.findings)
+            crawl.pack_coverage["server_v2"] = server_pack.coverage
 
-            (
-                crawl.protocol_security_observations,
-                protocol_findings,
-            ) = await analyze_protocol_security(crawl.target)
-            findings.extend(protocol_findings)
-
-            (
-                crawl.server_security_observations,
-                server_findings,
-            ) = await run_server_security_pack(
-                crawl.normalized_endpoints,
-                [
-                    page.url
-                    for page in crawl.pages
-                    if "text/html" in page.content_type
-                ],
-            )
-            findings.extend(server_findings)
-
-            crawl.server_security_coverage = (
-                build_server_security_coverage(
-                    crawl.parameter_security_observations,
-                    crawl.server_security_observations,
-                )
-            )
-
-            if browser:
-                page_urls = [
-                    page.url
-                    for page in crawl.pages
-                    if "text/html" in page.content_type
-                ]
-                page_urls.extend(sorted(crawl.browser_pages))
-                for values in crawl.authenticated_browser_pages.values():
-                    page_urls.extend(sorted(values))
-
-                (
-                    dom_observations,
-                    dom_findings,
-                ) = await verify_dom_xss_browser(
-                    page_urls,
-                    auth_contexts=auth_contexts,
-                )
-                crawl.browser_security_observations.extend(
-                    dom_observations
-                )
-                findings.extend(dom_findings)
-
-        if auth_contexts:
-            crawl.auth_comparisons = await map_auth_boundaries(
-                crawl.normalized_endpoints,
-                auth_contexts,
-            )
-
-            (
-                crawl.ownership_observations,
-                crawl.pairwise_idor_observations,
-                idor_findings,
-            ) = await verify_pairwise_idor_read_access(
-                crawl.normalized_endpoints,
-                auth_contexts,
+            api_pack = await run_api_security_pack(
+                crawl,
+                active=True,
+                auth_contexts=auth_contexts,
                 auth_comparisons=crawl.auth_comparisons,
             )
-            findings.extend(idor_findings)
+            findings.extend(api_pack.findings)
+            crawl.pack_coverage["api_v1"] = api_pack.coverage
 
-            (
-                crawl.session_cookie_observations,
-                session_findings,
-            ) = await analyze_session_cookies(
-                crawl.normalized_endpoints,
-                auth_contexts,
-            )
-            findings.extend(session_findings)
-
-            crawl.csrf_candidates = map_csrf_posture(
-                crawl.normalized_endpoints,
-                auth_contexts,
-            )
-
-            (
-                crawl.cors_impact_observations,
-                protected_cors_findings,
-            ) = await verify_protected_cors(
-                crawl.auth_comparisons,
-                auth_contexts,
-            )
-            findings.extend(protected_cors_findings)
-
-            (
-                crawl.cache_observations,
-                cache_findings,
-            ) = await analyze_authenticated_cache(
-                crawl.auth_comparisons,
-                auth_contexts,
-            )
-            findings.extend(cache_findings)
-
-            crawl.auth_security_coverage = build_auth_security_coverage(
-                crawl.normalized_endpoints,
-                crawl.auth_comparisons,
-                crawl.ownership_observations,
-                crawl.pairwise_idor_observations,
-                crawl.csrf_candidates,
-                crawl.session_cookie_observations,
-            )
-
-        findings.extend(
-            storage_findings(crawl.browser_security_observations)
+        ws_pack = await run_websocket_pack(
+            crawl,
+            browser=browser,
+            auth_contexts=auth_contexts,
         )
+        findings.extend(ws_pack.findings)
+        crawl.pack_coverage["websocket_v1"] = ws_pack.coverage
 
-        crawl.browser_security_coverage = (
-            build_browser_security_coverage(
-                crawl.browser_security_observations,
-                crawl.websocket_endpoints,
-                artifacts_scanned=(
-                    len(crawl.js_assets)
-                    + len(crawl.source_maps)
-                ),
+        if auth_contexts:
+            identity = await validate_auth_identities(
+                crawl.target,
+                auth_contexts,
             )
-        )
+            crawl.identity_validation = identity.to_dict()
+            effective_contexts = identity.valid_contexts
+            if identity.duplicate_identities or len(effective_contexts) < 2:
+                crawl.pack_coverage["auth_identity"] = {
+                    "short_circuited": True,
+                    **identity.to_dict(),
+                }
+                effective_contexts = []
+            elif identity.expired_sessions:
+                crawl.pack_coverage["auth_identity"] = {
+                    "short_circuited_partial": True,
+                    **identity.to_dict(),
+                }
+
+            if effective_contexts:
+                crawl.auth_comparisons = await map_auth_boundaries(
+                    crawl.normalized_endpoints,
+                    effective_contexts,
+                )
+
+                (
+                    crawl.ownership_observations,
+                    crawl.pairwise_idor_observations,
+                    idor_findings,
+                ) = await verify_pairwise_idor_read_access(
+                    crawl.normalized_endpoints,
+                    effective_contexts,
+                    auth_comparisons=crawl.auth_comparisons,
+                )
+                findings.extend(idor_findings)
+
+                auth_pack = await run_auth_security_pack(
+                    crawl,
+                    effective_contexts,
+                )
+                findings.extend(auth_pack.findings)
+                crawl.pack_coverage["auth_security_v2"] = auth_pack.coverage
+
+                matrix = build_authz_matrix(
+                    crawl,
+                    roles={
+                        item.name: item.role for item in effective_contexts
+                    },
+                )
+                findings.extend(matrix.findings)
+                crawl.pack_coverage["authz_matrix_v2"] = matrix.coverage
+
+                run_workflows = bool(
+                    context.config.workflows_path
+                    or any(item.disposable for item in effective_contexts)
+                )
+                if run_workflows:
+                    try:
+                        workflow_result = await run_workflow_packs(
+                            crawl,
+                            effective_contexts,
+                            workflow_path=context.config.workflows_path,
+                            browser=browser,
+                        )
+                        findings.extend(workflow_result.findings)
+                        crawl.pack_coverage["workflows_v1"] = (
+                            workflow_result.coverage
+                        )
+                    except WorkflowSchemaError as exc:
+                        crawl.pack_failures.append(
+                            {
+                                "pack": "workflow",
+                                "check_id": "workflow.pack",
+                                "error_type": "WorkflowSchemaError",
+                                "message": str(exc),
+                            }
+                        )
 
         crawl.external_security_coverage = build_external_security_coverage(
             crawl.injection_observations,
@@ -422,6 +461,75 @@ class ScannerEngine:
             active=active,
             browser=browser,
             auth_enabled=bool(auth_contexts),
+        )
+
+        if context.budgets is not None:
+            crawl.budget_coverage = context.budgets.coverage_degradation()
+            if context.budgets.exhausted:
+                context.metrics.budget_exhausted = True
+                context.metrics.note(
+                    "budget_exhausted:"
+                    + ",".join(context.budgets.exhausted_reasons)
+                )
+                crawl.coverage_registry.append(
+                    {
+                        "category": "Scan Budgets",
+                        "status": "Partial",
+                        "note": (
+                            "Request budget exhausted; coverage is incomplete. "
+                            f"Reasons: {', '.join(context.budgets.exhausted_reasons)}"
+                        ),
+                    }
+                )
+                context.logger.coverage_degradation(
+                    list(context.budgets.exhausted_reasons)
+                )
+
+        crawl.attack_surface_graph = build_attack_surface_graph(crawl).to_dict()
+
+        if context.config.repo_path:
+            from magic_security.repo_security import analyze_repo_security
+
+            repo_result = analyze_repo_security(
+                Path(context.config.repo_path),
+                crawl=crawl,
+            )
+            crawl.pack_coverage["repository_security"] = repo_result.coverage
+            crawl.repo_findings = repo_result.findings
+            crawl.repo_snapshot = repo_result.snapshot
+            crawl.repo_correlations = repo_result.correlations
+
+        if registry is not None:
+            registry.resolve_for_profile(
+                active=active,
+                browser=browser,
+                auth_enabled=bool(auth_contexts),
+                workflow_enabled=bool(
+                    context.config.workflows_path
+                    or any(
+                        getattr(item, "disposable", False)
+                        for item in (auth_contexts or [])
+                    )
+                ),
+            )
+            crawl.check_coverage = registry.coverage_rows()
+        context.logger.metrics.pages = len(crawl.pages)
+        context.logger.metrics.endpoints = len(crawl.normalized_endpoints)
+        context.logger.metrics.checks_executed = sum(
+            1
+            for row in crawl.check_coverage
+            if row.get("status") == CheckStatus.EXECUTED.value
+        )
+        for finding in findings:
+            context.logger.finding_emitted(
+                finding.check_id,
+                finding.title,
+                finding.verified,
+            )
+        crawl.scan_metrics = context.logger.metrics.to_dict()
+        context.logger.scan_end(
+            findings=len(findings),
+            duration_ms=0.0,
         )
 
         findings = deduplicate_findings(findings)

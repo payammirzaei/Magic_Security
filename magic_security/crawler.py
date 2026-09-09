@@ -4,6 +4,8 @@ from collections import deque
 from urllib.parse import urldefrag, urljoin
 
 import httpx
+
+from magic_security.transport import SecureTransport
 from bs4 import BeautifulSoup
 
 from magic_security.discovery import (
@@ -37,27 +39,51 @@ class HttpCrawler:
         self.max_js_assets = max_js_assets
         self.timeout = timeout
 
-    async def crawl(self, target: str) -> CrawlResult:
+    async def crawl(
+        self,
+        target: str,
+        *,
+        scan_context: object | None = None,
+    ) -> CrawlResult:
         target = _normalize_url(target)
         result = CrawlResult(target=target)
         queue: deque[str] = deque([target])
         seen: set[str] = set()
+        metrics = getattr(scan_context, "metrics", None)
+        budgets = getattr(scan_context, "budgets", None)
 
-        async with httpx.AsyncClient(
+        async with SecureTransport(
             follow_redirects=True,
             timeout=self.timeout,
             headers={"User-Agent": "Magic-Security/0.2 local-security-scanner"},
         ) as client:
             while queue and len(seen) < self.max_pages:
+                if scan_context is not None and getattr(
+                    scan_context,
+                    "is_cancelled",
+                    lambda: False,
+                )():
+                    break
+                if budgets is not None and budgets.exhausted:
+                    break
                 url = queue.popleft()
                 if url in seen or not same_origin(url, target):
                     continue
                 seen.add(url)
 
+                if budgets is not None and not budgets.consume_page(self.max_pages):
+                    break
+                if budgets is not None and not budgets.consume_request(url):
+                    break
+
                 try:
                     response = await client.get(url)
                 except httpx.HTTPError:
                     continue
+
+                if metrics is not None:
+                    metrics.requests += 1
+                    metrics.pages += 1
 
                 content_type = response.headers.get("content-type", "").lower()
                 body = response.text if any(t in content_type for t in HTML_TYPES) else ""
@@ -139,10 +165,14 @@ class HttpCrawler:
                         result.parameters.update(names)
 
             for asset_url in sorted(result.js_assets)[: self.max_js_assets]:
+                if budgets is not None and not budgets.consume_request(asset_url):
+                    break
                 try:
                     response = await client.get(asset_url)
                 except httpx.HTTPError:
                     continue
+                if metrics is not None:
+                    metrics.requests += 1
                 if response.status_code != 200:
                     continue
 

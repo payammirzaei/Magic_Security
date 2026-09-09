@@ -1,0 +1,40 @@
+{
+  "step": 1,
+  "frozen_at": "2026-09-09T11:26:39+00:00",
+  "package_version": "1.1.0",
+  "snapshot_schema_version": 1,
+  "python_requires": ">=3.11",
+  "test_suite": {
+    "collected": 77,
+    "passed": 77,
+    "command": "pytest -q"
+  },
+  "representative_scan": {
+    "target": "http://127.0.0.1:8000",
+    "modes": {
+      "http": true,
+      "browser": true,
+      "active": true,
+      "auth_contexts": 3
+    },
+    "command": "magic-security http://127.0.0.1:8000 --browser --active --auth-contexts examples/auth_contexts.example.json --json tests/fixtures/baseline/v1.1_canonical_report.json --snapshot tests/fixtures/baseline/v1.1_canonical_snapshot.json",
+    "result_summary": {
+      "findings": 50,
+      "vulnerabilities": 16,
+      "exposures": 27,
+      "hardening": 7,
+      "pages": 13,
+      "normalized_endpoints": 31,
+      "coverage_registry": {
+        "Partially Tested": 26,
+        "Partial": 4,
+        "Requires Config": 8,
+        "Requires Repo Access": 4
+      }
+    }
+  },
+  "artifacts": {
+    "report": "v1.1_canonical_report.json",
+    "snapshot": "v1.1_canonical_snapshot.json"
+  }
+}

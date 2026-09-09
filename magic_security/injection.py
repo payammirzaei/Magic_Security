@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-import ipaddress
 import secrets
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
+
+from magic_security.transport import SecureTransport
 from bs4 import BeautifulSoup
 
+from magic_security.evidence import EvidenceObject, attach_evidence
 from magic_security.models import (
     Finding,
     FindingKind,
@@ -14,18 +16,7 @@ from magic_security.models import (
     NormalizedEndpoint,
     Severity,
 )
-
-
-def _is_loopback_url(url: str) -> bool:
-    host = urlsplit(url).hostname
-    if not host:
-        return False
-    if host == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
+from magic_security.scope import is_loopback_url as _is_loopback_url
 
 
 def _set_query(url: str, parameter: str, value: str) -> str:
@@ -60,7 +51,7 @@ async def verify_reflected_html_injection(
     findings: list[Finding] = []
     tested = 0
 
-    async with httpx.AsyncClient(
+    async with SecureTransport(
         follow_redirects=False,
         timeout=timeout,
     ) as client:
@@ -140,32 +131,46 @@ async def verify_reflected_html_injection(
                 if not html_inserted:
                     continue
 
-                findings.append(
-                    Finding(
-                        title="Reflected HTML injection verified",
-                        severity=Severity.MEDIUM,
-                        kind=FindingKind.VULNERABILITY,
-                        url=endpoint.url,
-                        description=(
-                            "A controlled query value was inserted "
-                            "into returned HTML as markup instead of "
-                            "being safely encoded."
-                        ),
-                        evidence=(
-                            f"Parameter {parameter!r} created the "
-                            "scanner's inert custom HTML element in "
-                            "the parsed response. The random canary "
-                            "value was not retained."
-                        ),
-                        remediation=(
-                            "Apply context-aware output encoding and "
-                            "avoid inserting untrusted values with raw "
-                            "HTML rendering APIs."
-                        ),
-                        confidence=1.0,
-                        cwe="CWE-79",
-                    )
+                finding = Finding(
+                    title="Reflected HTML injection verified",
+                    severity=Severity.MEDIUM,
+                    kind=FindingKind.VULNERABILITY,
+                    url=endpoint.url,
+                    description=(
+                        "A controlled query value was inserted "
+                        "into returned HTML as markup instead of "
+                        "being safely encoded."
+                    ),
+                    evidence=(
+                        f"Parameter {parameter!r} created the "
+                        "scanner's inert custom HTML element in "
+                        "the parsed response. The random canary "
+                        "value was not retained."
+                    ),
+                    remediation=(
+                        "Apply context-aware output encoding and "
+                        "avoid inserting untrusted values with raw "
+                        "HTML rendering APIs."
+                    ),
+                    confidence=1.0,
+                    cwe="CWE-79",
+                    check_id="injection.html.reflected",
                 )
+                attach_evidence(
+                    finding,
+                    EvidenceObject(
+                        check_id="injection.html.reflected",
+                        proof_type="raw_html_reflection",
+                        baseline_summary="Parameter value safely encoded in HTML",
+                        mutation_summary=(
+                            f"Injected inert markup via parameter {parameter!r}"
+                        ),
+                        observed_result=finding.evidence,
+                        confidence="verified",
+                        sensitive_values_stored=False,
+                    ),
+                )
+                findings.append(finding)
 
     return observations, findings
 
