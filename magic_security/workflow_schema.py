@@ -49,6 +49,11 @@ _FORBIDDEN_BODY_TOKENS = (
     "<script src=",
     "javascript:alert(document.cookie)",
     "file://",
+    "4111111111111111",
+    "4242424242424242",
+    "credit_card",
+    "card_number",
+    "cvv",
 )
 
 
@@ -180,21 +185,35 @@ def _parse_step(raw: dict[str, Any], index: int) -> WorkflowStep:
     )
 
     body = raw.get("body")
+    if body is None and raw.get("json") is not None:
+        body = raw.get("json")
     body_template = raw.get("body_template")
-    if isinstance(body, str):
-        lowered = body.lower()
-        for token in _FORBIDDEN_BODY_TOKENS:
-            _require(
-                token not in lowered,
-                f"step {step_id}: body contains forbidden safety token",
-            )
-    if isinstance(body_template, str):
-        lowered = body_template.lower()
-        for token in _FORBIDDEN_BODY_TOKENS:
-            _require(
-                token not in lowered,
-                f"step {step_id}: body_template contains forbidden safety token",
-            )
+
+    def _reject_forbidden(payload: Any, label: str) -> None:
+        if isinstance(payload, str):
+            lowered = payload.lower()
+            for token in _FORBIDDEN_BODY_TOKENS:
+                _require(
+                    token not in lowered,
+                    f"step {step_id}: {label} contains forbidden safety token",
+                )
+            return
+        if isinstance(payload, dict):
+            for key, value in payload.items():
+                key_l = str(key).lower()
+                for token in _FORBIDDEN_BODY_TOKENS:
+                    _require(
+                        token not in key_l,
+                        f"step {step_id}: {label} contains forbidden safety token",
+                    )
+                _reject_forbidden(value, label)
+            return
+        if isinstance(payload, list):
+            for item in payload:
+                _reject_forbidden(item, label)
+
+    _reject_forbidden(body, "body")
+    _reject_forbidden(body_template, "body_template")
 
     timeout = float(raw.get("timeout_seconds") or 5.0)
     _require(0.5 <= timeout <= 30.0, f"step {step_id}: timeout out of range")

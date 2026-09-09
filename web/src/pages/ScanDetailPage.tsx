@@ -15,6 +15,7 @@ export function ScanDetailPage() {
   const [tab, setTab] = useState<Tab>('decision')
   const [sev, setSev] = useState('all')
   const [kind, setKind] = useState('all')
+  const [checkId, setCheckId] = useState('')
   const [verifiedOnly, setVerifiedOnly] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -39,13 +40,15 @@ export function ScanDetailPage() {
   }, [tab, scanId])
 
   const filtered = useMemo(() => {
+    const needle = checkId.trim().toLowerCase()
     return findings.filter((f) => {
       if (sev !== 'all' && f.severity !== sev) return false
       if (kind !== 'all' && f.kind !== kind) return false
       if (verifiedOnly && !f.verified) return false
+      if (needle && !(f.check_id || '').toLowerCase().includes(needle)) return false
       return true
     })
-  }, [findings, sev, kind, verifiedOnly])
+  }, [findings, sev, kind, checkId, verifiedOnly])
 
   async function setBaseline() {
     if (!scanId) return
@@ -207,6 +210,15 @@ export function ScanDetailPage() {
                 <option value="observation">observation</option>
               </select>
             </label>
+            <label className="muted">
+              Check ID{' '}
+              <input
+                value={checkId}
+                onChange={(e) => setCheckId(e.target.value)}
+                placeholder="e.g. idor"
+                style={{ minWidth: '10rem' }}
+              />
+            </label>
             <label className="check muted">
               <input
                 type="checkbox"
@@ -223,6 +235,7 @@ export function ScanDetailPage() {
                   <tr>
                     <th>Sev</th>
                     <th>Kind</th>
+                    <th>Check</th>
                     <th>Title</th>
                     <th>Verified</th>
                     <th>URL</th>
@@ -237,6 +250,7 @@ export function ScanDetailPage() {
                         </span>
                       </td>
                       <td>{f.kind}</td>
+                      <td className="mono">{f.check_id || '—'}</td>
                       <td>
                         <div>{f.title}</div>
                         <div className="muted" style={{ fontSize: '0.85rem' }}>

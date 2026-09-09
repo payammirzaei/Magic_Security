@@ -370,9 +370,12 @@ def write_json_report(
     findings: list[Finding],
     **kwargs: Any,
 ) -> Path:
+    from magic_security.redaction import get_redactor
+
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     report = build_report(crawl, findings, **kwargs)
+    report = get_redactor().scrub_report(report)
     destination.write_text(
         json.dumps(report, indent=2, ensure_ascii=False),
         encoding="utf-8",

@@ -209,10 +209,13 @@ def migrate_snapshot(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def write_snapshot(path: str | Path, snapshot: dict[str, Any]) -> Path:
+    from magic_security.redaction import get_redactor
+
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    scrubbed = get_redactor().scrub_report(snapshot)
     destination.write_text(
-        json.dumps(snapshot, indent=2, ensure_ascii=False),
+        json.dumps(scrubbed, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
     return destination

@@ -167,7 +167,117 @@ class TargetRegistry:
                 "Remote active scans require allow_remote and a verified target"
             )
         item = self.get(base_url)
-        if item is None or item.authorization_state is not AuthorizationState.VERIFIED:
+        if item is None:
             raise TargetRegistryError(
                 "Unverified remote target cannot run active packs"
             )
+        if item.authorization_state is AuthorizationState.UNVERIFIED:
+            raise TargetRegistryError(
+                "Unverified remote target cannot run active packs"
+            )
+        if item.authorization_state is AuthorizationState.SUSPENDED:
+            raise TargetRegistryError(
+                "Target authorization state is SUSPENDED"
+            )
+        if item.authorization_state is AuthorizationState.EXPIRED:
+            raise TargetRegistryError(
+                "Target authorization state is EXPIRED"
+            )
+        if item.authorization_state is not AuthorizationState.VERIFIED:
+            raise TargetRegistryError(
+                "Unverified remote target cannot run active packs"
+            )
+
+    def issue_challenge(self, base_url: str) -> RegisteredTarget:
+        item = self.get(base_url)
+        if item is None:
+            item = self.register(base_url, trusted_local=False)
+        if not item.challenge_token:
+            item.challenge_token = f"magic-security-verification={item.target_id}"
+            self._meta_path(base_url).write_text(
+                json.dumps(item.to_dict(), indent=2),
+                encoding="utf-8",
+            )
+        return item
+
+    def verify_well_known(
+        self,
+        base_url: str,
+        *,
+        fetch_text: str | None = None,
+    ) -> RegisteredTarget:
+        """Verify /.well-known/magic-security-verification.txt contents."""
+        item = self.issue_challenge(base_url)
+        expected = item.challenge_token or ""
+        body = fetch_text
+        if body is None:
+            from magic_security.transport import open_secure_transport
+            import asyncio
+
+            async def _fetch() -> str:
+                url = base_url.rstrip("/") + "/.well-known/magic-security-verification.txt"
+                async with open_secure_transport(timeout=5.0) as client:
+                    response = await client.get(url)
+                    return response.text
+
+            try:
+                body = asyncio.get_event_loop().run_until_complete(_fetch())
+            except Exception as exc:  # noqa: BLE001
+                raise TargetRegistryError(f"well-known fetch failed: {exc}") from exc
+        if expected not in (body or ""):
+            raise TargetRegistryError("well-known challenge mismatch")
+        return self.mark_verified(base_url, method=VerificationMethod.WELL_KNOWN)
+
+    def verify_dns_txt(
+        self,
+        base_url: str,
+        *,
+        txt_records: list[str] | None = None,
+    ) -> RegisteredTarget:
+        """Verify DNS TXT at _magic-security.<host>."""
+        item = self.issue_challenge(base_url)
+        host = urlparse(base_url).hostname
+        if not host:
+            raise TargetRegistryError("invalid host")
+        expected = item.challenge_token or ""
+        records = txt_records
+        if records is None:
+            import socket
+
+            name = f"_magic-security.{host}"
+            try:
+                # Prefer dnspython-free: getaddrinfo won't return TXT; require injection in tests
+                # or optional DNS lookup via socket.getaddrinfo is insufficient.
+                raise TargetRegistryError(
+                    f"Pass txt_records= for verification of {name} "
+                    "(live DNS TXT lookup requires operator-supplied records in this build)"
+                )
+            except socket.gaierror as exc:
+                raise TargetRegistryError(str(exc)) from exc
+        joined = " ".join(records)
+        if expected not in joined and f"magic-security-verification={item.target_id}" not in joined:
+            if expected.split("=", 1)[-1] not in joined and item.target_id not in joined:
+                raise TargetRegistryError("dns txt challenge mismatch")
+        return self.mark_verified(base_url, method=VerificationMethod.DNS_TXT)
+
+    def suspend(self, base_url: str) -> RegisteredTarget:
+        item = self.get(base_url)
+        if item is None:
+            raise TargetRegistryError(f"Unknown target: {base_url}")
+        item.authorization_state = AuthorizationState.SUSPENDED
+        self._meta_path(base_url).write_text(
+            json.dumps(item.to_dict(), indent=2),
+            encoding="utf-8",
+        )
+        return item
+
+    def expire(self, base_url: str) -> RegisteredTarget:
+        item = self.get(base_url)
+        if item is None:
+            raise TargetRegistryError(f"Unknown target: {base_url}")
+        item.authorization_state = AuthorizationState.EXPIRED
+        self._meta_path(base_url).write_text(
+            json.dumps(item.to_dict(), indent=2),
+            encoding="utf-8",
+        )
+        return item

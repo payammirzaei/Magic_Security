@@ -81,10 +81,8 @@ Commands run in a local `.venv` with `pip install -e ".[dev,browser]"` and Playw
 
 ```text
 pytest -q
-→ 142 passed, 1 skipped
+→ 204 passed (local hardening baseline after STEPs 51–77 work)
 ```
-
-(The skip is the optional FastAPI API test when `[api]` is not installed.)
 
 Representative full demo scan:
 
@@ -205,12 +203,21 @@ Dev: `pytest`, `pytest-asyncio`
 
 ---
 
-## 7. Ready for incremental evolution
+## 7. Hardening status (STEPs 51–77)
 
-STEPs **1–50** of the Cursor build plan are implemented in-tree at scanner **1.3.0**.
+| Range | Status |
+| ----- | ------ |
+| 51 Network safety | PASS (browser transport PARTIAL) |
+| 52–54 Scope / budgets / secrets | PASS |
+| 55–57 Browser / API / workflow E2E | PARTIAL / SCAFFOLDED (CI jobs + contracts) |
+| 58–65 Auth, proof, corpora, history, ownership, profile | PASS with noted limits |
+| 66–68 Dashboard / API self-security / repo quality | PARTIAL–PASS |
+| 69–72 Inventory, diagnostics, perf, cancel | PASS / PARTIAL |
+| 73–77 CI matrix, lint, honesty docs, acceptance, release gate | Docs + workflows present; **release NOT READY** |
 
-**STEP 51** network safety audit: HTTP outbound paths inherit ScopePolicy / RequestBudget / RateLimiter via `open_secure_transport` and engine `bind_scan_context`. Browser/WebSocket active navigation is scope-gated (`PARTIAL` vs full request-budgeted browser transport).
+See `docs/ACCEPTANCE_MATRIX.md`, `docs/RELEASE_GATE.md`, `docs/FAKE_COMPLETENESS_AUDIT.md`.
 
-Next: STEP 52+ from the Post-50 hardening audit.
+Version remains **1.3.0** until the release gate is PASS.
+
 
 Further work should treat this document as the behavioral baseline and evolve via tests + version/schema bumps rather than silent rewrites.

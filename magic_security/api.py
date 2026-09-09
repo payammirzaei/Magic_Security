@@ -109,8 +109,26 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
 
     @api.post("/scans")
     async def post_scan(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-        tid = target_id_for(str(payload["target"]))
-        persistence.upsert_target(tid, str(payload["target"]))
+        target = str(payload.get("target") or "").strip()
+        if not target:
+            raise HTTPException(status_code=422, detail="target is required")
+        if len(target) > 2048:
+            raise HTTPException(status_code=413, detail="target too long")
+        max_pages = int(payload.get("max_pages", 50))
+        if max_pages < 1 or max_pages > 500:
+            raise HTTPException(status_code=422, detail="max_pages out of range")
+        auth_path = payload.get("auth_contexts_path")
+        if auth_path is not None:
+            auth_path_s = str(auth_path)
+            if ".." in auth_path_s.replace("\\", "/") or auth_path_s.startswith(
+                ("/", "\\")
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="auth_contexts_path must be a relative local path",
+                )
+        tid = target_id_for(target)
+        persistence.upsert_target(tid, target)
         scan_id = persistence.create_scan(target_id=tid, status="queued")
         asyncio.create_task(_run_scan_job(scan_id, payload))
         return {
@@ -196,7 +214,11 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
 
         @app.get("/{full_path:path}")
         def spa_fallback(full_path: str) -> FileResponse:
-            candidate = WEB_DIST / full_path
+            candidate = (WEB_DIST / full_path).resolve()
+            try:
+                candidate.relative_to(WEB_DIST.resolve())
+            except ValueError:
+                return FileResponse(WEB_DIST / "index.html")
             if full_path and candidate.is_file():
                 return FileResponse(candidate)
             return FileResponse(WEB_DIST / "index.html")

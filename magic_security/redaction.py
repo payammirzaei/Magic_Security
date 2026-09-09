@@ -260,12 +260,31 @@ class Redactor:
 
     def scrub_structure(self, data: Any) -> Any:
         if isinstance(data, dict):
-            return {key: self.scrub_structure(value) for key, value in data.items()}
+            scrubbed: dict[str, Any] = {}
+            for key, value in data.items():
+                if isinstance(value, str) and (
+                    _looks_secret_key(str(key)) or _looks_pii_key(str(key))
+                ):
+                    scrubbed[key] = self.redact_scalar(value, key=str(key)).redacted
+                elif isinstance(value, str) and str(key).lower() in {
+                    "url",
+                    "uri",
+                    "href",
+                    "location",
+                }:
+                    scrubbed[key] = self.redact_url(value)
+                else:
+                    scrubbed[key] = self.scrub_structure(value)
+            return scrubbed
         if isinstance(data, list):
             return [self.scrub_structure(item) for item in data]
         if isinstance(data, str):
             return self.redact_text(data)
         return data
+
+    def scrub_report(self, report: dict[str, Any]) -> dict[str, Any]:
+        """Deep-scrub a report/snapshot dict before persistence or export."""
+        return self.scrub_structure(report)
 
 
 _DEFAULT = Redactor()

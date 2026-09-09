@@ -1,0 +1,24 @@
+name: api-e2e
+
+# STEP 56 — API real E2E (fastapi installed; no skips for missing api extra)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install with api extra
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev,api]"
+      - name: API tests (must not skip)
+        run: |
+          pytest -q tests/test_dashboard_api.py tests/test_hardening_platform.py tests/test_steps_41_50.py -k "api or persistence or create_app or dashboard" --tb=line
