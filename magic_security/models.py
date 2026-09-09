@@ -216,6 +216,37 @@ class ProtocolSecurityObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class SensitiveEndpointObservation:
+    url: str
+    category: str
+    status_code: int
+    verified: bool
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
+class UserSurfaceObservation:
+    category: str
+    url: str
+    parameter: str | None
+    verified: bool
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
+class UserSideSecurityCoverage:
+    robots_entries: int = 0
+    sitemap_entries: int = 0
+    sensitive_endpoint_probes: int = 0
+    sensitive_endpoint_verified: int = 0
+    sensitive_url_parameters: int = 0
+    sensitive_get_forms: int = 0
+    mixed_content_pages: int = 0
+    null_origin_cors_exposed: int = 0
+    jsonp_exposed: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class ExternalSecurityCoverage:
     injection_tests: int = 0
     html_injection_verified: int = 0
@@ -312,6 +343,12 @@ class CrawlResult:
     protocol_security_observations: list[ProtocolSecurityObservation] = field(default_factory=list)
     coverage_registry: list[dict[str, str]] = field(default_factory=list)
     external_security_coverage: ExternalSecurityCoverage | None = None
+
+    sensitive_endpoint_observations: list[SensitiveEndpointObservation] = field(default_factory=list)
+    user_surface_observations: list[UserSurfaceObservation] = field(default_factory=list)
+    index_robots_entries: int = 0
+    index_sitemap_entries: int = 0
+    user_side_security_coverage: UserSideSecurityCoverage | None = None
 
     browser_security_observations: list[BrowserSecurityObservation] = field(default_factory=list)
     browser_security_coverage: BrowserSecurityCoverage | None = None

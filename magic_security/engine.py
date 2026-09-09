@@ -26,12 +26,14 @@ from magic_security.coverage_registry import build_coverage_registry
 from magic_security.csrf import map_csrf_posture
 from magic_security.crawler import HttpCrawler
 from magic_security.external_coverage import build_external_security_coverage
+from magic_security.exposure_pack import probe_sensitive_endpoints
 from magic_security.fingerprints import (
     deduplicate_findings,
     group_response_fingerprints,
 )
 from magic_security.graphql_security import analyze_graphql
 from magic_security.idor import verify_pairwise_idor_read_access
+from magic_security.index_discovery import discover_index_documents
 from magic_security.injection import (
     verify_reflected_html_injection,
     verify_reflected_xss_browser,
@@ -45,6 +47,11 @@ from magic_security.server_coverage import build_server_security_coverage
 from magic_security.server_security import run_server_security_pack
 from magic_security.session_security import analyze_session_cookies
 from magic_security.surface import normalize_endpoints
+from magic_security.user_side_coverage import build_user_side_security_coverage
+from magic_security.user_surface_security import (
+    analyze_user_visible_surface,
+    verify_jsonp_and_null_origin_cors,
+)
 
 
 _SEVERITY_ORDER = {
@@ -105,6 +112,12 @@ class ScannerEngine:
         crawl = await self.crawler.crawl(target)
         crawl.response_groups = group_response_fingerprints(crawl.pages)
 
+        index_discovery = await discover_index_documents(crawl.target)
+        crawl.index_robots_entries = index_discovery.robots_entries
+        crawl.index_sitemap_entries = index_discovery.sitemap_entries
+        crawl.links.update(index_discovery.links)
+        crawl.endpoints.update(index_discovery.endpoints)
+
         if browser:
             browser_crawler = BrowserCrawler()
 
@@ -152,6 +165,18 @@ class ScannerEngine:
         findings.extend(await probe_source_maps(crawl.source_maps))
 
         (
+            passive_user_surface,
+            passive_user_findings,
+        ) = analyze_user_visible_surface(
+            target=crawl.target,
+            pages=crawl.pages,
+            links=crawl.links,
+            endpoints=crawl.normalized_endpoints,
+        )
+        crawl.user_surface_observations.extend(passive_user_surface)
+        findings.extend(passive_user_findings)
+
+        (
             crawl.client_artifact_observations,
             artifact_findings,
         ) = await analyze_client_artifacts(
@@ -187,6 +212,21 @@ class ScannerEngine:
                     endpoints=crawl.endpoints,
                 )
             )
+
+            (
+                crawl.sensitive_endpoint_observations,
+                sensitive_endpoint_findings,
+            ) = await probe_sensitive_endpoints(crawl.target)
+            findings.extend(sensitive_endpoint_findings)
+
+            (
+                active_user_surface,
+                active_user_findings,
+            ) = await verify_jsonp_and_null_origin_cors(
+                crawl.normalized_endpoints
+            )
+            crawl.user_surface_observations.extend(active_user_surface)
+            findings.extend(active_user_findings)
 
             xss_urls: set[str] = set()
             if browser:
@@ -366,6 +406,15 @@ class ScannerEngine:
             crawl.rate_limit_observations,
             crawl.parameter_security_observations,
             crawl.protocol_security_observations,
+        )
+
+        crawl.user_side_security_coverage = (
+            build_user_side_security_coverage(
+                robots_entries=crawl.index_robots_entries,
+                sitemap_entries=crawl.index_sitemap_entries,
+                sensitive_endpoints=crawl.sensitive_endpoint_observations,
+                user_surface=crawl.user_surface_observations,
+            )
         )
 
         crawl.coverage_registry = build_coverage_registry(

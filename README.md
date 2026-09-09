@@ -2,6 +2,35 @@
 
 Local-first black-box web security scanner focused on **verified evidence, not checklist noise**.
 
+## v1.0 — Professional User-Side Coverage
+
+v1.0 expands the scanner toward the surface a professional external pentester can observe from the application/user side without source, cloud, or host access.
+
+New coverage:
+
+- `robots.txt` and `sitemap.xml` attack-surface discovery
+- hidden/disallowed route ingestion into normalized endpoints
+- public SVN/Hg/DS_Store metadata signatures
+- exposed package/composer manifests
+- public backup ZIP and SQL-dump signatures
+- Apache status / phpinfo / Go debug vars / Java WEB-INF probes
+- Spring Actuator environment and heap-dump exposure checks
+- public config JSON with secret-like key detection
+- populated token/session/password/OTP/reset-token parameters in URLs
+- PII/payment-like values in URLs
+- sensitive fields submitted through GET forms
+- HTTPS mixed-content and insecure form/resource references
+- `Origin: null` CORS acceptance
+- JSONP arbitrary callback wrapping
+- dedicated **User-Side Security Coverage** counters
+- more conservative 42-category coverage labels
+
+Large responses such as heap dumps are **not downloaded**. Backup/config probes read only a bounded response prefix or use HEAD where possible. Secret values and sensitive URL values are never written into reports.
+
+The coverage registry is intentionally stricter in v1.0: authentication, authorization, SQL, XSS, GraphQL, CORS, and similar broad classes are marked **Partially Tested** rather than pretending a black-box scanner can exhaustively prove every variant.
+
+A professional external scanner can cover a large portion of observable web risk, but literally every bug is impossible from the user side alone. Business invariants, destructive workflows, race conditions, payment abuse, stored-upload chains, MFA/reset takeover, cloud/IAM, supply-chain, and source-only flaws still require explicit workflows or repo/infrastructure context.
+
 ## v0.9 — Black-Box Verification Pack
 
 Magic_Security now combines:

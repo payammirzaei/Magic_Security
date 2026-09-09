@@ -83,6 +83,65 @@ class DemoHandler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
         user = self._demo_user()
 
+        if path == "/robots.txt":
+            self._send(
+                "User-agent: *\nDisallow: /admin-hidden\nAllow: /public-hidden\n",
+                content_type="text/plain; charset=utf-8",
+            )
+            return
+
+        if path == "/sitemap.xml":
+            host = self.headers.get("Host", "127.0.0.1:8000")
+            self._send(
+                f"""<?xml version="1.0"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>http://{host}/products</loc></url>
+  <url><loc>http://{host}/jsonp?callback=demo</loc></url>
+</urlset>""",
+                content_type="application/xml",
+            )
+            return
+
+        if path == "/config.json":
+            self._send(
+                json.dumps(
+                    {
+                        "api_url": "http://127.0.0.1:8000",
+                        "api_key": "fake-public-config-key",
+                    }
+                ),
+                content_type="application/json",
+            )
+            return
+
+        if path == "/jsonp":
+            callback = query.get("callback", ["callback"])[0]
+            self._send(
+                f'{callback}({{"user":"demo"}});',
+                content_type="application/javascript",
+            )
+            return
+
+        if path == "/null-cors":
+            headers = {
+                "Access-Control-Allow-Origin": (
+                    self.headers.get("Origin") or ""
+                ),
+                "Access-Control-Allow-Credentials": "true",
+            }
+            self._send(
+                json.dumps({"demo": "null-origin"}),
+                content_type="application/json",
+                headers=headers,
+            )
+            return
+
+        if path in {"/admin-hidden", "/public-hidden"}:
+            self._send(
+                "<html><body>hidden demo route</body></html>"
+            )
+            return
+
         if path == "/":
             authenticated_link = (
                 '<li><a href="/dashboard">Dashboard</a></li>'
@@ -108,6 +167,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     <li><a href="/products?page=2&sort=name">Products</a></li>
     <li><a href="/go?next=/products">Redirect helper</a></li>
     <li><a href="/cors">CORS demo</a></li>
+    <li><a href="/reset?token=fake-reset-token">Reset link</a></li>
     <li><a href="/reflect?q=hello">Reflected input</a></li>
     <li><a href="/ssti?name=hello">SSTI demo</a></li>
     <li><a href="/sql?q=hello">SQL error demo</a></li>
@@ -120,6 +180,10 @@ class DemoHandler(BaseHTTPRequestHandler):
     <select name="category"><option>all</option></select>
   </form>
   <div id="output"></div>
+  <form action="/legacy-login" method="GET">
+    <input name="username">
+    <input name="password" type="password">
+  </form>
   <script src="/static/app.js"></script>
 </body>
 </html>""",
@@ -509,6 +573,14 @@ RuntimeError: demo exception
                                     }
                                 }
                             },
+                            "/jsonp": {
+                                "get": {
+                                    "parameters": [
+                                        {"name": "callback", "in": "query"}
+                                    ]
+                                }
+                            },
+                            "/null-cors": {"get": {}},
                             "/reflect": {
                                 "get": {
                                     "parameters": [

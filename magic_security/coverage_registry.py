@@ -44,9 +44,33 @@ _CATEGORIES = (
     ("Admin Panels", "partial"),
     ("Logging / Monitoring", "repo"),
     ("Privacy / Data Exposure", "external"),
-    ("Misconfiguration", "passive"),
+    ("Misconfiguration", "external"),
     ("AI / LLM features", "config"),
 )
+
+
+def _status_for(
+    family: str,
+    *,
+    active: bool,
+    browser: bool,
+    auth_enabled: bool,
+) -> str:
+    if family == "auth":
+        return "Partially Tested" if auth_enabled else "Requires Auth"
+    if family == "external":
+        return "Partially Tested" if active else "Passive Only"
+    if family == "browser":
+        return "Partially Tested" if browser else "Partial"
+    if family == "server":
+        return "Partially Tested" if active else "Passive Only"
+    if family == "passive":
+        return "Partially Tested"
+    if family == "repo":
+        return "Requires Repo Access"
+    if family == "config":
+        return "Requires Config"
+    return "Partial"
 
 
 def build_coverage_registry(
@@ -59,25 +83,33 @@ def build_coverage_registry(
     registry: list[dict[str, str]] = []
 
     for name, family in _CATEGORIES:
-        if family == "auth":
-            status = "Fully Tested" if auth_enabled else "Requires Auth"
-        elif family == "external":
-            status = "Fully Tested" if active else "Passive Only"
-        elif family == "browser":
-            status = "Fully Tested" if browser else "Partial"
-        elif family == "server":
-            status = "Partially Tested" if active else "Passive Only"
-        elif family == "passive":
-            status = "Fully Tested"
-        elif family == "partial":
-            status = "Partial"
-        elif family == "repo":
-            status = "Requires Repo Access"
-        else:
-            status = "Requires Config"
-
+        status = _status_for(
+            family,
+            active=active,
+            browser=browser,
+            auth_enabled=auth_enabled,
+        )
         note = ""
-        if name == "SQL / Database":
+
+        if name == "Authentication":
+            note = (
+                "Auth boundaries, login/token behavior, SQL/NoSQL auth-bypass "
+                "signals and rate behavior are tested when discoverable. "
+                "Password-reset/MFA/business workflows still need configuration."
+            )
+        elif name == "Authorization / Access Control":
+            note = (
+                "Same-role read-only path/query IDOR/BOLA is verified with "
+                "test accounts. Complex workflow and state-changing authorization "
+                "remain configuration-driven."
+            )
+        elif name == "Session Security":
+            note = (
+                "Cookie attributes and authenticated cache behavior are tested. "
+                "Login-time rotation/fixation and logout invalidation require "
+                "explicit disposable workflow configuration."
+            )
+        elif name == "SQL / Database":
             note = (
                 "Database-error behavior plus SQL/NoSQL login-bypass proofs are "
                 "tested when relevant endpoints are discovered; this is not "
@@ -85,26 +117,71 @@ def build_coverage_registry(
             )
         elif name == "CSRF":
             note = (
-                "Posture is mapped automatically; destructive proof requires an "
-                "explicit disposable action configuration."
+                "Cookie/header auth posture and token signals are mapped. "
+                "State-changing proof requires an explicitly configured disposable action."
             )
         elif name == "SSRF":
             note = (
-                "Discovered URL-like GET parameters are tested only against a "
-                "scanner-owned 127.0.0.1 callback. External/internal services are "
-                "not probed."
+                "URL-like GET parameters are tested only against a scanner-owned "
+                "127.0.0.1 callback. Cloud metadata/private services are not probed."
+            )
+        elif name == "File Upload":
+            note = (
+                "Upload security needs a disposable workflow definition so files "
+                "can be safely created, retrieved, and removed."
             )
         elif name == "Path / File Handling":
             note = (
-                "Traversal candidates are tested with non-secret operating-system "
-                "marker files only."
+                "Traversal candidates use known non-secret marker files; public "
+                "backup/config/deployment artifacts are also signature-probed."
             )
-        elif name in {"File Upload", "Business Logic", "Race Conditions"}:
-            note = "Needs workflow-specific test configuration."
-        elif name == "Authorization / Access Control" and auth_enabled:
-            note = "Read-only same-role IDOR/BOLA verification is active."
-        elif name == "XSS" and browser:
-            note = "Reflected and DOM execution can be verified with Playwright."
+        elif name == "WebSockets":
+            note = (
+                "Endpoints and mixed ws:// usage are discovered. Full origin/auth "
+                "handshake and message authorization testing needs a realtime workflow pack."
+            )
+        elif name == "Business Logic":
+            note = "Requires explicit user journeys, invariants, and disposable test data."
+        elif name == "Race Conditions":
+            note = "Requires explicit idempotent/disposable concurrent workflows."
+        elif name == "Payments":
+            note = "Requires sandbox payment flows and business invariants."
+        elif name == "XSS":
+            note = (
+                "Reflected and DOM execution can be verified with Playwright; "
+                "stored XSS requires a configured write/read workflow."
+            )
+        elif name == "Information Disclosure":
+            note = (
+                "Covers unauthenticated JSON, source maps, client artifacts, "
+                "debug/status endpoints, backup archives, config files, heapdump "
+                "exposure and sensitive URL parameters."
+            )
+        elif name == "Privacy / Data Exposure":
+            note = (
+                "Covers sensitive JSON fields, sensitive URL/query exposure, "
+                "GET-form leakage and authenticated cross-account reads."
+            )
+        elif name == "Misconfiguration":
+            note = (
+                "Covers headers, CORS, debug/status endpoints, source-control "
+                "metadata, dependency manifests, backups and management endpoints."
+            )
+        elif name == "Frontend":
+            note = (
+                "Covers DOM XSS signals, storage keys, postMessage, client redirects, "
+                "mixed content, sensitive URLs, source maps and WebSocket discovery."
+            )
+        elif name == "Admin Panels":
+            note = (
+                "robots.txt/sitemap.xml and discovered routes can reveal hidden admin "
+                "surfaces, but admin authorization workflows are not assumed."
+            )
+        elif name == "Account Takeover":
+            note = (
+                "Needs configured password-reset/MFA/session-rotation workflows "
+                "to prove takeover paths safely."
+            )
 
         registry.append(
             {

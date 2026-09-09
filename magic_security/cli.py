@@ -331,6 +331,47 @@ async def _run(
             f"{ext.protocol_observations}"
         )
 
+    user_side = crawl.user_side_security_coverage
+    if user_side is not None:
+        print("\nUser-Side Security Coverage")
+        print("---------------------------")
+        print(
+            f"robots.txt entries:      "
+            f"{user_side.robots_entries}"
+        )
+        print(
+            f"sitemap.xml entries:     "
+            f"{user_side.sitemap_entries}"
+        )
+        print(
+            f"Sensitive probes:        "
+            f"{user_side.sensitive_endpoint_probes}"
+        )
+        print(
+            f"Verified exposures:      "
+            f"{user_side.sensitive_endpoint_verified}"
+        )
+        print(
+            f"Sensitive URL params:    "
+            f"{user_side.sensitive_url_parameters}"
+        )
+        print(
+            f"Sensitive GET forms:     "
+            f"{user_side.sensitive_get_forms}"
+        )
+        print(
+            f"Mixed-content pages:     "
+            f"{user_side.mixed_content_pages}"
+        )
+        print(
+            f"null-Origin CORS:        "
+            f"{user_side.null_origin_cors_exposed}"
+        )
+        print(
+            f"JSONP exposures:         "
+            f"{user_side.jsonp_exposed}"
+        )
+
     if crawl.coverage_registry:
         statuses = Counter(
             item["status"] for item in crawl.coverage_registry

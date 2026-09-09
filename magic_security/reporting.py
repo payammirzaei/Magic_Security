@@ -28,6 +28,11 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
         if crawl.server_security_coverage is not None
         else None
     )
+    user_side_coverage = (
+        asdict(crawl.user_side_security_coverage)
+        if crawl.user_side_security_coverage is not None
+        else None
+    )
 
     return {
         "target": crawl.target,
@@ -87,12 +92,36 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                 crawl.authenticated_browser_network_requests.values()
             ),
             "response_fingerprint_groups": len(crawl.response_groups),
+            "robots_entries": crawl.index_robots_entries,
+            "sitemap_entries": crawl.index_sitemap_entries,
+            "sensitive_endpoint_observations": len(
+                crawl.sensitive_endpoint_observations
+            ),
+            "user_surface_observations": len(
+                crawl.user_surface_observations
+            ),
         },
         "coverage": {
             "auth_security": auth_coverage,
             "external_security": external_coverage,
             "browser_security": browser_coverage,
+            "server_security": server_coverage,
+            "user_side_security": user_side_coverage,
             "categories": crawl.coverage_registry,
+        },
+        "user_side_security": {
+            "index_discovery": {
+                "robots_entries": crawl.index_robots_entries,
+                "sitemap_entries": crawl.index_sitemap_entries,
+            },
+            "sensitive_endpoints": [
+                asdict(item)
+                for item in crawl.sensitive_endpoint_observations
+            ],
+            "surface_observations": [
+                asdict(item)
+                for item in crawl.user_surface_observations
+            ],
         },
         "browser_security": {
             "websockets": sorted(crawl.websocket_endpoints),
