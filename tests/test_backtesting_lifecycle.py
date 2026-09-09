@@ -1,4 +1,4 @@
-"""STEP 62 — backtesting lifecycle with live snapshots (not only handcrafted)."""
+"""STEP 62 — backtesting lifecycle; WORSENED must be strict."""
 
 from __future__ import annotations
 
@@ -56,13 +56,14 @@ def test_backtesting_lifecycle_new_resolved_reintroduced_worsened():
         [_finding("XSS", severity=Severity.CRITICAL)],
         modes=modes,
     )
-    # Same check/title/url should keep fingerprint; severity change → worsened
+    assert worse["findings"][0]["fingerprint"] == fp
     diff4 = diff_snapshots(baseline4, worse)
-    assert (
-        diff4["findings"]["worsened"]
-        or diff4["findings"]["new"]
-        or diff4["findings"]["unchanged"]
+    assert diff4["summary"]["worsened"] == 1
+    assert any(
+        item.get("after", {}).get("fingerprint") == fp
+        for item in diff4["findings"]["worsened"]
     )
+    assert not any(item.get("fingerprint") == fp for item in diff4["findings"]["new"])
 
     reduced = build_scan_snapshot(crawl, [_finding("XSS")], modes={"http": True})
     diff5 = diff_snapshots(baseline4, reduced)

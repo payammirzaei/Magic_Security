@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 from magic_security.discovery import same_origin
 from magic_security.models import EndpointCandidate

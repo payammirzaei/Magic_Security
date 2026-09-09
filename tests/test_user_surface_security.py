@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from magic_security.models import EndpointCandidate, NormalizedEndpoint, PageSnapshot
+from magic_security.models import NormalizedEndpoint, PageSnapshot
 from magic_security.user_surface_security import (
     analyze_user_visible_surface,
     verify_jsonp_and_null_origin_cors,

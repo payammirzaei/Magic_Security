@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import httpx
 import pytest
@@ -11,8 +10,6 @@ import pytest
 from magic_security.backtesting import (
     build_scan_snapshot,
     load_snapshot,
-    migrate_snapshot,
-    write_snapshot,
 )
 from magic_security.history import HistoryStore
 from magic_security.models import (
@@ -27,7 +24,6 @@ from magic_security.version import SNAPSHOT_SCHEMA_VERSION
 from magic_security.workflow_runner import WorkflowRunner
 from magic_security.workflow_schema import (
     WorkflowSchemaError,
-    load_workflow_file,
     parse_workflow_dict,
     validate_workflows_for_run,
 )

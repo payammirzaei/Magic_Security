@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from magic_security.backtesting import SnapshotError, write_snapshot
+from magic_security.backtesting import write_snapshot
 
 
 DEFAULT_ROOT = Path(".magic-security")

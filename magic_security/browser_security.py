@@ -8,6 +8,7 @@ from urllib.parse import quote, urlsplit
 import httpx
 
 from magic_security.transport import open_secure_transport
+from magic_security.scope import is_loopback_url as _is_loopback_url
 
 from magic_security.models import (
     AuthContext,
@@ -406,9 +407,6 @@ def storage_findings(
             )
         )
     return findings
-
-
-from magic_security.scope import is_loopback_url as _is_loopback_url
 
 
 async def verify_dom_xss_browser(

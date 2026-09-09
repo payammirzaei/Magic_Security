@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 
 from magic_security.active import verify_cors
-from magic_security.check_spec import CheckSpec, LegacyPageCheckAdapter, RiskClass
 from magic_security.checks.headers import SecurityHeaderCheck
-from magic_security.evidence import EvidenceObject, evidence_from_finding
+from magic_security.evidence import evidence_from_finding
 from magic_security.historical import seed_historical_endpoints
 from magic_security.js_analysis import analyze_javascript
 from magic_security.logging_metrics import StructuredLogger
@@ -188,7 +186,7 @@ def test_normalization_merges_ids_without_false_method_merge():
     urls = {(item.method, item.url) for item in result}
     assert ("GET", "http://localhost/api/users/{id}") in urls
     assert ("POST", "http://localhost/api/users/{id}") in urls
-    get_item = next(item for item in result if item.method == "GET" and item.url.endswith("/users/{id}") or item.url.endswith("/users"))
+    next(item for item in result if item.method == "GET" and item.url.endswith("/users/{id}") or item.url.endswith("/users"))
     # cache bust dropped from params on the plain /users merge candidate
     plain = [item for item in result if item.url == "http://localhost/api/users"]
     if plain:

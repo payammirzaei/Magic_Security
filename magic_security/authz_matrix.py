@@ -7,12 +7,9 @@ from typing import Any, Literal
 
 from magic_security.evidence import EvidenceObject, attach_evidence
 from magic_security.models import (
-    AuthComparison,
     CrawlResult,
     Finding,
     FindingKind,
-    OwnershipObservation,
-    PairwiseIdorObservation,
     Severity,
 )
 

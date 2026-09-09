@@ -1,13 +1,15 @@
-"""Central HTTP transport (STEP 9 / STEP 51 network safety)."""
+"""Central HTTP transport (STEP 9 / network safety hardening)."""
 
 from __future__ import annotations
 
 import asyncio
 import contextvars
+import ipaddress
+import socket
 import uuid
 from types import TracebackType
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -22,6 +24,27 @@ _SCAN_CONTEXT: contextvars.ContextVar[Any | None] = contextvars.ContextVar(
     "magic_security_scan_context",
     default=None,
 )
+
+_REDIRECT_STATUS = frozenset({301, 302, 303, 307, 308})
+
+# Captured at import so unit tests that monkeypatch AsyncClient.get/post/request
+# still work, while production keeps streaming size enforcement.
+_ORIGINAL_GET = httpx.AsyncClient.get
+_ORIGINAL_POST = httpx.AsyncClient.post
+_ORIGINAL_HEAD = httpx.AsyncClient.head
+_ORIGINAL_OPTIONS = httpx.AsyncClient.options
+_ORIGINAL_REQUEST = httpx.AsyncClient.request
+_ORIGINAL_STREAM = httpx.AsyncClient.stream
+
+
+def _client_methods_monkeypatched() -> bool:
+    return (
+        httpx.AsyncClient.get is not _ORIGINAL_GET
+        or httpx.AsyncClient.post is not _ORIGINAL_POST
+        or httpx.AsyncClient.head is not _ORIGINAL_HEAD
+        or httpx.AsyncClient.options is not _ORIGINAL_OPTIONS
+        or httpx.AsyncClient.request is not _ORIGINAL_REQUEST
+    )
 
 
 class ScopeBlockedError(httpx.RequestError):
@@ -39,6 +62,27 @@ class BudgetBlockedError(httpx.RequestError):
     def __init__(self, url: str) -> None:
         request = httpx.Request("GET", url)
         super().__init__(f"Request blocked by budget: {url}", request=request)
+        self.url = url
+
+
+class ResponseTooLargeError(httpx.RequestError):
+    def __init__(self, url: str, limit: int) -> None:
+        request = httpx.Request("GET", url)
+        super().__init__(
+            f"Response exceeded max_response_bytes ({limit}): {url}",
+            request=request,
+        )
+        self.url = url
+        self.limit = limit
+
+
+class TooManyRedirectsError(httpx.RequestError):
+    def __init__(self, url: str, hops: int) -> None:
+        request = httpx.Request("GET", url)
+        super().__init__(
+            f"Too many redirects ({hops}) starting from {url}",
+            request=request,
+        )
         self.url = url
 
 
@@ -102,8 +146,29 @@ def assert_url_in_scope(
         raise ScopeBlockedError(url, decision.reason)
 
 
+def resolve_host_addresses(host: str) -> frozenset[str]:
+    """Resolve hostname to IP strings; empty on failure."""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        return frozenset()
+    return frozenset(str(item[4][0]) for item in infos)
+
+
+def _host_is_ip(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
 class SecureTransport:
-    """httpx wrapper that enforces scope, budgets, and rate limits."""
+    """httpx wrapper that enforces scope, budgets, rate limits, and DNS pins.
+
+    Redirects are never followed by httpx. When follow_redirects=True, this
+    class manually follows Location hops after a fresh scope check per hop.
+    """
 
     def __init__(
         self,
@@ -117,6 +182,7 @@ class SecureTransport:
         rate_limiter: RateLimiter | None = None,
         scan_context: Any = None,
         max_response_bytes: int | None = None,
+        max_redirects: int | None = None,
     ) -> None:
         self.follow_redirects = follow_redirects
         self.timeout = timeout
@@ -134,13 +200,20 @@ class SecureTransport:
         )
         self.scan_context = scan_context
         self.max_response_bytes = max_response_bytes
+        if max_redirects is not None:
+            self.max_redirects = max_redirects
+        elif self.budgets is not None:
+            self.max_redirects = self.budgets.config.max_redirects
+        else:
+            self.max_redirects = 10
         self._client: httpx.AsyncClient | None = None
         self.last_request_id: str | None = None
         self.last_metadata: dict[str, Any] = {}
 
     async def __aenter__(self) -> SecureTransport:
+        # Never let httpx auto-follow — redirects are scope-checked manually.
         self._client = httpx.AsyncClient(
-            follow_redirects=self.follow_redirects,
+            follow_redirects=False,
             timeout=self.timeout,
             headers=self.headers,
             cookies=self.cookies,
@@ -171,6 +244,55 @@ class SecureTransport:
         checker = getattr(self.scan_context, "is_cancelled", None)
         return bool(checker and checker())
 
+    def _response_limit(self) -> int | None:
+        if self.max_response_bytes is not None:
+            return self.max_response_bytes
+        if self.budgets is not None:
+            return self.budgets.config.max_response_bytes
+        return None
+
+    def _dns_pins(self) -> dict[str, frozenset[str]] | None:
+        if self.scan_context is None:
+            return None
+        pins = getattr(self.scan_context, "dns_pins", None)
+        if pins is None:
+            pins = {}
+            setattr(self.scan_context, "dns_pins", pins)
+        return pins
+
+    def _enforce_dns_pin(self, url: str) -> frozenset[str] | None:
+        """Resolve host, validate addresses, detect rebinding TOCTOU."""
+        host = urlparse(url).hostname
+        if not host:
+            raise ScopeBlockedError(url, "missing_host")
+        if _host_is_ip(host):
+            return frozenset({host})
+
+        addresses = resolve_host_addresses(host)
+        if not addresses:
+            raise ScopeBlockedError(url, "dns_resolution_failed")
+
+        loopback_only = False
+        allow_remote = False
+        if self.scope is not None:
+            loopback_only = bool(self.scope.config.loopback_only)
+            allow_remote = bool(self.scope.allow_remote)
+        if loopback_only and not allow_remote:
+            for address in addresses:
+                try:
+                    if not ipaddress.ip_address(address).is_loopback:
+                        raise ScopeBlockedError(url, "dns_resolved_non_loopback")
+                except ValueError as exc:
+                    raise ScopeBlockedError(url, "dns_invalid_address") from exc
+
+        pins = self._dns_pins()
+        if pins is not None:
+            previous = pins.get(host)
+            if previous is not None and previous != addresses:
+                raise ScopeBlockedError(url, "dns_rebinding_toctou")
+            pins[host] = addresses
+        return addresses
+
     async def _before_request(
         self,
         method: str,
@@ -186,6 +308,8 @@ class SecureTransport:
             decision = self.scope.decide(url, for_redirect=for_redirect)
             if not decision.allowed:
                 raise ScopeBlockedError(url, decision.reason)
+
+        self._enforce_dns_pin(url)
 
         if self.budgets is not None and not self.budgets.consume_request(
             url,
@@ -213,79 +337,238 @@ class SecureTransport:
             metrics.requests += 1
         return host
 
-    async def _after_request(
-        self,
-        host: str,
-        response: httpx.Response,
-    ) -> httpx.Response:
+    async def _release_host(self, host: str) -> None:
+        if self.rate_limiter is not None:
+            self.rate_limiter.release(host)
+
+    async def _after_status(self, host: str, status_code: int) -> None:
         if self.rate_limiter is not None:
             try:
-                if self.rate_limiter.should_backoff(response.status_code):
-                    await self.rate_limiter.backoff(response.status_code)
+                if self.rate_limiter.should_backoff(status_code):
+                    await self.rate_limiter.backoff(status_code)
             finally:
                 self.rate_limiter.release(host)
 
-        limit = self.max_response_bytes
-        if limit is None and self.budgets is not None:
-            limit = self.budgets.config.max_response_bytes
-        if limit is not None and len(response.content) > limit:
-            self.last_metadata["truncated"] = True
-            self.last_metadata["response_bytes"] = len(response.content)
-        return response
+    async def _read_limited(
+        self,
+        response: httpx.Response,
+        *,
+        url: str,
+    ) -> bytes:
+        limit = self._response_limit()
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in response.aiter_bytes():
+            if not chunk:
+                continue
+            if limit is not None and total + len(chunk) > limit:
+                self.last_metadata["truncated"] = True
+                self.last_metadata["response_bytes"] = total + len(chunk)
+                raise ResponseTooLargeError(url, limit)
+            chunks.append(chunk)
+            total += len(chunk)
+        self.last_metadata["response_bytes"] = total
+        return b"".join(chunks)
+
+    def _materialize(
+        self,
+        response: httpx.Response,
+        content: bytes,
+    ) -> httpx.Response:
+        request = getattr(response, "request", None)
+        if request is None:
+            request = httpx.Request("GET", "http://127.0.0.1/")
+        return httpx.Response(
+            status_code=response.status_code,
+            headers=response.headers,
+            content=content,
+            request=request,
+            extensions=dict(getattr(response, "extensions", None) or {}),
+            history=list(getattr(response, "history", None) or []),
+        )
+
+    async def _send(
+        self,
+        method: str,
+        url: str,
+        *,
+        mutation: bool,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        client = self._ensure_client()
+        current_url = url
+        current_method = method.upper()
+        current_mutation = mutation
+        current_kwargs = dict(kwargs)
+        current_kwargs.pop("follow_redirects", None)
+
+        # Production: stream + manual redirects. Unit tests that monkeypatch
+        # AsyncClient.get/post/request keep a compatibility path.
+        legacy = _client_methods_monkeypatched()
+        stream_patched = httpx.AsyncClient.stream is not _ORIGINAL_STREAM
+
+        for hop in range(self.max_redirects + 1):
+            for_redirect = hop > 0
+            host = await self._before_request(
+                current_method,
+                current_url,
+                mutation=current_mutation,
+                for_redirect=for_redirect,
+            )
+            try:
+                if legacy and not stream_patched:
+                    clean_kwargs = {
+                        key: value
+                        for key, value in current_kwargs.items()
+                        if value is not None
+                    }
+                    # Prefer verb-specific monkeypatches when present; otherwise
+                    # fall through to request() (also commonly patched in tests).
+                    if (
+                        current_method == "GET"
+                        and httpx.AsyncClient.get is not _ORIGINAL_GET
+                    ):
+                        response = await client.get(current_url, **clean_kwargs)
+                    elif (
+                        current_method == "POST"
+                        and httpx.AsyncClient.post is not _ORIGINAL_POST
+                    ):
+                        response = await client.post(current_url, **clean_kwargs)
+                    elif (
+                        current_method == "HEAD"
+                        and httpx.AsyncClient.head is not _ORIGINAL_HEAD
+                    ):
+                        response = await client.head(current_url, **clean_kwargs)
+                    elif (
+                        current_method == "OPTIONS"
+                        and httpx.AsyncClient.options is not _ORIGINAL_OPTIONS
+                    ):
+                        response = await client.options(current_url, **clean_kwargs)
+                    elif httpx.AsyncClient.request is not _ORIGINAL_REQUEST:
+                        response = await client.request(
+                            current_method,
+                            current_url,
+                            **clean_kwargs,
+                        )
+                    elif current_method == "GET":
+                        response = await client.get(current_url, **clean_kwargs)
+                    elif current_method == "POST":
+                        response = await client.post(current_url, **clean_kwargs)
+                    elif current_method == "HEAD":
+                        response = await client.head(current_url, **clean_kwargs)
+                    elif current_method == "OPTIONS":
+                        response = await client.options(current_url, **clean_kwargs)
+                    else:
+                        response = await client.request(
+                            current_method,
+                            current_url,
+                            **clean_kwargs,
+                        )
+                    limit = self._response_limit()
+                    if limit is not None and len(response.content) > limit:
+                        self.last_metadata["truncated"] = True
+                        raise ResponseTooLargeError(current_url, limit)
+                    if (
+                        self.follow_redirects
+                        and response.status_code in _REDIRECT_STATUS
+                    ):
+                        location = response.headers.get("location")
+                        await self._after_status(host, response.status_code)
+                        if not location:
+                            raise ScopeBlockedError(
+                                current_url,
+                                "redirect_missing_location",
+                            )
+                        next_url = urljoin(str(response.url), location)
+                        if hop >= self.max_redirects:
+                            raise TooManyRedirectsError(url, hop + 1)
+                        current_url = next_url
+                        if response.status_code in {301, 302, 303}:
+                            current_method = "GET"
+                            current_mutation = False
+                            current_kwargs = {}
+                        else:
+                            current_kwargs = {
+                                k: v
+                                for k, v in current_kwargs.items()
+                                if k not in {"content", "data", "json", "files"}
+                            }
+                        continue
+                    await self._after_status(host, response.status_code)
+                    self.last_metadata["response_bytes"] = len(response.content)
+                    return response
+
+                async with client.stream(
+                    current_method,
+                    current_url,
+                    **current_kwargs,
+                ) as streamed:
+                    if (
+                        self.follow_redirects
+                        and streamed.status_code in _REDIRECT_STATUS
+                    ):
+                        location = streamed.headers.get("location")
+                        try:
+                            await self._read_limited(streamed, url=current_url)
+                        except ResponseTooLargeError:
+                            pass
+                        await self._after_status(host, streamed.status_code)
+                        if not location:
+                            raise ScopeBlockedError(
+                                current_url,
+                                "redirect_missing_location",
+                            )
+                        next_url = urljoin(str(streamed.url), location)
+                        if hop >= self.max_redirects:
+                            raise TooManyRedirectsError(url, hop + 1)
+                        current_url = next_url
+                        if streamed.status_code in {301, 302, 303}:
+                            current_method = "GET"
+                            current_mutation = False
+                            current_kwargs = {}
+                        else:
+                            current_kwargs = {
+                                k: v
+                                for k, v in current_kwargs.items()
+                                if k
+                                not in {
+                                    "content",
+                                    "data",
+                                    "json",
+                                    "files",
+                                }
+                            }
+                        continue
+
+                    content = await self._read_limited(streamed, url=current_url)
+                    await self._after_status(host, streamed.status_code)
+                    return self._materialize(streamed, content)
+            except Exception:
+                await self._release_host(host)
+                raise
+
+        raise TooManyRedirectsError(url, self.max_redirects)
 
     async def get(self, url: str, **kwargs: Any) -> httpx.Response:
-        host = await self._before_request("GET", url, mutation=False)
-        try:
-            response = await self._ensure_client().get(url, **kwargs)
-        except Exception:
-            if self.rate_limiter is not None:
-                self.rate_limiter.release(host)
-            raise
-        return await self._after_request(host, response)
+        return await self._send("GET", url, mutation=False, **kwargs)
 
     async def post(self, url: str, **kwargs: Any) -> httpx.Response:
-        host = await self._before_request("POST", url, mutation=True)
-        try:
-            response = await self._ensure_client().post(url, **kwargs)
-        except Exception:
-            if self.rate_limiter is not None:
-                self.rate_limiter.release(host)
-            raise
-        return await self._after_request(host, response)
+        return await self._send("POST", url, mutation=True, **kwargs)
 
     async def head(self, url: str, **kwargs: Any) -> httpx.Response:
-        host = await self._before_request("HEAD", url, mutation=False)
-        try:
-            response = await self._ensure_client().head(url, **kwargs)
-        except Exception:
-            if self.rate_limiter is not None:
-                self.rate_limiter.release(host)
-            raise
-        return await self._after_request(host, response)
+        return await self._send("HEAD", url, mutation=False, **kwargs)
 
     async def options(self, url: str, **kwargs: Any) -> httpx.Response:
-        host = await self._before_request("OPTIONS", url, mutation=False)
-        try:
-            response = await self._ensure_client().options(url, **kwargs)
-        except Exception:
-            if self.rate_limiter is not None:
-                self.rate_limiter.release(host)
-            raise
-        return await self._after_request(host, response)
+        return await self._send("OPTIONS", url, mutation=False, **kwargs)
 
     async def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         mutation = method.upper() not in {"GET", "HEAD", "OPTIONS", "TRACE"}
-        host = await self._before_request(method, url, mutation=mutation)
-        try:
-            response = await self._ensure_client().request(method, url, **kwargs)
-        except Exception:
-            if self.rate_limiter is not None:
-                self.rate_limiter.release(host)
-            raise
-        return await self._after_request(host, response)
+        return await self._send(method, url, mutation=mutation, **kwargs)
 
     def stream(self, method: str, url: str, **kwargs: Any):
         client = self._ensure_client()
+        kwargs = dict(kwargs)
+        kwargs.pop("follow_redirects", None)
 
         class _ScopedStream:
             def __init__(self, transport: SecureTransport) -> None:

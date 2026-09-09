@@ -1,7 +1,6 @@
 name: Magic Security CI Regression Gate
 
-# STEP 49 — conceptual CI integration.
-# Fails on regression policy / coverage equivalence, not "any finding exists".
+# Optional remote staging gate. Exits 0 when MAGIC_SECURITY_TARGET is unset.
 
 on:
   pull_request:
@@ -20,7 +19,8 @@ jobs:
 
       - name: Install scanner
         run: |
-          python -m pip install -e ".[dev]"
+          python -m pip install -U pip
+          pip install -e ".[dev]"
 
       - name: Run policy-gated scan against staging target
         env:

@@ -15,7 +15,6 @@ from magic_security.backtesting import (
 from magic_security.browser import BrowserUnavailableError
 from magic_security.config import scan_config_from_flags
 from magic_security.engine import ScannerEngine
-from magic_security.models import FindingKind
 from magic_security.reporting import build_report, render_terminal_report, write_json_report
 from magic_security.reporting_html import write_html_report
 

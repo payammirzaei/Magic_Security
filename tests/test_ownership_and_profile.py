@@ -58,6 +58,16 @@ def test_suspended_blocks_active(tmp_path):
         )
 
 
+def test_dns_txt_live_lookup_disabled_by_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("MAGIC_SECURITY_DNS_TXT", raising=False)
+    store = HistoryStore(root=tmp_path / ".magic-security-dns")
+    registry = TargetRegistry(store)
+    registry.register("https://app.example.com", trusted_local=False)
+    registry.issue_challenge("https://app.example.com")
+    with pytest.raises(TargetRegistryError, match="Live DNS TXT verification is disabled"):
+        registry.verify_dns_txt("https://app.example.com")
+
+
 def test_production_safe_profile_denies_dangerous_paths():
     config = production_safe_remote_profile(
         "https://app.example.com",

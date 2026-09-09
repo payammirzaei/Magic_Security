@@ -12,7 +12,7 @@ from magic_security.framework_analysis import (
     analyze_repository_tree,
     compare_runtime_to_source,
 )
-from magic_security.models import CrawlResult, NormalizedEndpoint
+from magic_security.models import CrawlResult
 from magic_security.repo_adapter import RepoRoute, RepoSnapshot, RepositoryAdapter
 
 

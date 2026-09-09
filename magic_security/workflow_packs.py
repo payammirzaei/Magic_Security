@@ -336,7 +336,7 @@ def _finding_from_execution(
             (
                 step
                 for step in execution.steps
-                if step.id == "cross_read"
+                if step.step_id == "cross_read"
             ),
             None,
         )

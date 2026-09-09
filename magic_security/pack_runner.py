@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import traceback
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Awaitable, Callable
 
 from magic_security.models import Finding
 from magic_security.registry import CheckRegistry, CheckStatus

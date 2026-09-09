@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import httpx
 
 from magic_security.evidence import EvidenceObject, attach_evidence
 from magic_security.graphql_security import (
@@ -18,9 +17,7 @@ from magic_security.models import (
     AuthContext,
     CrawlResult,
     Finding,
-    FindingKind,
     NormalizedEndpoint,
-    Severity,
 )
 
 

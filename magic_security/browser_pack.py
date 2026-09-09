@@ -15,7 +15,7 @@ from magic_security.browser_security import (
     storage_findings,
     verify_dom_xss_browser,
 )
-from magic_security.evidence import EvidenceObject, attach_evidence, evidence_from_finding
+from magic_security.evidence import attach_evidence, evidence_from_finding
 from magic_security.injection import (
     verify_reflected_html_injection,
     verify_reflected_xss_browser,
@@ -24,7 +24,6 @@ from magic_security.models import (
     AuthContext,
     CrawlResult,
     Finding,
-    FindingKind,
     NormalizedEndpoint,
 )
 

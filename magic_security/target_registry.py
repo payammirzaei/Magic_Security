@@ -211,17 +211,29 @@ class TargetRegistry:
         expected = item.challenge_token or ""
         body = fetch_text
         if body is None:
-            from magic_security.transport import open_secure_transport
             import asyncio
 
-            async def _fetch() -> str:
-                url = base_url.rstrip("/") + "/.well-known/magic-security-verification.txt"
-                async with open_secure_transport(timeout=5.0) as client:
-                    response = await client.get(url)
-                    return response.text
+            from magic_security.ownership_transport import (
+                OwnershipTransportError,
+                fetch_well_known_verification,
+            )
 
             try:
-                body = asyncio.get_event_loop().run_until_complete(_fetch())
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    loop = None
+                if loop and loop.is_running():
+                    raise TargetRegistryError(
+                        "verify_well_known live fetch cannot run inside an "
+                        "active event loop; pass fetch_text= or await "
+                        "fetch_well_known_verification() from async code"
+                    )
+                body = asyncio.run(fetch_well_known_verification(base_url))
+            except OwnershipTransportError as exc:
+                raise TargetRegistryError(f"well-known fetch failed: {exc}") from exc
+            except TargetRegistryError:
+                raise
             except Exception as exc:  # noqa: BLE001
                 raise TargetRegistryError(f"well-known fetch failed: {exc}") from exc
         if expected not in (body or ""):
@@ -234,31 +246,43 @@ class TargetRegistry:
         *,
         txt_records: list[str] | None = None,
     ) -> RegisteredTarget:
-        """Verify DNS TXT at _magic-security.<host>."""
+        """Verify DNS TXT at _magic-security.<host>.
+
+        Live lookup is disabled unless MAGIC_SECURITY_DNS_TXT=1. Tests and
+        operators may inject ``txt_records=`` without enabling live DNS.
+        """
+        from magic_security.dns_txt import (
+            dns_txt_live_lookup_enabled,
+            lookup_txt_records,
+            records_contain_challenge,
+        )
+
         item = self.issue_challenge(base_url)
         host = urlparse(base_url).hostname
         if not host:
             raise TargetRegistryError("invalid host")
         expected = item.challenge_token or ""
+        name = f"_magic-security.{host}"
         records = txt_records
         if records is None:
-            import socket
-
-            name = f"_magic-security.{host}"
-            try:
-                # Prefer dnspython-free: getaddrinfo won't return TXT; require injection in tests
-                # or optional DNS lookup via socket.getaddrinfo is insufficient.
+            if not dns_txt_live_lookup_enabled():
                 raise TargetRegistryError(
-                    f"Pass txt_records= for verification of {name} "
-                    "(live DNS TXT lookup requires operator-supplied records in this build)"
+                    "Live DNS TXT verification is disabled. Pass txt_records= "
+                    f"for {name}, use verify_well_known(), or set "
+                    "MAGIC_SECURITY_DNS_TXT=1 to enable live lookup."
                 )
-            except socket.gaierror as exc:
-                raise TargetRegistryError(str(exc)) from exc
-        joined = " ".join(records)
-        if expected not in joined and f"magic-security-verification={item.target_id}" not in joined:
-            if expected.split("=", 1)[-1] not in joined and item.target_id not in joined:
-                raise TargetRegistryError("dns txt challenge mismatch")
+            try:
+                records = lookup_txt_records(name)
+            except Exception as exc:  # noqa: BLE001
+                raise TargetRegistryError(f"dns txt lookup failed: {exc}") from exc
+        if not records_contain_challenge(
+            records or [],
+            expected=expected,
+            target_id=item.target_id,
+        ):
+            raise TargetRegistryError("dns txt challenge mismatch")
         return self.mark_verified(base_url, method=VerificationMethod.DNS_TXT)
+
 
     def suspend(self, base_url: str) -> RegisteredTarget:
         item = self.get(base_url)

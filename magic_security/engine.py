@@ -33,7 +33,6 @@ from magic_security.logging_metrics import StructuredLogger
 from magic_security.pack_runner import run_isolated
 from magic_security.models import AuthContext, CrawlResult, EndpointCandidate, Finding, Severity
 from magic_security.openapi import discover_openapi_endpoints
-from magic_security.rate_limit import RateLimiter
 from magic_security.redaction import Redactor
 from magic_security.registry import CheckStatus, build_default_registry
 from magic_security.server_pack import run_server_pack

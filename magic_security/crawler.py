@@ -92,16 +92,14 @@ class HttpCrawler:
 
                 if budgets is not None and not budgets.consume_page(self.max_pages):
                     break
-                if budgets is not None and not budgets.consume_request(url):
-                    break
 
+                # Request budget + request metrics are owned by SecureTransport.
                 try:
                     response = await client.get(url)
                 except httpx.HTTPError:
                     continue
 
                 if metrics is not None:
-                    metrics.requests += 1
                     metrics.pages += 1
 
                 content_type = response.headers.get("content-type", "").lower()
@@ -184,14 +182,10 @@ class HttpCrawler:
                         result.parameters.update(names)
 
             for asset_url in sorted(result.js_assets)[: self.max_js_assets]:
-                if budgets is not None and not budgets.consume_request(asset_url):
-                    break
                 try:
                     response = await client.get(asset_url)
                 except httpx.HTTPError:
                     continue
-                if metrics is not None:
-                    metrics.requests += 1
                 if response.status_code != 200:
                     continue
 

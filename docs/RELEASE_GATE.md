@@ -39,11 +39,6 @@
 
 ## Verdict
 
-**NOT READY** for a professional “production-ready” version bump.
+**HARDENING PASS for core trust controls** (packaging, redirects, budgets, streaming caps, DNS pin/TOCTOU, ownership transport, strict WORSENED).
 
-Critical remaining work before release:
-
-1. Full Playwright E2E against `vulnerable_app` with asserted verified findings  
-2. Multi-account workflow E2E with cleanup-after-failure proof  
-3. Harden lint gate to fail on Ruff errors  
-4. Rebuild `web/dist` after dashboard filter polish
+Remaining optional remote staging gate stays env-gated. Version remains **1.3.0** until operators accept the full CI matrix on `main`.

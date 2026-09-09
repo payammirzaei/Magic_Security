@@ -1,7 +1,5 @@
 name: browser-e2e
 
-# STEP 55 — Browser real E2E (Playwright Chromium)
-
 on:
   push:
     branches: [main]
@@ -20,6 +18,6 @@ jobs:
           python -m pip install -U pip
           pip install -e ".[dev,browser]"
           playwright install --with-deps chromium
-      - name: Browser-focused tests
+      - name: Browser unit + vulnerable_app Playwright E2E
         run: |
-          pytest -q tests/test_browser.py tests/test_browser_auth.py tests/test_steps_21_30.py -k "browser or xss or websocket or storage" --tb=line
+          pytest -q tests/test_browser.py tests/test_browser_auth.py tests/test_vulnerable_app_browser_e2e.py --tb=line

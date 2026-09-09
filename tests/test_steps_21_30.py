@@ -268,7 +268,7 @@ async def test_auth_context_v2_duplicate_and_compat(tmp_path, monkeypatch):
 
     async def fake_get(self, url, **kwargs):
         request = httpx.Request("GET", url)
-        cookie = self.cookies.get("s") if hasattr(self, "cookies") else None
+        self.cookies.get("s") if hasattr(self, "cookies") else None
         # Both sessions look identical → duplicate identity.
         return httpx.Response(
             200,
