@@ -18,6 +18,13 @@ class FindingKind(str, Enum):
     HARDENING = "hardening"
 
 
+class ConfidenceLevel(str, Enum):
+    CANDIDATE = "candidate"
+    LIKELY = "likely"
+    STRONG = "strong"
+    VERIFIED = "verified"
+
+
 @dataclass(slots=True)
 class PageSnapshot:
     url: str
@@ -380,8 +387,19 @@ class Finding:
     cwe: str | None = None
     affected_urls: tuple[str, ...] = ()
     occurrences: int = 1
+    check_id: str | None = None
     fingerprint: str | None = None
 
     @property
+    def confidence_level(self) -> ConfidenceLevel:
+        if self.confidence >= 0.95:
+            return ConfidenceLevel.VERIFIED
+        if self.confidence >= 0.80:
+            return ConfidenceLevel.STRONG
+        if self.confidence >= 0.50:
+            return ConfidenceLevel.LIKELY
+        return ConfidenceLevel.CANDIDATE
+
+    @property
     def verified(self) -> bool:
-        return self.confidence >= 0.95
+        return self.confidence_level is ConfidenceLevel.VERIFIED
