@@ -11,7 +11,7 @@ import httpx
 
 from magic_security.auth import AuthConfigError, load_auth_contexts as _load_auth_contexts
 from magic_security.models import AuthContext
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 
 _IDENTITY_PATHS = (
@@ -84,7 +84,7 @@ async def probe_context_identity(
     timeout: float = 5.0,
 ) -> IdentityProbeResult:
     paths = list(_IDENTITY_PATHS)
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={

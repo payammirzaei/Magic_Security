@@ -1,0 +1,878 @@
+# Magic_Security — Post-50-Step Hardening & Reality Audit
+
+The repository claims STEPs 1–50 are implemented at v1.3.0.
+
+Do **not** add major new security features.
+
+Your job now is to prove that the existing implementation is genuinely integrated, safe, reproducible, and production-usable.
+
+Work through the following items sequentially. Do not skip items because unit tests are already green.
+
+---
+
+## STEP 51 — Full Network Safety Audit
+
+Audit every outbound HTTP/WebSocket/browser network operation.
+
+Requirement:
+
+Every outbound scanner request must go through the central safety controls:
+
+* ScopePolicy
+* RequestBudget
+* RateLimiter
+* ScanContext
+* SecureTransport or an equivalent centrally controlled browser transport
+
+Known issue to fix first:
+
+In `engine.py`, JavaScript artifact fetching creates:
+
+```python
+SecureTransport(follow_redirects=True, timeout=5.0)
+```
+
+without passing the current ScanContext.
+
+That means scope/budget/rate controls may not be inherited.
+
+Fix this and search the entire repository for any equivalent bypass.
+
+Audit:
+
+* direct httpx usage
+* urllib
+* requests
+* aiohttp
+* raw sockets
+* Playwright fetch/navigation
+* WebSocket connections
+* redirects
+* JS/source-map downloads
+* repository enrichment network access
+
+Add tests that prove no scanner network path can bypass scope.
+
+---
+
+## STEP 52 — Scope Bypass Red-Team Suite
+
+Actively try to break ScopePolicy.
+
+Test at minimum:
+
+* `127.0.0.1.evil.com`
+* decimal/hex/octal IP representations
+* IPv6 loopback
+* IPv4-mapped IPv6
+* localhost DNS aliases
+* username/password URL confusion
+* redirect chains
+* URL fragments
+* encoded hostnames
+* trailing dots
+* IDN/punycode
+* alternate ports
+* scheme changes
+* HTTP → HTTPS
+* HTTPS → HTTP
+* WebSocket redirects
+* browser navigation to external origins
+* DNS resolution changing between validation and request
+
+The scanner must fail closed.
+
+---
+
+## STEP 53 — Request Budget Enforcement Audit
+
+Prove that request budgets cannot be bypassed by individual packs.
+
+Create instrumentation that records every dispatched request.
+
+Test:
+
+* HTTP crawler
+* browser crawler
+* JS analysis
+* GraphQL
+* API pack
+* auth pack
+* IDOR
+* WebSocket
+* workflow engine
+* server pack
+* exposure pack
+
+When the budget is exhausted:
+
+* no additional request is sent;
+* scan remains valid;
+* coverage becomes Partial/Incomplete;
+* report never says the category was fully tested.
+
+---
+
+## STEP 54 — Full Secret-Leak Audit
+
+Seed unique fake secrets into every possible input source:
+
+* headers
+* cookies
+* Authorization
+* query parameters
+* POST forms
+* JSON
+* GraphQL
+* browser storage
+* HTML
+* JavaScript
+* source maps
+* WebSocket messages
+* auth contexts
+* workflow variables
+* repository files
+* exceptions
+
+Then scan every output channel:
+
+* terminal
+* JSON
+* HTML
+* snapshot
+* history
+* SQLite
+* logs
+* exceptions
+* API responses
+* CI output
+
+No raw secret may appear anywhere.
+
+Only redacted values or fingerprints are allowed.
+
+---
+
+## STEP 55 — Browser Real E2E CI
+
+Current normal CI does not prove the browser stack works.
+
+Create a separate GitHub Actions browser job.
+
+Install:
+
+```bash
+pip install -e ".[dev,browser]"
+playwright install --with-deps chromium
+```
+
+Run actual browser integration tests against `examples/vulnerable_app.py`.
+
+Verify at minimum:
+
+* browser discovery
+* reflected XSS
+* DOM XSS
+* client redirects
+* storage inspection
+* postMessage analysis
+* WebSocket discovery
+* authenticated browser contexts
+
+No mocks for the critical E2E browser acceptance tests.
+
+---
+
+## STEP 56 — API Real E2E CI
+
+Current API test is skipped when `[api]` is not installed.
+
+Add a dedicated CI job:
+
+```bash
+pip install -e ".[dev,api]"
+```
+
+Run FastAPI API tests using a real test client.
+
+Verify:
+
+* create target
+* list targets
+* create scan
+* get scan
+* get findings
+* get coverage
+* get diff
+* missing baseline behavior
+* bad target behavior
+* remote active authorization rejection
+
+No API test should be skipped in this job.
+
+---
+
+## STEP 57 — Workflow Engine Real E2E
+
+Unit tests are not enough.
+
+Run real workflow integration tests against the vulnerable demo application.
+
+Verify separately:
+
+### BOLA write workflow
+
+* User A creates disposable object.
+* User B modifies/reads it.
+* Proof is generated.
+* Cleanup succeeds.
+
+### Stored XSS workflow
+
+* Store harmless canary.
+* Browser renders it.
+* Runtime execution is verified.
+* Test content is deleted.
+
+### Upload workflow
+
+* Upload harmless file.
+* Read as owner.
+* Attempt cross-user access.
+* Verify behavior.
+* Delete artifact.
+
+### Session workflow
+
+* Login.
+* Fingerprint session without storing value.
+* Logout.
+* Verify invalidation.
+* Login again.
+* Verify rotation.
+
+Test cleanup after intentional failures too.
+
+---
+
+## STEP 58 — Auth Identity Integrity Audit
+
+Prove that two configured test users are genuinely different identities.
+
+Test:
+
+* identical cookies accidentally supplied twice
+* two sessions belonging to same account
+* expired session
+* redirected-to-login session
+* partially authenticated session
+* role mismatch
+* context name mismatch
+* authentication refresh during scan
+
+Authorization tests must stop if identity separation cannot be proven.
+
+Never generate BOLA findings from ambiguous identity contexts.
+
+---
+
+## STEP 59 — Finding Proof Audit
+
+Inspect every check capable of emitting `FindingKind.VULNERABILITY`.
+
+For each one, write down:
+
+```text
+check_id
+baseline
+mutation
+proof
+negative control
+evidence stored
+```
+
+A Vulnerability must never be emitted solely from:
+
+* regex match
+* status code
+* header absence
+* suspicious error
+* source-code smell
+* generic response difference
+
+Downgrade insufficiently proven cases to:
+
+* Exposure
+* Hardening
+* Observation
+
+---
+
+## STEP 60 — False Positive Corpus
+
+Build a deliberately safe application containing behaviors that commonly fool scanners:
+
+* custom 404 returning 200
+* generic JSON success envelope
+* SPA fallback
+* reflected text that is HTML-encoded
+* public IDs
+* shared resources
+* permissive CORS on public non-sensitive endpoint
+* CSP nonce setup
+* rate limiting with unusual status codes
+* generic DB-looking error text
+* fake secrets in documentation
+* source maps with no secret material
+
+Magic_Security must not incorrectly report verified vulnerabilities.
+
+---
+
+## STEP 61 — False Negative Corpus
+
+For every vulnerability Magic_Security claims to support, create a minimum vulnerable fixture.
+
+Maintain it forever.
+
+At minimum:
+
+* reflected XSS
+* DOM XSS
+* stored XSS
+* BOLA read
+* BOLA write
+* unsafe CORS
+* SSTI
+* CRLF
+* traversal
+* safe SSRF callback
+* open redirect
+* auth bypass
+* GraphQL exposure
+* WebSocket origin issue
+* upload authorization issue
+
+If a future refactor misses one, CI must fail.
+
+---
+
+## STEP 62 — Backtesting Acceptance Sequence
+
+Create one automated test that performs the complete security history lifecycle:
+
+1. Scan clean version.
+2. Set baseline.
+3. Introduce vulnerability.
+4. Scan.
+5. Assert `NEW`.
+6. Fix vulnerability.
+7. Scan.
+8. Assert `RESOLVED`.
+9. Reintroduce vulnerability.
+10. Scan.
+11. Assert `REINTRODUCED`.
+12. Increase severity.
+13. Assert `WORSENED`.
+14. Disable browser/auth coverage.
+15. Assert scan is not coverage-equivalent.
+
+This should be a real end-to-end test, not only handcrafted snapshot dictionaries.
+
+---
+
+## STEP 63 — Historical Endpoint Verification
+
+Verify historical endpoint seeding carefully.
+
+Test:
+
+* endpoint disappeared from navigation but still exists
+* endpoint actually removed
+* endpoint now returns 404
+* endpoint changed method
+* endpoint changed authentication requirement
+* endpoint moved to a new version
+
+Historical data must never be mistaken for current evidence unless revalidated.
+
+---
+
+## STEP 64 — Remote Target Ownership Flow
+
+Current registry models DNS TXT and well-known verification, but automated flows are minimal.
+
+Implement real verification flows.
+
+### DNS TXT
+
+Generate challenge:
+
+```text
+_magic-security.example.com
+magic-security-verification=<token>
+```
+
+Resolve and verify it.
+
+### Well-known
+
+Verify:
+
+```text
+https://example.com/.well-known/magic-security-verification.txt
+```
+
+containing the expected token.
+
+Support:
+
+* verification
+* expiration
+* re-verification
+* suspension
+
+Do not enable remote active scanning before successful verification.
+
+---
+
+## STEP 65 — Production-Safe Profile Audit
+
+Test the production profile against intentionally dangerous discovered actions.
+
+Examples:
+
+* DELETE endpoint
+* payment endpoint
+* account deletion
+* checkout
+* email sending
+* password change
+* admin import
+* file deletion
+
+The production-safe profile must not execute them automatically.
+
+State-changing tests require explicit workflow configuration.
+
+---
+
+## STEP 66 — Real Dashboard
+
+Current dashboard is only a minimal target table.
+
+Implement the actual local dashboard required by the plan.
+
+Screens/sections:
+
+### Targets
+
+* target
+* environment
+* verification state
+* latest scan
+
+### Security Status
+
+* verified critical/high
+* new regressions
+* resolved findings
+* scan validity
+
+### Findings
+
+Filter by:
+
+* severity
+* confidence
+* kind
+* check ID
+* regression state
+
+### Coverage
+
+Show:
+
+* executed
+* partial
+* requires auth
+* requires workflow
+* failed
+* not tested
+
+### Attack Surface
+
+Show:
+
+* endpoints
+* parameters
+* GraphQL
+* WebSockets
+* newly added/removed surface
+
+### Scan History
+
+Timeline of scans and baselines.
+
+### Diff
+
+Side-by-side security regression view.
+
+Keep it local-first and simple. No multi-user SaaS auth yet.
+
+---
+
+## STEP 67 — API/Dashboard Security
+
+Because Magic_Security itself is a security product, audit its own local API.
+
+Check:
+
+* path traversal
+* unsafe file paths
+* arbitrary repository path access
+* SQLite path handling
+* HTML escaping
+* stored report content
+* API input validation
+* oversized request bodies
+* workflow path injection
+
+The local UI/API must not become a new vulnerability surface.
+
+---
+
+## STEP 68 — Repo Analysis Quality Pass
+
+Test framework analysis against real small fixtures.
+
+### Next.js
+
+Support:
+
+* app router
+* pages router
+* route handlers
+* middleware
+* API routes
+* dynamic segments
+
+### Laravel
+
+Support:
+
+* `routes/web.php`
+* `routes/api.php`
+* middleware groups
+* route resources
+* controllers/policies where practical
+
+### FastAPI
+
+Support:
+
+* decorators
+* APIRouter
+* prefixes
+* dependencies
+
+### Express
+
+Support:
+
+* router modules
+* route chaining
+* middleware
+
+Avoid pretending heuristic extraction is complete.
+
+Report extraction confidence.
+
+---
+
+## STEP 69 — Dependency / Supply-Chain Baseline
+
+The repository-aware plan mentions dependency analysis but current implementation is shallow.
+
+Implement manifest inventory first:
+
+* package-lock.json
+* pnpm-lock.yaml
+* yarn.lock
+* composer.lock
+* requirements.txt
+* poetry.lock
+* uv.lock
+* Docker base images
+* GitHub Actions versions
+
+Do not yet claim vulnerability status unless using a trustworthy advisory source.
+
+First goal:
+
+```text
+Dependency inventory + source location + version
+```
+
+---
+
+## STEP 70 — Scanner Self-Observability
+
+Create a scan diagnostic report containing:
+
+* requests per pack
+* duration per pack
+* endpoints discovered per source
+* browser-only endpoints
+* auth-only endpoints
+* budget consumption
+* check failures
+* coverage degradation
+* redaction events count
+* retries/backoff
+
+This must contain no secrets.
+
+---
+
+## STEP 71 — Performance Baselines
+
+Establish benchmarks for:
+
+### Small app
+
+~20 endpoints
+
+### Medium app
+
+~200 endpoints
+
+### Large synthetic app
+
+~1000 routes
+
+Measure:
+
+* runtime
+* total requests
+* memory
+* browser overhead
+* auth overhead
+* active pack overhead
+
+Detect accidental O(N²) behavior.
+
+Do not optimize by silently reducing coverage.
+
+---
+
+## STEP 72 — Cancellation / Crash Recovery
+
+Test:
+
+* Ctrl+C
+* network timeout
+* Playwright crash
+* one broken pack
+* workflow assertion failure
+* database error
+* disk write error
+
+Ensure:
+
+* cleanup runs where possible;
+* scan state is not corrupted;
+* partial scan is clearly marked;
+* history does not treat broken scan as valid baseline.
+
+---
+
+## STEP 73 — Full CI Matrix
+
+Create CI matrix covering:
+
+```text
+Python 3.11
+Python 3.12
+Python 3.13
+```
+
+Jobs:
+
+1. core tests
+2. browser E2E
+3. API tests
+4. security acceptance
+5. redaction/leak tests
+6. false-positive corpus
+7. false-negative corpus
+
+Optional:
+
+* Linux only initially.
+
+A green core unit suite alone must no longer be treated as full acceptance.
+
+---
+
+## STEP 74 — Lint / Type Quality Gate
+
+Add:
+
+* Ruff
+* formatting check
+* import validation
+* optional mypy/pyright for core typed modules
+
+Check specifically:
+
+* unused code
+* unreachable code
+* broad exception swallowing
+* duplicate logic
+* unsafe `except Exception: continue`
+* direct network calls
+* mutable global state
+
+Do not let style work trigger a giant rewrite.
+
+---
+
+## STEP 75 — Remove Fake Completeness
+
+Search the entire repository for:
+
+```text
+STEP
+TODO
+placeholder
+conceptual
+minimal
+mock
+stub
+temporary
+future
+pass
+NotImplemented
+```
+
+For every result classify it:
+
+```text
+Intentional
+Needs implementation
+Testing-only
+Dead code
+```
+
+Remove misleading comments such as:
+
+```text
+STEP 49 — conceptual CI integration
+```
+
+if the feature is being presented as implemented.
+
+Documentation must match reality exactly.
+
+---
+
+## STEP 76 — Formal Acceptance Matrix
+
+Create:
+
+```text
+docs/ACCEPTANCE_MATRIX.md
+```
+
+For every major capability include:
+
+| Capability | Unit | Integration | E2E | Safe fixture | Vulnerable fixture | CI |
+| ---------- | ---- | ----------- | --- | ------------ | ------------------ | -- |
+
+No capability may be called “production-ready” unless its required columns pass.
+
+---
+
+## STEP 77 — Professional Release Gate
+
+Do not change the version again until all critical hardening steps pass.
+
+Before release, run:
+
+```bash
+pytest
+browser E2E
+api E2E
+workflow E2E
+acceptance suite
+secret leak suite
+scope bypass suite
+backtesting lifecycle
+```
+
+Then generate a final report:
+
+```text
+PASS
+FAIL
+PARTIAL
+NOT TESTED
+```
+
+for each acceptance category.
+
+---
+
+# Highest Priority Order
+
+Execute in this order first:
+
+```text
+51  Network safety audit
+52  Scope bypass suite
+54  Secret leak audit
+55  Browser real E2E
+57  Workflow real E2E
+58  Auth identity integrity
+59  Finding proof audit
+60  False positives
+61  False negatives
+62  Real backtesting lifecycle
+```
+
+Only after those are clean continue with:
+
+```text
+64 Remote ownership
+66 Real dashboard
+68 Repo analysis quality
+69 Dependency inventory
+70 Observability
+71 Performance
+72 Recovery
+73 Full CI
+74 Lint/type
+75 Remove fake completeness
+76 Acceptance matrix
+77 Release gate
+```
+
+# Critical Rule
+
+Do not respond with “implemented” merely because code exists.
+
+For each step provide proof:
+
+```text
+FILES CHANGED
+TESTS ADDED
+TESTS RUN
+REAL E2E RESULT
+KNOWN LIMITATIONS
+UNIMPLEMENTED PARTS
+```
+
+If something is only scaffolded, say `SCAFFOLDED`, not `IMPLEMENTED`.
+
+Start with STEP 51 only.

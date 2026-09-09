@@ -12,6 +12,7 @@ from magic_security.models import (
     CrawlResult,
     EndpointCandidate,
 )
+from magic_security.transport import ScopeBlockedError, assert_url_in_scope
 
 
 class BrowserUnavailableError(RuntimeError):
@@ -214,6 +215,16 @@ class BrowserCrawler:
 
             async def route_handler(route):
                 request_url = route.request.url
+                try:
+                    assert_url_in_scope(request_url, crawl=crawl)
+                except RuntimeError:
+                    # Standalone browser enrich without bound ScanContext.
+                    if not same_origin(request_url, crawl.target):
+                        await route.abort()
+                        return
+                except ScopeBlockedError:
+                    await route.abort()
+                    return
                 if same_origin(request_url, crawl.target):
                     await route.continue_()
                 else:
@@ -269,11 +280,14 @@ class BrowserCrawler:
                 visited.add(url)
 
                 try:
+                    assert_url_in_scope(url, crawl=crawl)
                     await page.goto(
                         url,
                         wait_until="domcontentloaded",
                     )
                     await page.wait_for_timeout(self.settle_ms)
+                except ScopeBlockedError:
+                    continue
                 except Exception:
                     continue
 

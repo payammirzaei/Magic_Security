@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.models import EndpointCandidate
 
@@ -72,7 +72,7 @@ async def discover_openapi_endpoints(
 ) -> set[EndpointCandidate]:
     endpoints: set[EndpointCandidate] = set()
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for path in ("/openapi.json", "/swagger.json"):
             url = urljoin(target.rstrip("/") + "/", path.lstrip("/"))
             try:

@@ -20,7 +20,7 @@ from magic_security.models import (
     Severity,
 )
 from magic_security.probes import probe_common_exposures, probe_source_maps
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 from magic_security.user_surface_security import analyze_user_visible_surface
 
 
@@ -95,7 +95,7 @@ async def _probe_index_sensitive_paths(
     if not candidates:
         return findings
 
-    async with SecureTransport(follow_redirects=False, timeout=5.0) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=5.0) as client:
         for url in candidates:
             try:
                 response = await client.get(url)

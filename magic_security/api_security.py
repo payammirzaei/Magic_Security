@@ -20,7 +20,7 @@ from magic_security.models import (
     NormalizedEndpoint,
     Severity,
 )
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 
 @dataclass
@@ -164,7 +164,7 @@ async def _unexpected_methods(
         and "{" not in ep.url
         and "/api/" in ep.url.lower()
     ][:10]
-    async with SecureTransport(follow_redirects=False, timeout=5.0) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=5.0) as client:
         for endpoint in samples:
             try:
                 response = await client.request("OPTIONS", endpoint.url)
@@ -219,7 +219,7 @@ async def _content_type_confusion(
         and "{" not in ep.url
         and "/api/" in ep.url.lower()
     ][:8]
-    async with SecureTransport(follow_redirects=False, timeout=5.0) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=5.0) as client:
         for endpoint in samples:
             try:
                 json_resp = await client.get(
@@ -285,7 +285,7 @@ async def _verbose_validation_errors(
         and ep.parameters
         and "{" not in ep.url
     ][:10]
-    async with SecureTransport(follow_redirects=False, timeout=5.0) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=5.0) as client:
         for endpoint in samples:
             parameter = endpoint.parameters[0]
             parts = urlsplit(endpoint.url)
@@ -365,7 +365,7 @@ async def _pagination_boundary(
             for name in ep.parameters
         )
     ][:6]
-    async with SecureTransport(follow_redirects=False, timeout=5.0) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=5.0) as client:
         for endpoint in samples:
             parts = urlsplit(endpoint.url)
             query = dict(parse_qsl(parts.query, keep_blank_values=True))

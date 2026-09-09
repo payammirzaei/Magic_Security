@@ -6,7 +6,7 @@ from xml.etree import ElementTree
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.discovery import same_origin
 from magic_security.models import EndpointCandidate
@@ -31,7 +31,7 @@ async def discover_index_documents(
     robots_entries = 0
     sitemap_entries = 0
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={

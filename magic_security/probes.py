@@ -9,7 +9,7 @@ import httpx
 
 from magic_security.models import Finding, FindingKind, Severity
 from magic_security.redaction import env_secret_key_names
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 
 def _redacted_env_evidence(body: str) -> str:
@@ -31,7 +31,7 @@ async def probe_common_exposures(
     probes = ["/.env", "/.git/HEAD", "/openapi.json", "/swagger.json"]
     metrics = getattr(scan_context, "metrics", None)
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for path in probes:
             if scan_context is not None and getattr(
                 scan_context,
@@ -111,7 +111,7 @@ async def probe_common_exposures(
 async def probe_source_maps(urls: Iterable[str], timeout: float = 5.0) -> list[Finding]:
     findings: list[Finding] = []
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for url in sorted(set(urls)):
             try:
                 response = await client.get(

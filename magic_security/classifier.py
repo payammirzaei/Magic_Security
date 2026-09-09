@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.models import (
     EndpointObservation,
@@ -108,7 +108,7 @@ async def classify_endpoints(
         and "}" not in endpoint.url
     ][:max_endpoints]
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={

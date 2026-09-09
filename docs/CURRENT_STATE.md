@@ -201,11 +201,16 @@ Dev: `pytest`, `pytest-asyncio`
 6. Package structure remains a flat module layout (not the multi-package architecture sketched in the master plan).
 7. STEP 50 acceptance is covered by focused regression/policy/scope tests + docs, not a full A–G formal matrix harness.
 8. Remote DNS TXT / well-known ownership challenges are modeled in the registry; full automated challenge flows remain minimal.
+9. **STEP 51 (network safety):** HTTP packs use `open_secure_transport` + bound `ScanContext`. Browser gating is pre-navigation / route abort (`assert_url_in_scope`) — not full CDP request interception with budget accounting for every browser subresource. Playwright itself is outside `SecureTransport`. Demo app / DNS utilities are not scanner network paths.
 
 ---
 
 ## 7. Ready for incremental evolution
 
 STEPs **1–50** of the Cursor build plan are implemented in-tree at scanner **1.3.0**.
+
+**STEP 51** network safety audit: HTTP outbound paths inherit ScopePolicy / RequestBudget / RateLimiter via `open_secure_transport` and engine `bind_scan_context`. Browser/WebSocket active navigation is scope-gated (`PARTIAL` vs full request-budgeted browser transport).
+
+Next: STEP 52+ from the Post-50 hardening audit.
 
 Further work should treat this document as the behavioral baseline and evolve via tests + version/schema bumps rather than silent rewrites.

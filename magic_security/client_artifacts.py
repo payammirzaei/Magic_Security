@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.models import ClientArtifactObservation, Finding, FindingKind, Severity
 
@@ -114,7 +114,7 @@ async def analyze_client_artifacts(
     assets = [(url, "javascript") for url in sorted(set(js_assets))]
     assets.extend((url, "source_map") for url in sorted(set(source_maps)))
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for url, artifact_type in assets[:max_assets]:
             try:
                 response = await client.get(

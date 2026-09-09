@@ -389,6 +389,8 @@ class CrawlResult:
     repo_findings: list[dict[str, object]] = field(default_factory=list)
     repo_snapshot: dict[str, object] = field(default_factory=dict)
     repo_correlations: list[dict[str, object]] = field(default_factory=list)
+    # Runtime handle only — never serialized into reports/snapshots.
+    scan_context: object | None = None
 
 
 @dataclass(slots=True)

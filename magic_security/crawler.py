@@ -5,7 +5,7 @@ from urllib.parse import urldefrag, urljoin
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 from bs4 import BeautifulSoup
 
 from magic_security.discovery import (
@@ -49,10 +49,29 @@ class HttpCrawler:
         result = CrawlResult(target=target)
         queue: deque[str] = deque([target])
         seen: set[str] = set()
+
+        if scan_context is None:
+            from magic_security.budgets import RequestBudget
+            from magic_security.config import ScanConfig
+            from magic_security.context import create_scan_context
+            from magic_security.scope import ScopePolicy
+            from magic_security.transport import attach_rate_limiter
+
+            scan_context = create_scan_context(ScanConfig(target=target))
+            scan_context.scope = ScopePolicy(
+                scan_context.config.scope,
+                target=target,
+                allow_remote=False,
+            )
+            scan_context.budgets = RequestBudget(scan_context.config.budgets)
+            attach_rate_limiter(scan_context)
+
+        result.scan_context = scan_context
         metrics = getattr(scan_context, "metrics", None)
         budgets = getattr(scan_context, "budgets", None)
 
-        async with SecureTransport(
+        async with open_secure_transport(
+            scan_context,
             follow_redirects=True,
             timeout=self.timeout,
             headers={"User-Agent": "Magic-Security/0.2 local-security-scanner"},

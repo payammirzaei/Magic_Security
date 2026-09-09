@@ -5,7 +5,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import ScopeBlockedError, assert_url_in_scope, open_secure_transport
 from bs4 import BeautifulSoup
 
 from magic_security.evidence import EvidenceObject, attach_evidence
@@ -51,7 +51,7 @@ async def verify_reflected_html_injection(
     findings: list[Finding] = []
     tested = 0
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
     ) as client:
@@ -239,6 +239,7 @@ async def verify_reflected_xss_browser(
                 )
 
                 try:
+                    assert_url_in_scope(probe_url)
                     await page.goto(
                         probe_url,
                         wait_until="domcontentloaded",
@@ -251,6 +252,8 @@ async def verify_reflected_xss_browser(
                         ) === token""",
                         token,
                     )
+                except ScopeBlockedError:
+                    continue
                 except Exception:
                     continue
 

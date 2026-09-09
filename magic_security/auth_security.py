@@ -24,7 +24,7 @@ from magic_security.models import (
     Severity,
 )
 from magic_security.session_security import analyze_session_cookies
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 
 @dataclass
@@ -50,7 +50,7 @@ async def _invalid_credential_baseline(
     target: str,
 ) -> list[Finding]:
     findings: list[Finding] = []
-    async with SecureTransport(follow_redirects=False, timeout=5.0) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=5.0) as client:
         for path in _LOGIN_CANDIDATES[:6]:
             url = urljoin(target.rstrip("/") + "/", path.lstrip("/"))
             try:
@@ -114,7 +114,7 @@ async def _account_enumeration_signal(
     findings: list[Finding] = []
     path = "/api/login"
     url = urljoin(target.rstrip("/") + "/", path.lstrip("/"))
-    async with SecureTransport(follow_redirects=False, timeout=5.0) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=5.0) as client:
         try:
             missing = await client.post(
                 url,
@@ -177,7 +177,7 @@ async def _account_enumeration_signal(
 
 async def _alternate_auth_endpoints(target: str) -> list[Finding]:
     findings: list[Finding] = []
-    async with SecureTransport(follow_redirects=False, timeout=5.0) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=5.0) as client:
         for path in _LOGIN_CANDIDATES:
             url = urljoin(target.rstrip("/") + "/", path.lstrip("/"))
             try:

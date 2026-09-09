@@ -9,7 +9,7 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 import httpx
 
 from magic_security.evidence import EvidenceObject, attach_evidence
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.models import (
     AuthComparison,
@@ -218,7 +218,7 @@ async def _discover_owned_ids(
 
     candidates = candidates[:max_endpoints]
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={
@@ -375,7 +375,7 @@ async def _verify_pair(
     tested = 0
 
     async with (
-        SecureTransport(
+        open_secure_transport(
             follow_redirects=False,
             timeout=timeout,
             headers={
@@ -385,7 +385,7 @@ async def _verify_pair(
             },
             cookies=owner.cookies,
         ) as owner_client,
-        SecureTransport(
+        open_secure_transport(
             follow_redirects=False,
             timeout=timeout,
             headers={
@@ -395,7 +395,7 @@ async def _verify_pair(
             },
             cookies=requester.cookies,
         ) as requester_client,
-        SecureTransport(
+        open_secure_transport(
             follow_redirects=False,
             timeout=timeout,
             headers={

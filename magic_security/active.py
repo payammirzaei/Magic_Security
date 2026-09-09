@@ -5,7 +5,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.evidence import EvidenceObject, attach_evidence
 from magic_security.models import EndpointCandidate, Finding, FindingKind, Severity
@@ -69,7 +69,7 @@ async def verify_cors(
     findings: list[Finding] = []
     seen: set[str] = set()
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for url in sorted(set(urls))[:max_urls]:
             try:
                 response = await client.get(
@@ -152,7 +152,7 @@ async def verify_open_redirects(
     tested = 0
     reported: set[tuple[str, str]] = set()
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for endpoint in sorted(
             set(endpoints),
             key=lambda item: (item.url, item.method, item.source),

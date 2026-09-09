@@ -1,8 +1,9 @@
-"""Central HTTP transport (STEP 9)."""
+"""Central HTTP transport (STEP 9 / STEP 51 network safety)."""
 
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import uuid
 from types import TracebackType
 from typing import Any
@@ -16,6 +17,11 @@ from magic_security.rate_limit import RateLimiter
 from magic_security.scope import ScopePolicy
 
 DEFAULT_USER_AGENT = "Magic-Security/1.1 local-security-scanner"
+
+_SCAN_CONTEXT: contextvars.ContextVar[Any | None] = contextvars.ContextVar(
+    "magic_security_scan_context",
+    default=None,
+)
 
 
 class ScopeBlockedError(httpx.RequestError):
@@ -34,6 +40,66 @@ class BudgetBlockedError(httpx.RequestError):
         request = httpx.Request("GET", url)
         super().__init__(f"Request blocked by budget: {url}", request=request)
         self.url = url
+
+
+def bind_scan_context(scan_context: Any) -> contextvars.Token:
+    """Bind ScanContext for the current async task / call stack."""
+    return _SCAN_CONTEXT.set(scan_context)
+
+
+def reset_scan_context(token: contextvars.Token) -> None:
+    _SCAN_CONTEXT.reset(token)
+
+
+def current_scan_context(
+    scan_context: Any | None = None,
+    crawl: Any | None = None,
+) -> Any:
+    """Resolve ScanContext from explicit arg, crawl attachment, or bound context."""
+    if scan_context is not None:
+        return scan_context
+    if crawl is not None:
+        attached = getattr(crawl, "scan_context", None)
+        if attached is not None:
+            return attached
+    bound = _SCAN_CONTEXT.get()
+    if bound is None:
+        raise RuntimeError(
+            "No ScanContext for network I/O. Pass scan_context=, attach "
+            "crawl.scan_context, or bind_scan_context() in the engine."
+        )
+    return bound
+
+
+def open_secure_transport(
+    scan_context: Any | None = None,
+    *,
+    crawl: Any | None = None,
+    **kwargs: Any,
+) -> SecureTransport:
+    """Fail-closed factory: every outbound HTTP client inherits safety controls."""
+    ctx = current_scan_context(scan_context, crawl)
+    if getattr(ctx, "scope", None) is None:
+        raise RuntimeError("ScanContext.scope is required for network I/O")
+    kwargs.pop("scan_context", None)
+    return SecureTransport(scan_context=ctx, **kwargs)
+
+
+def assert_url_in_scope(
+    url: str,
+    scan_context: Any | None = None,
+    *,
+    crawl: Any | None = None,
+    for_redirect: bool = False,
+) -> None:
+    """Browser / WebSocket gate: block out-of-scope URLs before navigation."""
+    ctx = current_scan_context(scan_context, crawl)
+    scope = getattr(ctx, "scope", None)
+    if scope is None:
+        raise RuntimeError("ScanContext.scope is required for navigation")
+    decision = scope.decide(url, for_redirect=for_redirect)
+    if not decision.allowed:
+        raise ScopeBlockedError(url, decision.reason)
 
 
 class SecureTransport:

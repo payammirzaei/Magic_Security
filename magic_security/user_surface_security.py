@@ -5,7 +5,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 from bs4 import BeautifulSoup
 
 from magic_security.models import (
@@ -286,7 +286,7 @@ async def verify_jsonp_and_null_origin_cors(
     findings: list[Finding] = []
     tested = 0
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.models import (
     AuthComparison,
@@ -66,7 +66,7 @@ async def verify_protected_cors(
         return observations, findings
 
     for context in contexts:
-        async with SecureTransport(
+        async with open_secure_transport(
             follow_redirects=False,
             timeout=timeout,
             headers={
@@ -173,7 +173,7 @@ async def analyze_authenticated_cache(
 
     for comparison in interesting:
         for context in contexts[:2]:
-            async with SecureTransport(
+            async with open_secure_transport(
                 follow_redirects=False,
                 timeout=timeout,
                 headers={
@@ -284,7 +284,7 @@ async def classify_rate_limits(
         endpoints
     )[:max_endpoints]
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
     ) as client:

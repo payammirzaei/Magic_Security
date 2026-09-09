@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.models import AuthComparison, AuthContext, NormalizedEndpoint
 
@@ -175,7 +175,7 @@ async def map_auth_boundaries(
             headers: dict[str, str] | None = None,
             cookies: dict[str, str] | None = None,
         ) -> None:
-            async with SecureTransport(
+            async with open_secure_transport(
                 follow_redirects=False,
                 timeout=timeout,
                 headers={

@@ -7,7 +7,7 @@ from urllib.parse import quote, urlsplit
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.models import (
     AuthContext,
@@ -230,7 +230,7 @@ async def analyze_browser_artifacts(
         for url in sorted(set(source_maps))
     )
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
     ) as client:

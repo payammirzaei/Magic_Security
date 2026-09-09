@@ -140,12 +140,18 @@ class ScannerEngine:
                 "auth": bool(auth_contexts),
             },
         )
-        return await self._scan_body(
-            context,
-            active=active,
-            browser=browser,
-            auth_contexts=auth_contexts,
-        )
+        from magic_security.transport import bind_scan_context, reset_scan_context
+
+        token = bind_scan_context(context)
+        try:
+            return await self._scan_body(
+                context,
+                active=active,
+                browser=browser,
+                auth_contexts=auth_contexts,
+            )
+        finally:
+            reset_scan_context(token)
 
     async def _scan_body(
         self,
@@ -159,6 +165,7 @@ class ScannerEngine:
             context.target,
             scan_context=context,
         )
+        crawl.scan_context = context
         crawl.response_groups = group_response_fingerprints(crawl.pages)
 
         index_discovery = await discover_index_documents(crawl.target)
@@ -276,9 +283,13 @@ class ScannerEngine:
         # STEP 20: structured JS analysis on discovered assets.
         for asset_url in sorted(crawl.js_assets)[:40]:
             try:
-                from magic_security.transport import SecureTransport
+                from magic_security.transport import open_secure_transport
 
-                async with SecureTransport(follow_redirects=True, timeout=5.0) as client:
+                async with open_secure_transport(
+                    context,
+                    follow_redirects=True,
+                    timeout=5.0,
+                ) as client:
                     response = await client.get(asset_url)
                 if response.status_code != 200:
                     continue

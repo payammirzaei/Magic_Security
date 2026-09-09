@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import SecureTransport, open_secure_transport
 
 from magic_security.models import (
     Finding,
@@ -191,7 +191,7 @@ async def probe_sensitive_endpoints(
         ),
     )
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={

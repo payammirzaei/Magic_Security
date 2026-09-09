@@ -10,7 +10,7 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import httpx
 
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 from magic_security.models import (
     Finding,
@@ -119,7 +119,7 @@ async def verify_path_traversal(
         ),
     )
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={
@@ -248,7 +248,7 @@ async def verify_ssrf_callback(
     port = int(callback_server.server_address[1])
 
     try:
-        async with SecureTransport(
+        async with open_secure_transport(
             follow_redirects=False,
             timeout=timeout,
             headers={
@@ -396,7 +396,7 @@ async def verify_auth_injection_bypass(
     observations: list[ServerProbeObservation] = []
     findings: list[Finding] = []
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={
@@ -564,7 +564,7 @@ async def verify_host_header_poisoning(
     findings: list[Finding] = []
     marker = "magic-security.invalid"
 
-    async with SecureTransport(
+    async with open_secure_transport(
         follow_redirects=False,
         timeout=timeout,
         headers={

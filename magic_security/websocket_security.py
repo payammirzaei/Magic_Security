@@ -15,6 +15,7 @@ from magic_security.models import (
     Severity,
 )
 from magic_security.scope import is_local_target
+from magic_security.transport import ScopeBlockedError, assert_url_in_scope
 
 
 @dataclass
@@ -196,6 +197,11 @@ async def run_websocket_pack(
     )][:5]
 
     for url in local_urls:
+        http_url = url.replace("ws://", "http://").replace("wss://", "https://")
+        try:
+            assert_url_in_scope(http_url, crawl=crawl)
+        except (ScopeBlockedError, RuntimeError):
+            continue
         anon = await connect_fn(url, origin=None)
         anon.auth_context = "anonymous"
         result.connections.append(anon)
@@ -204,6 +210,11 @@ async def run_websocket_pack(
     # Origin posture with controlled foreign origin.
     foreign_origin = "https://magic-security.invalid"
     for url in local_urls:
+        http_url = url.replace("ws://", "http://").replace("wss://", "https://")
+        try:
+            assert_url_in_scope(http_url, crawl=crawl)
+        except (ScopeBlockedError, RuntimeError):
+            continue
         foreign = await connect_fn(url, origin=foreign_origin)
         foreign.auth_context = "foreign_origin"
         result.connections.append(foreign)

@@ -15,7 +15,7 @@ from magic_security.models import (
     NormalizedEndpoint,
     Severity,
 )
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 
 
 _INTROSPECTION_QUERY = (
@@ -62,7 +62,7 @@ async def analyze_graphql(
     observations: list[GraphqlObservation] = []
     findings: list[Finding] = []
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for url in _graphql_urls(endpoints)[:max_endpoints]:
             try:
                 response = await client.post(
@@ -199,7 +199,7 @@ async def probe_graphql_sensitive_fields(
     exercised: list[str] = []
     skipped: list[str] = []
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for url in urls[:5]:
             try:
                 response = await client.post(
@@ -269,7 +269,7 @@ async def probe_graphql_sensitive_fields(
                 field_name = sensitive[0]
                 query = f"query MagicSecurityAuthField {{ {field_name} }}"
                 try:
-                    async with SecureTransport(
+                    async with open_secure_transport(
                         follow_redirects=False,
                         timeout=timeout,
                         headers=first.headers,
@@ -280,7 +280,7 @@ async def probe_graphql_sensitive_fields(
                             json={"query": query},
                             headers={"Accept": "application/json"},
                         )
-                    async with SecureTransport(
+                    async with open_secure_transport(
                         follow_redirects=False,
                         timeout=timeout,
                         headers=second.headers,
@@ -358,7 +358,7 @@ async def probe_graphql_depth(
     findings: list[Finding] = []
     query = build_depth_query(_DEPTH_CAP, _ALIAS_CAP)
 
-    async with SecureTransport(follow_redirects=False, timeout=timeout) as client:
+    async with open_secure_transport(follow_redirects=False, timeout=timeout) as client:
         for url in urls[:5]:
             try:
                 response = await client.post(

@@ -12,7 +12,7 @@ import httpx
 
 from magic_security.models import AuthContext
 from magic_security.redaction import Redactor
-from magic_security.transport import SecureTransport
+from magic_security.transport import open_secure_transport
 from magic_security.workflow_resources import CleanupState, ResourceTracker
 from magic_security.workflow_schema import (
     WorkflowAssertion,
@@ -253,7 +253,7 @@ class WorkflowRunner:
             return record
 
         try:
-            async with SecureTransport(
+            async with open_secure_transport(
                 follow_redirects=False,
                 timeout=step.timeout_seconds,
                 headers={
@@ -354,7 +354,7 @@ class WorkflowRunner:
                 headers = dict(context.headers)
                 cookies = dict(context.cookies)
             try:
-                async with SecureTransport(
+                async with open_secure_transport(
                     follow_redirects=False,
                     timeout=5.0,
                     headers=headers,
