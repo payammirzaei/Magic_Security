@@ -6,7 +6,12 @@ from urllib.parse import urljoin
 
 import httpx
 
-from magic_security.models import (\n    Finding,\n    FindingKind,\n    SensitiveEndpointObservation,\n    Severity,\n)
+from magic_security.models import (
+    Finding,
+    FindingKind,
+    SensitiveEndpointObservation,
+    Severity,
+)
 
 
 _SECRET_KEY_RE = re.compile(

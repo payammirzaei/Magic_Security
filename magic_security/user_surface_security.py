@@ -6,7 +6,14 @@ from urllib.parse import parse_qsl, urlsplit
 import httpx
 from bs4 import BeautifulSoup
 
-from magic_security.models import (\n    Finding,\n    FindingKind,\n    NormalizedEndpoint,\n    PageSnapshot,\n    Severity,\n    UserSurfaceObservation,\n)
+from magic_security.models import (
+    Finding,
+    FindingKind,
+    NormalizedEndpoint,
+    PageSnapshot,
+    Severity,
+    UserSurfaceObservation,
+)
 
 
 _SECRET_URL_PARAMS = {
