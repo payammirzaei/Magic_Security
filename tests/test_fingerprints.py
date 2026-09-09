@@ -138,3 +138,31 @@ def test_inferred_missing_header_check_id_is_stable_per_header():
     result = deduplicate_findings([finding])[0]
 
     assert result.check_id == "hardening.header.missing.content-security-policy"
+
+
+
+def test_rededuplicate_preserves_existing_affected_urls_and_occurrences():
+    finding = Finding(
+        title="Missing X-Content-Type-Options",
+        severity=Severity.INFO,
+        kind=FindingKind.HARDENING,
+        url="http://localhost/",
+        description="missing",
+        evidence="missing",
+        remediation="add it",
+        confidence=1.0,
+        check_id="hardening.header.missing.x-content-type-options",
+        affected_urls=(
+            "http://localhost/",
+            "http://localhost/login",
+        ),
+        occurrences=2,
+    )
+
+    result = deduplicate_findings([finding])[0]
+
+    assert result.occurrences == 2
+    assert result.affected_urls == (
+        "http://localhost/",
+        "http://localhost/login",
+    )
