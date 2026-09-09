@@ -4,6 +4,42 @@ Local-first black-box web security scanner focused on **verified evidence, not c
 
 > 📘 **Project direction:** See the [Master Product Plan, Architecture, and Roadmap](docs/MASTER_PLAN.md) for the complete Security Backtesting vision, milestones, safety model, and future architecture.
 
+## v1.1 — Security Backtesting Foundation
+
+v1.1 adds the first historical regression layer on top of the evidence-driven scanner.
+
+A scan can now be saved as a compact security snapshot:
+
+```bash
+magic-security http://127.0.0.1:8000 \
+  --browser --active \
+  --snapshot reports/baseline.snapshot.json
+```
+
+A later scan can be compared with that baseline:
+
+```bash
+magic-security http://127.0.0.1:8000 \
+  --browser --active \
+  --baseline reports/baseline.snapshot.json \
+  --snapshot reports/current.snapshot.json
+```
+
+The backtest reports:
+
+- `NEW`
+- `REINTRODUCED`
+- `WORSENED`
+- `IMPROVED`
+- `RESOLVED`
+- `UNCHANGED`
+- attack-surface additions/removals
+- coverage changes and mode equivalence
+
+Finding identity now uses stable `check_id` values and versioned fingerprints instead of depending on report wording. Dynamic resource IDs in attack-surface URLs are normalized to reduce false diffs between scans.
+
+This is the foundation for future CI regression gates and multi-scan baselines described in the master plan.
+
 ## v1.0 — Professional User-Side Coverage
 
 v1.0 expands the scanner toward the surface a professional external pentester can observe from the application/user side without source, cloud, or host access.

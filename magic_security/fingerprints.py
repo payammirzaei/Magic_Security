@@ -3,8 +3,9 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import replace
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from magic_security.models import Finding, PageSnapshot, Severity
+from magic_security.models import Finding, FindingKind, PageSnapshot, Severity
 
 
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -13,6 +14,8 @@ _UUID_RE = re.compile(
     re.IGNORECASE,
 )
 _LONG_NUMBER_RE = re.compile(r"\b\d{6,}\b")
+_OBJECT_ID_RE = re.compile(r"^[0-9a-f]{24}$", re.IGNORECASE)
+_NUMERIC_SEGMENT_RE = re.compile(r"^\d{3,}$")
 
 _SEVERITY_RANK = {
     Severity.INFO: 0,
@@ -21,6 +24,79 @@ _SEVERITY_RANK = {
     Severity.HIGH: 3,
     Severity.CRITICAL: 4,
 }
+
+_CHECK_ID_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"^missing (.+)$", re.IGNORECASE), "hardening.header.missing"),
+    (re.compile(r"^page lacks clickjacking", re.IGNORECASE), "browser.clickjacking.missing-protection"),
+    (re.compile(r"^csp allows risky", re.IGNORECASE), "browser.csp.risky-script-mode"),
+    (re.compile(r"^cookie .+ is missing security attributes$", re.IGNORECASE), "session.cookie.missing-attributes"),
+    (re.compile(r"^session-like cookie .+ lacks protective attributes$", re.IGNORECASE), "session.cookie.missing-attributes"),
+    (re.compile(r"^directory listing is enabled$", re.IGNORECASE), "exposure.directory-listing"),
+    (re.compile(r"^api documentation is publicly exposed$", re.IGNORECASE), "exposure.api-docs.public"),
+    (re.compile(r"^debug or stack-trace information exposed$", re.IGNORECASE), "exposure.debug-output"),
+    (re.compile(r"^reflected html injection verified$", re.IGNORECASE), "injection.html.reflected"),
+    (re.compile(r"^reflected xss execution verified$", re.IGNORECASE), "xss.reflected.execution"),
+    (re.compile(r"^dom-based xss execution verified$", re.IGNORECASE), "xss.dom.execution"),
+    (re.compile(r"^potential dom xss", re.IGNORECASE), "xss.dom.candidate"),
+    (re.compile(r"^cross-account object access verified", re.IGNORECASE), "authorization.bola.read"),
+    (re.compile(r"^path traversal / local file read verified$", re.IGNORECASE), "path.traversal.local-file-read"),
+    (re.compile(r"^server-side request forgery verified$", re.IGNORECASE), "ssrf.loopback-callback"),
+    (re.compile(r"^sql-style authentication bypass verified$", re.IGNORECASE), "authentication.sqli.bypass"),
+    (re.compile(r"^nosql operator authentication bypass verified$", re.IGNORECASE), "authentication.nosqli.bypass"),
+    (re.compile(r"^untrusted host header influences response content$", re.IGNORECASE), "http.host-header.influence"),
+    (re.compile(r"^credentialed cors policy exposes a protected endpoint$", re.IGNORECASE), "cors.protected.credentialed"),
+    (re.compile(r"^arbitrary cors origin", re.IGNORECASE), "cors.arbitrary-origin"),
+    (re.compile(r"^cors accepts null origin", re.IGNORECASE), "cors.null-origin"),
+    (re.compile(r"^user-specific authenticated response is marked for shared caching$", re.IGNORECASE), "cache.authenticated.shared"),
+    (re.compile(r"^anonymous graphql introspection is enabled$", re.IGNORECASE), "graphql.introspection.anonymous"),
+    (re.compile(r"^graphql error responses expose debug details$", re.IGNORECASE), "graphql.errors.debug"),
+    (re.compile(r"^secret/authentication material appears in url$", re.IGNORECASE), "privacy.url.secret"),
+    (re.compile(r"^personal/payment data appears in url$", re.IGNORECASE), "privacy.url.pii"),
+    (re.compile(r"^sensitive form fields are submitted with get$", re.IGNORECASE), "privacy.form.get-sensitive"),
+    (re.compile(r"^https page references insecure http resources$", re.IGNORECASE), "transport.mixed-content"),
+    (re.compile(r"^jsonp-style arbitrary callback wrapping verified$", re.IGNORECASE), "jsonp.callback.arbitrary"),
+    (re.compile(r"^open redirect verified$", re.IGNORECASE), "redirect.open"),
+    (re.compile(r"^web message handler lacks an obvious origin check$", re.IGNORECASE), "browser.postmessage.origin-check"),
+    (re.compile(r"^potential client-side redirect flow$", re.IGNORECASE), "redirect.client.candidate"),
+    (re.compile(r"^secure page references plaintext websocket transport$", re.IGNORECASE), "websocket.plaintext-transport"),
+    (re.compile(r"^sensitive-looking browser storage key observed$", re.IGNORECASE), "browser.storage.sensitive-key"),
+    (re.compile(r"^client artifact exposes secret-like material$", re.IGNORECASE), "client.secret-like-material"),
+    (re.compile(r"^client artifact reveals internal network locations$", re.IGNORECASE), "client.internal-topology"),
+    (re.compile(r"^sensitive deployment artifact is publicly exposed$", re.IGNORECASE), "exposure.deployment-artifact.public"),
+    (re.compile(r"^production debug/status endpoint is exposed$", re.IGNORECASE), "exposure.debug-status.public"),
+    (re.compile(r"^spring actuator environment endpoint is exposed$", re.IGNORECASE), "exposure.spring-actuator.env"),
+    (re.compile(r"^public configuration exposes secret-like keys$", re.IGNORECASE), "exposure.config.secret-keys"),
+    (re.compile(r"^application heap dump endpoint is publicly exposed$", re.IGNORECASE), "exposure.heapdump.public"),
+    (re.compile(r"^input triggers a database error response$", re.IGNORECASE), "database.error-trigger"),
+    (re.compile(r"^server-side template injection verified$", re.IGNORECASE), "injection.ssti.arithmetic"),
+    (re.compile(r"^http response header injection verified$", re.IGNORECASE), "injection.crlf.response-header"),
+    (re.compile(r"^environment file is publicly exposed$", re.IGNORECASE), "exposure.env.public"),
+    (re.compile(r"^git metadata is publicly exposed$", re.IGNORECASE), "exposure.git.public"),
+    (re.compile(r"^openapi specification is publicly exposed$", re.IGNORECASE), "exposure.openapi.public"),
+    (re.compile(r"^frontend source map is publicly exposed$", re.IGNORECASE), "exposure.sourcemap.public"),
+    (re.compile(r"^.+ reveals server technology$", re.IGNORECASE), "hardening.server-technology-disclosure"),
+    (re.compile(r"^http trace method reflects request data$", re.IGNORECASE), "http.trace.reflection"),
+    (re.compile(r"^potentially dangerous http methods advertised$", re.IGNORECASE), "http.methods.dangerous-advertised"),
+)
+
+_LOCATION_SENSITIVE_PREFIXES = (
+    "authentication.",
+    "authorization.",
+    "cache.",
+    "cors.",
+    "database.",
+    "graphql.",
+    "http.host-header.",
+    "injection.",
+    "jsonp.",
+    "path.",
+    "privacy.",
+    "redirect.",
+    "ssrf.",
+    "transport.",
+    "websocket.",
+    "xss.",
+)
 
 
 def normalize_response_body(body: str) -> str:
@@ -56,18 +132,81 @@ def group_response_fingerprints(
     }
 
 
-def finding_root_fingerprint(finding: Finding) -> str:
-    payload = "\n".join(
+def _slug(value: str) -> str:
+    value = value.strip().lower()
+    value = re.sub(r"[^a-z0-9]+", "-", value)
+    return value.strip("-") or "unknown"
+
+
+def finding_check_id(finding: Finding) -> str:
+    if finding.check_id:
+        return finding.check_id
+
+    title = finding.title.strip()
+    for pattern, check_id in _CHECK_ID_PATTERNS:
+        match = pattern.match(title)
+        if not match:
+            continue
+        if check_id == "hardening.header.missing":
+            return f"{check_id}.{_slug(match.group(1))}"
+        return check_id
+
+    legacy_payload = "\n".join(
         [
             finding.kind.value,
-            finding.title.strip().lower(),
-            finding.description.strip().lower(),
-            finding.remediation.strip().lower(),
+            title.lower(),
             (finding.cwe or "").strip().lower(),
             (finding.owasp or "").strip().lower(),
         ]
     ).encode("utf-8", errors="replace")
-    return hashlib.sha256(payload).hexdigest()[:16]
+    return "legacy." + hashlib.sha256(legacy_payload).hexdigest()[:12]
+
+
+def normalize_finding_url(url: str) -> str:
+    parts = urlsplit(url)
+    segments: list[str] = []
+    for segment in parts.path.split("/"):
+        if (
+            _UUID_RE.fullmatch(segment)
+            or _OBJECT_ID_RE.fullmatch(segment)
+            or _NUMERIC_SEGMENT_RE.fullmatch(segment)
+        ):
+            segments.append("{id}")
+        else:
+            segments.append(segment)
+
+    query_keys = sorted({key for key, _ in parse_qsl(parts.query, keep_blank_values=True)})
+    query = urlencode([(key, "") for key in query_keys], doseq=True)
+    return urlunsplit(
+        (
+            parts.scheme.lower(),
+            parts.netloc.lower(),
+            "/".join(segments) or "/",
+            query,
+            "",
+        )
+    )
+
+
+def _location_sensitive(finding: Finding, check_id: str) -> bool:
+    if finding.kind is FindingKind.VULNERABILITY:
+        return True
+    return check_id.startswith(_LOCATION_SENSITIVE_PREFIXES)
+
+
+def finding_root_fingerprint(finding: Finding) -> str:
+    check_id = finding_check_id(finding)
+    payload_parts = [
+        "v2",
+        check_id,
+        finding.kind.value,
+        (finding.cwe or "").strip().lower(),
+    ]
+    if _location_sensitive(finding, check_id):
+        payload_parts.append(normalize_finding_url(finding.url))
+
+    payload = "\n".join(payload_parts).encode("utf-8", errors="replace")
+    return hashlib.sha256(payload).hexdigest()[:20]
 
 
 def deduplicate_findings(findings: list[Finding]) -> list[Finding]:
@@ -76,14 +215,23 @@ def deduplicate_findings(findings: list[Finding]) -> list[Finding]:
     occurrences: dict[str, int] = {}
 
     for finding in findings:
-        fingerprint = finding_root_fingerprint(finding)
-        occurrences[fingerprint] = occurrences.get(fingerprint, 0) + 1
-        urls.setdefault(fingerprint, set()).add(finding.url)
+        check_id = finding_check_id(finding)
+        fingerprint = finding_root_fingerprint(
+            replace(finding, check_id=check_id)
+        )
+        occurrences[fingerprint] = (
+            occurrences.get(fingerprint, 0)
+            + max(1, finding.occurrences)
+        )
+        urls.setdefault(fingerprint, set()).update(
+            finding.affected_urls or (finding.url,)
+        )
 
         current = grouped.get(fingerprint)
         if current is None:
             grouped[fingerprint] = replace(
                 finding,
+                check_id=check_id,
                 fingerprint=fingerprint,
             )
             continue
@@ -99,6 +247,7 @@ def deduplicate_findings(findings: list[Finding]) -> list[Finding]:
             current,
             severity=better_severity,
             confidence=better_confidence,
+            check_id=check_id,
         )
 
     result: list[Finding] = []

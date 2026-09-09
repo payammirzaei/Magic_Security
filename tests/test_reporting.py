@@ -32,6 +32,7 @@ def test_build_report_is_json_serializable(tmp_path):
             evidence="verified evidence",
             remediation="fix it",
             confidence=1.0,
+            check_id="demo.finding",
         )
     ]
 
@@ -41,6 +42,8 @@ def test_build_report_is_json_serializable(tmp_path):
     assert '"verified": true' in encoded
     assert report["attack_surface"]["endpoints"] == 1
     assert report["findings"][0]["severity"] == "medium"
+    assert report["findings"][0]["check_id"] == "demo.finding"
+    assert report["findings"][0]["confidence_level"] == "verified"
 
     destination = write_json_report(tmp_path / "scan.json", crawl, findings)
     assert destination.exists()
