@@ -1,5 +1,6 @@
 from magic_security.fingerprints import (
     deduplicate_findings,
+    finding_root_fingerprint,
     response_fingerprint,
 )
 from magic_security.models import (
@@ -92,3 +93,48 @@ def test_deduplicate_does_not_merge_different_root_causes():
     ]
 
     assert len(deduplicate_findings(findings)) == 2
+
+
+
+def test_explicit_check_id_keeps_identity_when_wording_changes():
+    first = Finding(
+        title="Old wording",
+        severity=Severity.HIGH,
+        kind=FindingKind.VULNERABILITY,
+        url="http://localhost/api/orders/123456",
+        description="old description",
+        evidence="proof",
+        remediation="old fix",
+        confidence=1.0,
+        check_id="authorization.bola.read",
+    )
+    second = Finding(
+        title="Completely new wording",
+        severity=Severity.HIGH,
+        kind=FindingKind.VULNERABILITY,
+        url="http://localhost/api/orders/987654",
+        description="new description",
+        evidence="proof",
+        remediation="new fix",
+        confidence=1.0,
+        check_id="authorization.bola.read",
+    )
+
+    assert finding_root_fingerprint(first) == finding_root_fingerprint(second)
+
+
+def test_inferred_missing_header_check_id_is_stable_per_header():
+    finding = Finding(
+        title="Missing Content-Security-Policy",
+        severity=Severity.INFO,
+        kind=FindingKind.HARDENING,
+        url="http://localhost/",
+        description="missing",
+        evidence="missing",
+        remediation="add it",
+        confidence=1.0,
+    )
+
+    result = deduplicate_findings([finding])[0]
+
+    assert result.check_id == "hardening.header.missing.content-security-policy"
