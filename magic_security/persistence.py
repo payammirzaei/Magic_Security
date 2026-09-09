@@ -37,7 +37,8 @@ class Persistence:
                   created_at TEXT,
                   status TEXT,
                   report_json TEXT,
-                  snapshot_json TEXT
+                  snapshot_json TEXT,
+                  error_text TEXT
                 );
                 CREATE TABLE IF NOT EXISTS findings (
                   id TEXT PRIMARY KEY,
@@ -51,6 +52,12 @@ class Persistence:
                 );
                 """
             )
+            cols = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(scans)").fetchall()
+            }
+            if "error_text" not in cols:
+                conn.execute("ALTER TABLE scans ADD COLUMN error_text TEXT")
 
     def upsert_target(
         self,
@@ -83,31 +90,69 @@ class Persistence:
             rows = conn.execute("SELECT * FROM targets ORDER BY base_url").fetchall()
         return [dict(row) for row in rows]
 
-    def save_scan(
+    def create_scan(
         self,
         *,
         target_id: str,
-        report: dict[str, Any],
-        snapshot: dict[str, Any] | None = None,
-        status: str = "completed",
+        status: str = "queued",
+        scan_id: str | None = None,
     ) -> str:
-        scan_id = uuid.uuid4().hex
+        sid = scan_id or uuid.uuid4().hex
         created = datetime.now(timezone.utc).isoformat()
         with self.connect() as conn:
             conn.execute(
                 """
-                INSERT INTO scans(id, target_id, created_at, status, report_json, snapshot_json)
-                VALUES(?,?,?,?,?,?)
+                INSERT INTO scans(
+                  id, target_id, created_at, status, report_json, snapshot_json, error_text
+                )
+                VALUES(?,?,?,?,?,?,?)
+                """,
+                (sid, target_id, created, status, "{}", "{}", None),
+            )
+        return sid
+
+    def update_scan_status(
+        self,
+        scan_id: str,
+        status: str,
+        *,
+        error: str | None = None,
+    ) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                UPDATE scans
+                SET status=?, error_text=COALESCE(?, error_text)
+                WHERE id=?
+                """,
+                (status, error, scan_id),
+            )
+
+    def complete_scan(
+        self,
+        scan_id: str,
+        *,
+        report: dict[str, Any],
+        snapshot: dict[str, Any] | None = None,
+        status: str = "completed",
+        error: str | None = None,
+    ) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                UPDATE scans
+                SET status=?, report_json=?, snapshot_json=?, error_text=?
+                WHERE id=?
                 """,
                 (
-                    scan_id,
-                    target_id,
-                    created,
                     status,
                     json.dumps(report),
                     json.dumps(snapshot or {}),
+                    error,
+                    scan_id,
                 ),
             )
+            conn.execute("DELETE FROM findings WHERE scan_id=?", (scan_id,))
             for finding in report.get("findings") or []:
                 conn.execute(
                     """
@@ -121,7 +166,51 @@ class Persistence:
                         json.dumps(finding),
                     ),
                 )
+
+    def save_scan(
+        self,
+        *,
+        target_id: str,
+        report: dict[str, Any],
+        snapshot: dict[str, Any] | None = None,
+        status: str = "completed",
+    ) -> str:
+        scan_id = self.create_scan(target_id=target_id, status=status)
+        self.complete_scan(
+            scan_id,
+            report=report,
+            snapshot=snapshot,
+            status=status,
+        )
         return scan_id
+
+    def list_scans(
+        self,
+        *,
+        target_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        query = """
+            SELECT id, target_id, created_at, status, error_text, report_json
+            FROM scans
+        """
+        params: list[Any] = []
+        if target_id:
+            query += " WHERE target_id=?"
+            params.append(target_id)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        with self.connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            data = dict(row)
+            report = json.loads(data.pop("report_json") or "{}")
+            data["summary"] = report.get("summary")
+            data["scan_validity"] = report.get("scan_validity")
+            data["error"] = data.pop("error_text", None)
+            results.append(data)
+        return results
 
     def get_scan(self, scan_id: str) -> dict[str, Any] | None:
         with self.connect() as conn:
@@ -134,6 +223,8 @@ class Persistence:
         data = dict(row)
         data["report"] = json.loads(data.pop("report_json") or "{}")
         data["snapshot"] = json.loads(data.pop("snapshot_json") or "{}")
+        data["error"] = data.pop("error_text", None)
+        data["summary"] = (data["report"] or {}).get("summary")
         return data
 
     def get_findings(self, scan_id: str) -> list[dict[str, Any]]:

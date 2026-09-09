@@ -60,10 +60,16 @@ GitHub Actions example: `.github/workflows/security-regression.yml`.
 
 ```bash
 pip install -e ".[api]"
-uvicorn magic_security.api:create_app --factory
+# First-time UI build (Node required once):
+cd web && npm install && npm run build && cd ..
+magic-security serve
+# open http://127.0.0.1:8765/
 ```
 
-Write dashboard HTML via `magic_security.dashboard.write_dashboard`.
+API routes live under `/api` (targets, async scans, findings, coverage, baseline, HTML report).
+The React SPA is served from `web/dist` by the same process.
+
+Dev UI (hot reload): run `magic-security serve` and in another terminal `cd web && npm run dev` (Vite proxies `/api` to :8765).
 
 ## Schemas
 

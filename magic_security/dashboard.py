@@ -1,52 +1,31 @@
-"""Minimal local dashboard HTML (STEP 49)."""
+"""Dashboard entry helper — prefer `magic-security serve` + web SPA."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
-
-from magic_security.persistence import Persistence
 
 
 def render_dashboard(db_path: str | Path = ".magic-security/magic.db") -> str:
-    persistence = Persistence(Path(db_path))
-    persistence.init_schema()
-    targets = persistence.list_targets()
-
-    target_rows = "".join(
-        f"<tr><td>{item.get('id')}</td><td>{item.get('base_url')}</td>"
-        f"<td>{item.get('environment')}</td></tr>"
-        for item in targets
-    ) or "<tr><td colspan='3'>No targets yet</td></tr>"
-
-    return f"""<!doctype html>
+    _ = db_path
+    return """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Magic Security Dashboard</title>
+  <title>Magic Security</title>
   <style>
-    body {{ font-family: Georgia, serif; margin: 2rem; background: #f4f1ea; color: #222; }}
-    h1,h2 {{ font-family: 'Segoe UI', sans-serif; }}
-    table {{ width: 100%; border-collapse: collapse; background: #fff; }}
-    th,td {{ border: 1px solid #ddd; padding: 0.5rem; text-align: left; }}
-    th {{ background: #ece6da; }}
-    .note {{ color: #555; }}
+    body { font-family: "IBM Plex Sans", system-ui, sans-serif;
+           background: #121417; color: #e8eaed; margin: 0; padding: 2.5rem; }
+    a { color: #e8a838; }
+    code, pre { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    pre { background: #1c1f24; padding: 1rem; border: 1px solid #2a2f36; }
   </style>
 </head>
 <body>
   <h1>Magic Security</h1>
-  <p class="note">Local dashboard — Targets, latest status, regressions, findings, coverage, history.</p>
-  <h2>Targets</h2>
-  <table>
-    <thead><tr><th>ID</th><th>URL</th><th>Environment</th></tr></thead>
-    <tbody>{target_rows}</tbody>
-  </table>
-  <h2>How to use</h2>
-  <ol>
-    <li>Register targets via CLI <code>magic-security target add</code> or API <code>POST /targets</code>.</li>
-    <li>Run scans via CLI or <code>POST /scans</code>.</li>
-    <li>Set baselines and use <code>--fail-on-policy</code> / CI gate for regressions.</li>
-  </ol>
+  <p>The interactive dashboard is served by the local control plane.</p>
+  <pre>cd web &amp;&amp; npm install &amp;&amp; npm run build
+magic-security serve</pre>
+  <p>Then open <a href="http://127.0.0.1:8765/">http://127.0.0.1:8765/</a></p>
 </body>
 </html>
 """

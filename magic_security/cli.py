@@ -273,6 +273,8 @@ async def _run(
 def main() -> None:
     import sys
 
+    if len(sys.argv) >= 2 and sys.argv[1] == "serve":
+        raise SystemExit(_serve_command(sys.argv[2:]))
     if len(sys.argv) >= 2 and sys.argv[1] == "checks":
         raise SystemExit(_checks_command(sys.argv[2:]))
     if len(sys.argv) >= 2 and sys.argv[1] in {
@@ -422,9 +424,40 @@ def _history_command(command: str, argv: list[str]) -> int:
 
     print(
         "Usage: magic-security "
-        "(target add|target verify|target list|history|baseline set|diff|scan)"
+        "(serve|target add|target verify|target list|history|baseline set|diff|scan)"
     )
     return 2
+
+
+def _serve_command(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="magic-security serve",
+        description="Run the local Magic Security API and dashboard.",
+    )
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument(
+        "--db",
+        default=".magic-security/magic.db",
+        help="SQLite database path",
+    )
+    args = parser.parse_args(argv)
+    try:
+        import uvicorn
+    except ImportError:
+        print(
+            "Install magic-security[api] (fastapi/uvicorn) to use serve",
+            file=__import__("sys").stderr,
+        )
+        return 2
+
+    from magic_security.api import create_app
+
+    app = create_app(args.db)
+    print(f"Magic Security dashboard: http://{args.host}:{args.port}/")
+    print(f"API health: http://{args.host}:{args.port}/api/health")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    return 0
 
 
 def _checks_command(argv: list[str]) -> int:

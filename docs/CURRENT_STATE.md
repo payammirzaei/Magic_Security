@@ -42,7 +42,7 @@ Package version and schema versions are independent.
 
 - Console script: `magic-security` → `magic_security.cli:main`
 - Module: `python -m magic_security`
-- Optional API: `uvicorn magic_security.api:create_app --factory` (extra `[api]`)
+- Optional API + dashboard: `magic-security serve` (extra `[api]`; UI from `web/dist`)
 
 ### CLI options (actual)
 
@@ -62,7 +62,7 @@ Package version and schema versions are independent.
 | `--snapshot` | none | Write compact backtesting snapshot |
 | `--baseline` | none | Compare current snapshot against a previous snapshot |
 
-Subcommands: `checks list`, `target add|verify|list`, `history`, `baseline set`, `diff`, `scan`.
+Subcommands: `serve`, `checks list`, `target add|verify|list`, `history`, `baseline set`, `diff`, `scan`.
 
 ### Exit behavior (actual)
 

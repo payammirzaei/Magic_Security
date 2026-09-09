@@ -4,9 +4,14 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
-dist/
+/dist/
 build/
 *.egg-info/
 .env
 auth_contexts.local.json
 .magic-security-auth.json
+.magic-security/
+report.html
+report.json
+snap.json
+web/node_modules/
