@@ -291,6 +291,7 @@ def build_report(crawl: CrawlResult, findings: list[Finding]) -> dict:
                     finding.affected_urls
                 ),
                 "verified": finding.verified,
+                "confidence_level": finding.confidence_level.value,
             }
             for finding in findings
         ],
