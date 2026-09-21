@@ -111,6 +111,21 @@ def test_session_lifecycle(tmp_path: Path, monkeypatch):
         assert client.get("/api/me", headers=auth).status_code == 401
 
 
+def test_session_survives_app_restart(tmp_path: Path, monkeypatch):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from magic_security.api import create_app
+    monkeypatch.setenv("MAGIC_SECURITY_API_KEY", "restart-secret")
+    db = tmp_path / "restart.db"
+    with TestClient(create_app(db)) as first:
+        created = first.post("/api/session", json={"api_key": "restart-secret"})
+        token = created.json()["token"]
+    with TestClient(create_app(db)) as second:
+        auth = {"Authorization": f"Bearer {token}"}
+        assert second.get("/api/me", headers=auth).status_code == 200
+        assert second.delete(f"/api/session?request_token={token}", headers=auth).status_code == 200
+
+
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
