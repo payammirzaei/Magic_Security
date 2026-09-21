@@ -194,6 +194,7 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     assert report_md.status_code == 200
     assert report_md.text.startswith("# Magic Security audit:")
     assert report_md.headers["content-type"].startswith("text/markdown")
+    assert client.get(f"/api/scans/{scan_id}/report.md?workspace_id=other").status_code == 404
     assert report_md.headers["content-disposition"].endswith(".md\"")
     assert client.get(f"/api/scans/{scan_id}/report.json?workspace_id=other").status_code == 404
     assert client.post(f"/api/scans/{scan_id}/cancel").status_code == 409
