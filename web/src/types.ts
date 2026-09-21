@@ -47,6 +47,8 @@ export type Finding = {
   verified?: boolean
   fingerprint?: string
   check_id?: string
+  target_id?: string
+  detected_at?: string
 }
 
 export type ScanDetail = ScanListItem & {
