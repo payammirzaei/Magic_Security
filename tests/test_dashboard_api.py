@@ -112,6 +112,7 @@ def test_session_lifecycle(tmp_path: Path, monkeypatch):
         auth = {"Authorization": f"Bearer {refreshed.json()['token']}"}
         assert client.get("/api/me", headers=old_auth).status_code == 401
         assert client.get("/api/me", headers=auth).status_code == 200
+        assert client.get("/api/me", headers=auth).json()["role"] == "owner"
         assert client.delete("/api/session", headers=auth).status_code == 200
         assert client.get("/api/me", headers=auth).status_code == 401
 
