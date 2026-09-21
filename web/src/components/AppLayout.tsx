@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { clearApiToken } from '../api'
 
 const links = [
   { to: '/', label: 'Status', end: true },
@@ -9,6 +10,7 @@ const links = [
 ]
 
 export function AppLayout() {
+  const logout = () => { clearApiToken(); window.location.assign('/login') }
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -36,7 +38,7 @@ export function AppLayout() {
         </nav>
         <div className="sidebar-footer">
           <div className="status-dot"><span /> Scanner online</div>
-          <div className="user-chip"><span className="avatar">PM</span><span><strong>Payam</strong><small>Owner</small></span><span className="more">···</span></div>
+          <button className="user-chip" type="button" onClick={logout}><span className="avatar">PM</span><span><strong>Payam</strong><small>Owner · Sign out</small></span><span className="more">↗</span></button>
         </div>
       </aside>
       <main className="main">
