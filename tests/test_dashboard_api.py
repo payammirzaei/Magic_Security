@@ -128,6 +128,9 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
 
     diff = client.get(f"/api/scans/{scan_id}/diff")
     assert diff.status_code == 200
+    assert client.get(f"/api/scans/{scan_id}/coverage?workspace_id=other").status_code == 404
+    assert client.get(f"/api/scans/{scan_id}/diff?workspace_id=other").status_code == 404
+    assert client.post(f"/api/scans/{scan_id}/baseline?workspace_id=other").status_code == 404
 
     html = client.get(f"/api/scans/{scan_id}/report.html")
     assert html.status_code == 200

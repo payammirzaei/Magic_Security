@@ -232,16 +232,16 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     @api.get("/scans/{scan_id}/coverage")
-    def get_coverage(scan_id: str) -> dict[str, Any]:
+    def get_coverage(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, Any]:
         row = persistence.get_scan(scan_id)
-        if row is None:
+        if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         return (row.get("report") or {}).get("coverage") or {}
 
     @api.get("/scans/{scan_id}/diff")
-    def get_diff(scan_id: str) -> dict[str, Any]:
+    def get_diff(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, Any]:
         row = persistence.get_scan(scan_id)
-        if row is None:
+        if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         baseline = persistence.get_baseline(row["target_id"])
         if baseline is None:
@@ -249,9 +249,9 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return diff_snapshots(baseline, row.get("snapshot") or {})
 
     @api.post("/scans/{scan_id}/baseline")
-    def post_baseline(scan_id: str) -> dict[str, Any]:
+    def post_baseline(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, Any]:
         row = persistence.get_scan(scan_id)
-        if row is None:
+        if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         if row.get("status") != "completed":
             raise HTTPException(
