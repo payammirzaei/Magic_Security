@@ -109,7 +109,20 @@ class Persistence:
     def list_targets(self, *, workspace_id: str = "default") -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute("SELECT * FROM targets WHERE workspace_id=? ORDER BY base_url", (workspace_id,)).fetchall()
-        return [dict(row) for row in rows]
+            scans = conn.execute("SELECT target_id, created_at, status, report_json FROM scans WHERE workspace_id=? ORDER BY created_at DESC", (workspace_id,)).fetchall()
+        latest: dict[str, dict[str, Any]] = {}
+        for scan in scans:
+            target_id = str(scan["target_id"])
+            if target_id in latest:
+                continue
+            report = json.loads(scan["report_json"] or "{}")
+            latest[target_id] = {"last_scan_at": scan["created_at"], "last_scan_status": scan["status"], "last_scan_summary": report.get("summary") or {}}
+        result = []
+        for row in rows:
+            item = dict(row)
+            item.update(latest.get(item["id"], {"last_scan_at": None, "last_scan_status": None, "last_scan_summary": {}}))
+            result.append(item)
+        return result
 
     def create_scan(
         self,

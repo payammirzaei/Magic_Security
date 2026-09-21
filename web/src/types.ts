@@ -21,6 +21,9 @@ export type Target = {
   base_url: string
   environment?: string
   metadata_json?: string
+  last_scan_at?: string | null
+  last_scan_status?: string | null
+  last_scan_summary?: ScanSummary | null
 }
 
 export type ScanListItem = {
