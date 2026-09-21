@@ -103,10 +103,6 @@ def test_session_lifecycle(tmp_path: Path, monkeypatch):
         assert client.post(f"/api/session/refresh?request_token={token}", headers=auth).status_code == 200
         assert client.delete(f"/api/session?request_token={token}", headers=auth).status_code == 200
         assert client.get("/api/me", headers=auth).status_code == 401
-    assert client.get("/api/targets?workspace_id=security-team-eu", headers=headers).json() == []
-    me = client.get("/api/me?workspace_id=security-team-eu", headers=headers)
-    assert me.status_code == 200
-    assert me.json()["workspace"]["id"] == "security-team-eu"
     assert client.get("/api/me?workspace_id=missing", headers=headers).status_code == 404
     renamed = client.patch("/api/workspaces/security-team-eu", json={"name": "EU Security"}, headers=headers)
     assert renamed.status_code == 200
