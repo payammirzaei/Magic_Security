@@ -32,7 +32,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  health: () => request<{ status: string }>('/api/health'),
+  health: () => request<{ status: string; workers: number; queued: number; active_scans: number; failed_scans: number }>('/api/health'),
   workspace: () => request<{ id: string; name: string }>('/api/workspace'),
   workspaces: () => request<{ id: string; name: string; created_at: string }[]>('/api/workspaces'),
   createWorkspace: (name: string) => request<{ id: string; name: string; created_at: string }>('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) }),
@@ -80,7 +80,7 @@ export const api = {
   deleteTarget: (id: string) => request<{ ok: boolean; id: string }>(`/api/targets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   cancelScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/cancel`, { method: 'POST' }),
   retryScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/retry`, { method: 'POST' }),
-  queue: () => request<{ queued: number; workers: number }>('/api/queue'),
+  queue: () => request<{ queued: number; workers: number; active_scans: number; failed_scans: number }>('/api/queue'),
 }
 
 export function setApiToken(token: string) {

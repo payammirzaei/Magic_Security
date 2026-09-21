@@ -331,7 +331,10 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/health")
     def health() -> dict[str, Any]:
         workers = [worker for worker in getattr(app.state, "scan_workers", []) if not worker.done()]
-        return {"status": "ok" if workers else "degraded", "service": "magic-security-api", "version": SCANNER_VERSION, "workers": len(workers), "queued": scan_queue.qsize()}
+        scans = persistence.list_scans(limit=100, offset=0)
+        active = sum(1 for scan in scans if scan.get("status") in {"queued", "running"})
+        failed = sum(1 for scan in scans if scan.get("status") == "failed")
+        return {"status": "ok" if workers else "degraded", "service": "magic-security-api", "version": SCANNER_VERSION, "workers": len(workers), "queued": scan_queue.qsize(), "active_scans": active, "failed_scans": failed}
 
     @api.get("/workspace")
     def workspace(workspace_id: str = Query(default="default")) -> dict[str, str]:
@@ -383,7 +386,8 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/queue")
     def queue_status() -> dict[str, int]:
         workers = [worker for worker in getattr(app.state, "scan_workers", []) if not worker.done()]
-        return {"queued": scan_queue.qsize(), "workers": len(workers)}
+        scans = persistence.list_scans(limit=100, offset=0)
+        return {"queued": scan_queue.qsize(), "workers": len(workers), "active_scans": sum(1 for scan in scans if scan.get("status") in {"queued", "running"}), "failed_scans": sum(1 for scan in scans if scan.get("status") == "failed")}
 
     @api.post("/scans/{scan_id}/cancel")
     async def cancel_scan(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, str]:

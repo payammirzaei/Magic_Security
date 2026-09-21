@@ -16,7 +16,7 @@ export function AppLayout() {
   const [userName, setUserName] = useState('Payam')
   const [role, setRole] = useState('Owner')
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
-  const [queue, setQueue] = useState({ queued: 0, workers: 0 })
+  const [queue, setQueue] = useState({ queued: 0, workers: 0, active_scans: 0, failed_scans: 0 })
   const [apiHealthy, setApiHealthy] = useState(true)
   useEffect(() => { Promise.all([api.workspace(), api.me(), api.workspaces()]).then(([workspace, user, all]) => { setWorkspaceName(workspace.name); setUserName(user.name); setRole(user.role); setWorkspaces(all) }).catch(() => undefined) }, [])
   useEffect(() => { let disposed = false; const refresh = () => Promise.all([api.queue(), api.health()]).then(([value]) => { if (!disposed) { setQueue(value); setApiHealthy(true) } }).catch(() => { if (!disposed) setApiHealthy(false) }); refresh(); const timer = window.setInterval(refresh, 15000); return () => { disposed = true; window.clearInterval(timer) } }, [])
@@ -51,7 +51,7 @@ export function AppLayout() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <div className={`status-dot ${apiHealthy && queue.workers > 0 ? '' : 'danger-text'}`}><span /> {!apiHealthy ? 'API unavailable' : queue.workers > 0 ? `Scanner online · ${queue.queued} queued` : 'Scanner unavailable'}</div>
+          <div className={`status-dot ${apiHealthy && queue.workers > 0 ? '' : 'danger-text'}`} title={apiHealthy ? `${queue.active_scans} active scans · ${queue.failed_scans} failed scans` : 'API unavailable'}><span /> {!apiHealthy ? 'API unavailable' : queue.workers > 0 ? `Scanner online · ${queue.queued} queued` : 'Scanner unavailable'}</div>
           <button className="user-chip" type="button" onClick={logout}><span className="avatar">{userName.slice(0, 2).toUpperCase()}</span><span><strong>{userName}</strong><small>{role} · Sign out</small></span><span className="more">↗</span></button>
         </div>
       </aside>
