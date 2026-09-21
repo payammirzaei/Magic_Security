@@ -102,6 +102,11 @@ class Persistence:
             row = conn.execute("SELECT expires_at FROM sessions WHERE token=?", (token,)).fetchone()
         return float(row[0]) if row else None
 
+    def get_session_role(self, token: str) -> str | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT role FROM sessions WHERE token=?", (token,)).fetchone()
+        return str(row[0]) if row else None
+
     def refresh_session(self, token: str, expires_at: float) -> bool:
         with self.connect() as conn:
             result = conn.execute("UPDATE sessions SET expires_at=? WHERE token=?", (expires_at, token))

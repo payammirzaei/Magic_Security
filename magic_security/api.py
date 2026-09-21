@@ -101,6 +101,10 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     scan_queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
     cancelled_scans: set[str] = set()
 
+    def session_role(authorization: str) -> str | None:
+        token = authorization.removeprefix("Bearer ").strip()
+        return persistence.get_session_role(token)
+
     async def _run_scan_job(scan_id: str, body: dict[str, Any]) -> None:
         from magic_security.auth import load_auth_contexts
         from magic_security.config import scan_config_from_flags
