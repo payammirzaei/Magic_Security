@@ -3,6 +3,7 @@ import { AppLayout } from './components/AppLayout'
 import { HistoryPage } from './pages/HistoryPage'
 import { FindingsPage } from './pages/FindingsPage'
 import { FindingDetailPage } from './pages/FindingDetailPage'
+import { LoginPage } from './pages/LoginPage'
 import { HomePage } from './pages/HomePage'
 import { NewScanPage } from './pages/NewScanPage'
 import { ScanDetailPage } from './pages/ScanDetailPage'
@@ -12,6 +13,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
         <Route element={<AppLayout />}>
           <Route index element={<HomePage />} />
           <Route path="targets" element={<TargetsPage />} />

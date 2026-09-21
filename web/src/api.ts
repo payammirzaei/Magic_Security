@@ -1,12 +1,15 @@
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = window.localStorage.getItem('magic_security_api_key') || import.meta.env.VITE_MAGIC_SECURITY_API_KEY
   const res = await fetch(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers || {}),
     },
   })
   if (!res.ok) {
+    if (res.status === 401 && window.location.pathname !== '/login') window.location.assign('/login')
     let detail = res.statusText
     try {
       const body = await res.json()
@@ -63,6 +66,14 @@ export const api = {
   cancelScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/cancel`, { method: 'POST' }),
   retryScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/retry`, { method: 'POST' }),
   queue: () => request<{ queued: number; workers: number }>('/api/queue'),
+}
+
+export function setApiToken(token: string) {
+  window.localStorage.setItem('magic_security_api_key', token)
+}
+
+export function clearApiToken() {
+  window.localStorage.removeItem('magic_security_api_key')
 }
 
 export function reportHtmlUrl(scanId: string): string {
