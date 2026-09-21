@@ -88,6 +88,11 @@ def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
     assert me.status_code == 200
     assert me.json()["workspace"]["id"] == "security-team-eu"
     assert client.get("/api/me?workspace_id=missing", headers=headers).status_code == 404
+    renamed = client.patch("/api/workspaces/security-team-eu", json={"name": "EU Security"}, headers=headers)
+    assert renamed.status_code == 200
+    assert renamed.json()["id"] == "security-team-eu"
+    assert renamed.json()["name"] == "EU Security"
+    assert client.patch("/api/workspaces/missing", json={"name": "Nope"}, headers=headers).status_code == 404
 
 
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
