@@ -87,6 +87,12 @@ def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
     assert workspace.status_code == 200
     assert workspace.json()["id"] == "security-team-eu"
     assert client.post("/api/workspaces", json={"name": "Security Team EU"}, headers=headers).status_code == 409
+    assert client.get("/api/me?workspace_id=missing", headers=headers).status_code == 404
+    renamed = client.patch("/api/workspaces/security-team-eu", json={"name": "EU Security"}, headers=headers)
+    assert renamed.status_code == 200
+    assert renamed.json()["id"] == "security-team-eu"
+    assert renamed.json()["name"] == "EU Security"
+    assert client.patch("/api/workspaces/missing", json={"name": "Nope"}, headers=headers).status_code == 404
 
 
 def test_session_lifecycle(tmp_path: Path, monkeypatch):
@@ -103,12 +109,6 @@ def test_session_lifecycle(tmp_path: Path, monkeypatch):
         assert client.post(f"/api/session/refresh?request_token={token}", headers=auth).status_code == 200
         assert client.delete(f"/api/session?request_token={token}", headers=auth).status_code == 200
         assert client.get("/api/me", headers=auth).status_code == 401
-    assert client.get("/api/me?workspace_id=missing", headers=headers).status_code == 404
-    renamed = client.patch("/api/workspaces/security-team-eu", json={"name": "EU Security"}, headers=headers)
-    assert renamed.status_code == 200
-    assert renamed.json()["id"] == "security-team-eu"
-    assert renamed.json()["name"] == "EU Security"
-    assert client.patch("/api/workspaces/missing", json={"name": "Nope"}, headers=headers).status_code == 404
 
 
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
