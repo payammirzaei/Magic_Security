@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api, clearApiToken } from '../api'
 import { useEffect, useState } from 'react'
 
@@ -11,6 +11,7 @@ const links = [
 ]
 
 export function AppLayout() {
+  const location = useLocation()
   const [workspaceName, setWorkspaceName] = useState('Acme Labs')
   const [userName, setUserName] = useState('Payam')
   const [role, setRole] = useState('Owner')
@@ -50,7 +51,7 @@ export function AppLayout() {
         </div>
       </aside>
       <main className="main">
-        <div className="topbar"><span className="breadcrumb">Acme Labs <span>/</span> Overview</span><div className="topbar-actions"><button className="icon-btn" aria-label="Notifications">♢</button><button className="help-btn">?</button></div></div>
+        <div className="topbar"><span className="breadcrumb">{workspaceName} <span>/</span> {location.pathname === '/' ? 'Overview' : location.pathname.split('/')[1]?.replace('-', ' ') || 'Overview'}</span><div className="topbar-actions"><button className="icon-btn" aria-label="Notifications">♢</button><button className="help-btn">?</button></div></div>
         <Outlet />
       </main>
     </div>
