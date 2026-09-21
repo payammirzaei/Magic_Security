@@ -32,6 +32,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  createSession: (apiKey: string) => request<{ token: string; expires_in: number }>('/api/session', { method: 'POST', body: JSON.stringify({ api_key: apiKey }) }),
   health: () => request<{ status: string; workers: number; queued: number; active_scans: number; failed_scans: number }>('/api/health'),
   workspace: () => request<{ id: string; name: string }>('/api/workspace'),
   workspaces: () => request<{ id: string; name: string; created_at: string }[]>('/api/workspaces'),
