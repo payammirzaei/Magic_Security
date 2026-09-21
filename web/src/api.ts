@@ -102,14 +102,14 @@ export function reportJsonUrl(scanId: string): string {
   return `/api/scans/${scanId}/report.json?workspace_id=${encodeURIComponent(workspace)}`
 }
 
-export async function openAuthenticatedReport(scanId: string, format: 'html' | 'json'): Promise<void> {
+export async function openAuthenticatedReport(scanId: string, format: 'html' | 'json' | 'md'): Promise<void> {
   const workspace = window.localStorage.getItem('magic_security_workspace') || 'default'
   const token = window.localStorage.getItem('magic_security_api_key') || import.meta.env.VITE_MAGIC_SECURITY_API_KEY
   const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/report.${format}?workspace_id=${encodeURIComponent(workspace)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
   if (!response.ok) throw new Error(`Report request failed (${response.status})`)
   const blob = await response.blob(); const url = URL.createObjectURL(blob)
   if (format === 'html') window.open(url, '_blank', 'noopener,noreferrer')
-  else { const anchor = document.createElement('a'); anchor.href = url; anchor.download = `magic-security-${scanId}.json`; anchor.click() }
+  else { const anchor = document.createElement('a'); anchor.href = url; anchor.download = `magic-security-${scanId}.${format}`; anchor.click() }
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 

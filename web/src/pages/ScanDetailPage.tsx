@@ -150,6 +150,9 @@ export function ScanDetailPage() {
         <button className="btn ghost" type="button" onClick={() => openAuthenticatedReport(scan.id, 'json').catch((err: Error) => setMsg(err.message))}>
           Download JSON
         </button>
+        <button className="btn ghost" type="button" onClick={() => openAuthenticatedReport(scan.id, 'md').catch((err: Error) => setMsg(err.message))}>
+          Download Markdown
+        </button>
         <button className="btn ghost" type="button" disabled={busy} onClick={setBaseline}>
           Set as baseline
         </button>
