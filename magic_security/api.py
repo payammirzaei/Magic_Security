@@ -352,13 +352,16 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return updated
 
     @api.get("/me")
-    def current_user() -> dict[str, Any]:
+    def current_user(workspace_id: str = Query(default="default")) -> dict[str, Any]:
+        workspace = next((entry for entry in persistence.list_workspaces() if entry["id"] == workspace_id), None)
+        if workspace is None:
+            raise HTTPException(status_code=404, detail="workspace not found")
         return {
             "id": "local-owner",
             "name": "Payam",
             "email": None,
             "role": "owner",
-            "workspace": {"id": "default", "name": "Acme Labs"},
+            "workspace": {"id": workspace["id"], "name": workspace["name"]},
             "authenticated": False,
         }
 

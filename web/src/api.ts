@@ -1,7 +1,7 @@
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = window.localStorage.getItem('magic_security_api_key') || import.meta.env.VITE_MAGIC_SECURITY_API_KEY
   const activeWorkspace = window.localStorage.getItem('magic_security_workspace') || 'default'
-  const shouldScope = path.startsWith('/api/targets') || path.startsWith('/api/scans') || path.startsWith('/api/findings') || path.startsWith('/api/workspace')
+  const shouldScope = path.startsWith('/api/targets') || path.startsWith('/api/scans') || path.startsWith('/api/findings') || path.startsWith('/api/workspace') || path.startsWith('/api/me')
   const separator = path.includes('?') ? '&' : '?'
   const scopedPath = shouldScope ? `${path}${separator}workspace_id=${encodeURIComponent(activeWorkspace)}` : path
   const res = await fetch(scopedPath, {
