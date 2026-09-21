@@ -24,7 +24,13 @@ jobs:
       - name: Verify package import
         run: python -c "import magic_security; print(magic_security.__version__)"
       - name: Test
-        run: pytest -q --tb=line
+        run: pytest -q --tb=line --junitxml=test-results.xml
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results-${{ matrix.python-version }}
+          path: test-results.xml
 
   frontend-build:
     runs-on: ubuntu-latest
