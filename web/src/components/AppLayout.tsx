@@ -8,6 +8,7 @@ const links = [
   { to: '/findings', label: 'Findings' },
   { to: '/scan', label: 'New scan' },
   { to: '/history', label: 'History' },
+  { to: '/operations', label: 'Operations' },
 ]
 
 export function AppLayout() {

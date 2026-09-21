@@ -21,6 +21,7 @@ import { HomePage } from './pages/HomePage'
 import { NewScanPage } from './pages/NewScanPage'
 import { ScanDetailPage } from './pages/ScanDetailPage'
 import { TargetsPage } from './pages/TargetsPage'
+import { OperationsPage } from './pages/OperationsPage'
 
 class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false }
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="targets" element={<TargetsPage />} />
           <Route path="scan" element={<NewScanPage />} />
           <Route path="history" element={<HistoryPage />} />
+          <Route path="operations" element={<OperationsPage />} />
           <Route path="findings" element={<FindingsPage />} />
           <Route path="findings/:findingId" element={<FindingDetailPage />} />
           <Route path="scans/:scanId" element={<ScanDetailPage />} />
