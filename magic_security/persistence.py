@@ -186,6 +186,12 @@ class Persistence:
             rows = conn.execute("SELECT id, name, created_at FROM workspaces ORDER BY name").fetchall()
         return [dict(row) for row in rows]
 
+    def create_workspace(self, workspace_id: str, name: str) -> dict[str, Any]:
+        created = datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            conn.execute("INSERT INTO workspaces(id, name, created_at) VALUES(?,?,?)", (workspace_id, name, created))
+        return {"id": workspace_id, "name": name, "created_at": created}
+
     def update_scan_stage(self, scan_id: str, stage: str, *, progress: int, completed: list[str] | None = None) -> None:
         payload = {"current": stage, "completed": completed or [], "progress": max(0, min(100, progress))}
         with self.connect() as conn:

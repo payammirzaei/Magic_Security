@@ -31,6 +31,7 @@ export const api = {
   health: () => request<{ status: string }>('/api/health'),
   workspace: () => request<{ id: string; name: string }>('/api/workspace'),
   workspaces: () => request<{ id: string; name: string; created_at: string }[]>('/api/workspaces'),
+  createWorkspace: (name: string) => request<{ id: string; name: string; created_at: string }>('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) }),
   me: () => request<{ id: string; name: string; role: string; authenticated: boolean }>('/api/me'),
   listFindings: () => request<import('./types').Finding[]>('/api/findings'),
   getFinding: (id: string) => request<import('./types').Finding>(`/api/findings/${encodeURIComponent(id)}`),

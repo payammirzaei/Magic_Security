@@ -6,6 +6,7 @@ import asyncio
 import hmac
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -310,6 +311,18 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/workspaces")
     def workspaces() -> list[dict[str, Any]]:
         return persistence.list_workspaces()
+
+    @api.post("/workspaces")
+    def create_workspace(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        name = str(body.get("name", "")).strip()
+        if not name or len(name) > 80:
+            raise HTTPException(status_code=422, detail="workspace name must be 1-80 characters")
+        workspace_id = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40]
+        if not workspace_id:
+            raise HTTPException(status_code=422, detail="workspace name must contain letters or numbers")
+        if any(item["id"] == workspace_id for item in persistence.list_workspaces()):
+            raise HTTPException(status_code=409, detail="workspace already exists")
+        return persistence.create_workspace(workspace_id, name)
 
     @api.get("/me")
     def current_user() -> dict[str, Any]:
