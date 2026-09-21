@@ -51,6 +51,23 @@ def test_workspace_scope_hides_targets_and_scans(tmp_path: Path):
     assert pending and pending[0]["id"] == default_scan
 
 
+def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from magic_security.api import create_app
+
+    monkeypatch.setenv("MAGIC_SECURITY_API_KEY", "test-secret")
+    app = create_app(tmp_path / "auth.db")
+    client = TestClient(app)
+    assert client.get("/api/targets").status_code == 401
+    headers = {"Authorization": "Bearer test-secret"}
+    assert client.get("/api/health").status_code == 200
+    created = client.post("/api/targets?workspace_id=alpha", json={"base_url": "https://alpha.test"}, headers=headers)
+    assert created.status_code == 200
+    assert len(client.get("/api/targets?workspace_id=alpha", headers=headers).json()) == 1
+    assert client.get("/api/targets?workspace_id=beta", headers=headers).json() == []
+
+
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
