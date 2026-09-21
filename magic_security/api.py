@@ -126,7 +126,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
             await asyncio.gather(*workers, return_exceptions=True)
 
     @api.post("/targets")
-    def post_target(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    def post_target(body: dict[str, Any] = Body(...), workspace_id: str = Query(default="default")) -> dict[str, Any]:
         item = registry.register(
             str(body["base_url"]),
             environment=str(body.get("environment", "local")),
@@ -137,6 +137,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
             item.base_url,
             environment=item.environment,
             metadata=item.to_dict(),
+            workspace_id=workspace_id,
         )
         return item.to_dict()
 
@@ -160,7 +161,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return persistence.list_findings(limit=limit, workspace_id=workspace_id)
 
     @api.post("/scans")
-    async def post_scan(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    async def post_scan(payload: dict[str, Any] = Body(...), workspace_id: str = Query(default="default")) -> dict[str, Any]:
         target = str(payload.get("target") or "").strip()
         if not target:
             raise HTTPException(status_code=422, detail="target is required")
@@ -180,8 +181,8 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
                     detail="auth_contexts_path must be a relative local path",
                 )
         tid = target_id_for(target)
-        persistence.upsert_target(tid, target)
-        scan_id = persistence.create_scan(target_id=tid, status="queued", config=payload)
+        persistence.upsert_target(tid, target, workspace_id=workspace_id)
+        scan_id = persistence.create_scan(target_id=tid, status="queued", config=payload, workspace_id=workspace_id)
         await scan_queue.put((scan_id, payload))
         return {
             "id": scan_id,
@@ -190,15 +191,16 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         }
 
     @api.get("/scans/{scan_id}")
-    def get_scan(scan_id: str) -> dict[str, Any]:
+    def get_scan(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, Any]:
         row = persistence.get_scan(scan_id)
-        if row is None:
+        if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         return row
 
     @api.get("/scans/{scan_id}/findings")
-    def get_findings(scan_id: str) -> list[dict[str, Any]]:
-        if persistence.get_scan(scan_id) is None:
+    def get_findings(scan_id: str, workspace_id: str = Query(default="default")) -> list[dict[str, Any]]:
+        row = persistence.get_scan(scan_id)
+        if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         return persistence.get_findings(scan_id)
 
@@ -236,9 +238,9 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return {"ok": True, "target_id": row["target_id"], "scan_id": scan_id}
 
     @api.get("/scans/{scan_id}/report.html")
-    def get_report_html(scan_id: str) -> HTMLResponse:
+    def get_report_html(scan_id: str, workspace_id: str = Query(default="default")) -> HTMLResponse:
         row = persistence.get_scan(scan_id)
-        if row is None:
+        if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         report = row.get("report") or {}
         if not report:
@@ -252,6 +254,10 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/workspace")
     def workspace() -> dict[str, str]:
         return {"id": "default", "name": "Acme Labs"}
+
+    @api.get("/workspaces")
+    def workspaces() -> list[dict[str, Any]]:
+        return persistence.list_workspaces()
 
     @api.get("/me")
     def current_user() -> dict[str, Any]:

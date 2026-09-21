@@ -91,6 +91,7 @@ code,
 .brand-lockup { font-size: 1.02rem; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: .45rem; }
 .brand-dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 0 4px rgba(232,168,56,.12); }
 .workspace-switcher { border: 1px solid var(--border); background: var(--bg-panel); padding: .7rem .75rem; position: relative; border-radius: 7px; }
+.workspace-select { display:block;width:100%;background:transparent;border:0;color:var(--text);font-weight:600;font-size:.84rem;outline:0;cursor:pointer;margin-top:.2rem; }
 .workspace-switcher strong { display:block; font-size:.84rem; margin-top:.2rem; }
 .workspace-switcher .chevron { position:absolute; right:.7rem; bottom:.68rem; color:var(--text-muted); }
 .eyebrow, .nav-section-label { color:var(--text-muted); font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; font-weight:600; }

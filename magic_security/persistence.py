@@ -61,6 +61,7 @@ class Persistence:
                 );
                 """
             )
+            conn.execute("INSERT OR IGNORE INTO workspaces(id, name, created_at) VALUES('default', 'Acme Labs', ?)", (datetime.now(timezone.utc).isoformat(),))
             cols = {
                 row[1]
                 for row in conn.execute("PRAGMA table_info(scans)").fetchall()
@@ -84,12 +85,13 @@ class Persistence:
         *,
         environment: str = "local",
         metadata: dict[str, Any] | None = None,
+        workspace_id: str = "default",
     ) -> None:
         with self.connect() as conn:
             conn.execute(
                 """
-                INSERT INTO targets(id, base_url, environment, metadata_json)
-                VALUES(?,?,?,?)
+                INSERT INTO targets(id, base_url, environment, metadata_json, workspace_id)
+                VALUES(?,?,?,?,?)
                 ON CONFLICT(id) DO UPDATE SET
                   base_url=excluded.base_url,
                   environment=excluded.environment,
@@ -100,6 +102,7 @@ class Persistence:
                     base_url,
                     environment,
                     json.dumps(metadata or {}),
+                    workspace_id,
                 ),
             )
 
@@ -115,6 +118,7 @@ class Persistence:
         status: str = "queued",
         scan_id: str | None = None,
         config: dict[str, Any] | None = None,
+        workspace_id: str = "default",
     ) -> str:
         sid = scan_id or uuid.uuid4().hex
         created = datetime.now(timezone.utc).isoformat()
@@ -122,11 +126,11 @@ class Persistence:
             conn.execute(
                 """
                 INSERT INTO scans(
-                  id, target_id, created_at, status, report_json, snapshot_json, error_text, stage_json, config_json
+                  id, target_id, created_at, status, report_json, snapshot_json, error_text, stage_json, config_json, workspace_id
                 )
-                VALUES(?,?,?,?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?,?,?)
                 """,
-                (sid, target_id, created, status, "{}", "{}", None, json.dumps({"current": "queued", "completed": [], "progress": 0}), json.dumps(config or {})),
+                (sid, target_id, created, status, "{}", "{}", None, json.dumps({"current": "queued", "completed": [], "progress": 0}), json.dumps(config or {}), workspace_id),
             )
         return sid
 
@@ -146,7 +150,11 @@ class Persistence:
                 """,
                 (status, error, scan_id),
             )
-            conn.execute("INSERT OR IGNORE INTO workspaces(id, name, created_at) VALUES('default', 'Acme Labs', ?)", (datetime.now(timezone.utc).isoformat(),))
+
+    def list_workspaces(self) -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT id, name, created_at FROM workspaces ORDER BY name").fetchall()
+        return [dict(row) for row in rows]
 
     def update_scan_stage(self, scan_id: str, stage: str, *, progress: int, completed: list[str] | None = None) -> None:
         payload = {"current": stage, "completed": completed or [], "progress": max(0, min(100, progress))}

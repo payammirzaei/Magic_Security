@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { clearApiToken } from '../api'
+import { api, clearApiToken } from '../api'
+import { useEffect, useState } from 'react'
 
 const links = [
   { to: '/', label: 'Status', end: true },
@@ -10,6 +11,11 @@ const links = [
 ]
 
 export function AppLayout() {
+  const [workspaceName, setWorkspaceName] = useState('Acme Labs')
+  const [userName, setUserName] = useState('Payam')
+  const [role, setRole] = useState('Owner')
+  const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
+  useEffect(() => { Promise.all([api.workspace(), api.me(), api.workspaces()]).then(([workspace, user, all]) => { setWorkspaceName(workspace.name); setUserName(user.name); setRole(user.role); setWorkspaces(all) }).catch(() => undefined) }, [])
   const logout = () => { clearApiToken(); window.location.assign('/login') }
   return (
     <div className="app-shell">
@@ -20,7 +26,7 @@ export function AppLayout() {
         </div>
         <div className="workspace-switcher">
           <span className="eyebrow">Workspace</span>
-          <strong>Acme Labs</strong>
+          <select className="workspace-select" value={window.localStorage.getItem('magic_security_workspace') || 'default'} onChange={(event) => { window.localStorage.setItem('magic_security_workspace', event.target.value); window.location.reload() }} aria-label="Active workspace">{(workspaces.length ? workspaces : [{ id: 'default', name: workspaceName }]).map((workspace) => <option value={workspace.id} key={workspace.id}>{workspace.name}</option>)}</select>
           <span className="chevron">⌄</span>
         </div>
         <div className="nav-section-label">Monitor</div>
@@ -38,7 +44,7 @@ export function AppLayout() {
         </nav>
         <div className="sidebar-footer">
           <div className="status-dot"><span /> Scanner online</div>
-          <button className="user-chip" type="button" onClick={logout}><span className="avatar">PM</span><span><strong>Payam</strong><small>Owner · Sign out</small></span><span className="more">↗</span></button>
+          <button className="user-chip" type="button" onClick={logout}><span className="avatar">{userName.slice(0, 2).toUpperCase()}</span><span><strong>{userName}</strong><small>{role} · Sign out</small></span><span className="more">↗</span></button>
         </div>
       </aside>
       <main className="main">

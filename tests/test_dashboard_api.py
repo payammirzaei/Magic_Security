@@ -36,6 +36,19 @@ def test_persistence_list_and_baseline(tmp_path: Path):
     assert store.get_baseline("t1") is not None
 
 
+def test_workspace_scope_hides_targets_and_scans(tmp_path: Path):
+    store = Persistence(tmp_path / "scope.db")
+    store.init_schema()
+    store.upsert_target("default-target", "http://default.test", workspace_id="default")
+    store.upsert_target("other-target", "http://other.test", workspace_id="other")
+    default_scan = store.create_scan(target_id="default-target", workspace_id="default")
+    other_scan = store.create_scan(target_id="other-target", workspace_id="other")
+    assert [item["id"] for item in store.list_targets(workspace_id="default")] == ["default-target"]
+    assert [item["id"] for item in store.list_scans(workspace_id="other")] == [other_scan]
+    assert store.get_scan(other_scan)["workspace_id"] == "other"
+    assert store.get_scan(default_scan)["workspace_id"] == "default"
+
+
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient

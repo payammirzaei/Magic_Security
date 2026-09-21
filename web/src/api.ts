@@ -1,6 +1,10 @@
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = window.localStorage.getItem('magic_security_api_key') || import.meta.env.VITE_MAGIC_SECURITY_API_KEY
-  const res = await fetch(path, {
+  const activeWorkspace = window.localStorage.getItem('magic_security_workspace') || 'default'
+  const shouldScope = path.startsWith('/api/targets') || path.startsWith('/api/scans') || path.startsWith('/api/findings')
+  const separator = path.includes('?') ? '&' : '?'
+  const scopedPath = shouldScope ? `${path}${separator}workspace_id=${encodeURIComponent(activeWorkspace)}` : path
+  const res = await fetch(scopedPath, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -26,6 +30,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<{ status: string }>('/api/health'),
   workspace: () => request<{ id: string; name: string }>('/api/workspace'),
+  workspaces: () => request<{ id: string; name: string; created_at: string }[]>('/api/workspaces'),
   me: () => request<{ id: string; name: string; role: string; authenticated: boolean }>('/api/me'),
   listFindings: () => request<import('./types').Finding[]>('/api/findings'),
   listTargets: () => request<import('./types').Target[]>('/api/targets'),
