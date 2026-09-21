@@ -4,7 +4,7 @@ import { api } from '../api'
 import type { Finding, ScanListItem, Target } from '../types'
 
 export function HomePage() {
-  const [targets, setTargets] = useState<Target[]>([]); const [scans, setScans] = useState<ScanListItem[]>([]); const [findings, setFindings] = useState<Finding[]>([]); const [queue, setQueue] = useState({ queued: 0, workers: 0 }); const [error, setError] = useState<string | null>(null)
+  const [targets, setTargets] = useState<Target[]>([]); const [scans, setScans] = useState<ScanListItem[]>([]); const [findings, setFindings] = useState<Finding[]>([]); const [queue, setQueue] = useState({ queued: 0, workers: 0, active_scans: 0, failed_scans: 0 }); const [error, setError] = useState<string | null>(null)
   useEffect(() => { let disposed = false; const refresh = () => Promise.all([api.listTargets(), api.listScans(), api.listFindings(), api.queue()]).then(([targetItems, scanItems, findingItems, queueStatus]) => { if (disposed) return; setTargets(targetItems); setScans(scanItems); setFindings(findingItems); setQueue(queueStatus); setError(null) }).catch((err: Error) => { if (!disposed) setError(err.message) }); refresh(); const timer = window.setInterval(refresh, 15000); return () => { disposed = true; window.clearInterval(timer) } }, [])
   const severity = useMemo(() => findings.reduce((acc, item) => { const key = (item.severity || 'low').toLowerCase(); acc[key] = (acc[key] || 0) + 1; return acc }, {} as Record<string, number>), [findings])
   const score = Math.max(0, 100 - findings.length * 5); const recent = scans.slice(0, 4)
