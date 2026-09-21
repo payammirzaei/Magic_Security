@@ -47,6 +47,8 @@ def test_workspace_scope_hides_targets_and_scans(tmp_path: Path):
     assert [item["id"] for item in store.list_scans(workspace_id="other")] == [other_scan]
     assert store.get_scan(other_scan)["workspace_id"] == "other"
     assert store.get_scan(default_scan)["workspace_id"] == "default"
+    pending = store.list_pending_scans(workspace_id="default")
+    assert pending and pending[0]["id"] == default_scan
 
 
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):

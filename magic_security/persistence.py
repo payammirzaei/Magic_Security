@@ -161,6 +161,17 @@ class Persistence:
         with self.connect() as conn:
             conn.execute("UPDATE scans SET stage_json=? WHERE id=?", (json.dumps(payload), scan_id))
 
+    def list_pending_scans(self, *, workspace_id: str = "default") -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT id, target_id, status, config_json FROM scans WHERE workspace_id=? AND status IN ('queued','running') ORDER BY created_at",
+                (workspace_id,),
+            ).fetchall()
+        pending: list[dict[str, Any]] = []
+        for row in rows:
+            pending.append({"id": row["id"], "target_id": row["target_id"], "status": row["status"], "config": json.loads(row["config_json"] or "{}")})
+        return pending
+
     def complete_scan(
         self,
         scan_id: str,

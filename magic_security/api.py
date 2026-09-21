@@ -116,6 +116,9 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @app.on_event("startup")
     async def start_scan_worker() -> None:
         app.state.scan_workers = [asyncio.create_task(_scan_worker()) for _ in range(2)]
+        for pending in persistence.list_pending_scans():
+            persistence.update_scan_status(pending["id"], "queued")
+            await scan_queue.put((pending["id"], pending["config"]))
 
     @app.on_event("shutdown")
     async def stop_scan_worker() -> None:
