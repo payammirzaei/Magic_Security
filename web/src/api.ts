@@ -88,11 +88,13 @@ export function clearApiToken() {
 }
 
 export function reportHtmlUrl(scanId: string): string {
-  return `/api/scans/${scanId}/report.html`
+  const workspace = window.localStorage.getItem('magic_security_workspace') || 'default'
+  return `/api/scans/${scanId}/report.html?workspace_id=${encodeURIComponent(workspace)}`
 }
 
 export function reportJsonUrl(scanId: string): string {
-  return `/api/scans/${scanId}/report.json`
+  const workspace = window.localStorage.getItem('magic_security_workspace') || 'default'
+  return `/api/scans/${scanId}/report.json?workspace_id=${encodeURIComponent(workspace)}`
 }
 
 export async function pollScan(
