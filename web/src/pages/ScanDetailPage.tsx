@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { api, reportHtmlUrl, reportJsonUrl } from '../api'
+import { api, openAuthenticatedReport } from '../api'
 import type { Finding, ScanDetail } from '../types'
 
 type Tab = 'decision' | 'findings' | 'coverage' | 'surface' | 'diff'
@@ -144,12 +144,12 @@ export function ScanDetailPage() {
       {msg && <div className="callout">{msg}</div>}
 
       <div className="toolbar">
-        <a className="btn ghost" href={reportHtmlUrl(scan.id)} target="_blank" rel="noreferrer">
+        <button className="btn ghost" type="button" onClick={() => openAuthenticatedReport(scan.id, 'html').catch((err: Error) => setMsg(err.message))}>
           Open HTML report
-        </a>
-        <a className="btn ghost" href={reportJsonUrl(scan.id)} download={`magic-security-${scan.id}.json`}>
+        </button>
+        <button className="btn ghost" type="button" onClick={() => openAuthenticatedReport(scan.id, 'json').catch((err: Error) => setMsg(err.message))}>
           Download JSON
-        </a>
+        </button>
         <button className="btn ghost" type="button" disabled={busy} onClick={setBaseline}>
           Set as baseline
         </button>
