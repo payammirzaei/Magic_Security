@@ -45,6 +45,7 @@ def test_workspace_scope_hides_targets_and_scans(tmp_path: Path):
     other_scan = store.create_scan(target_id="other-target", workspace_id="other")
     assert [item["id"] for item in store.list_targets(workspace_id="default")] == ["default-target"]
     assert [item["id"] for item in store.list_scans(workspace_id="other")] == [other_scan]
+    assert len(store.list_scans(limit=1, offset=0, workspace_id="default")) == 1
     assert store.get_scan(other_scan)["workspace_id"] == "other"
     assert store.get_scan(default_scan)["workspace_id"] == "default"
     pending = store.list_pending_scans(workspace_id="default")
