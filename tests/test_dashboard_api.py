@@ -117,6 +117,7 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     health = client.get("/api/health")
     assert health.status_code == 200
     assert health.json()["service"] == "magic-security-api"
+    assert health.json()["version"] == "1.3.0"
     assert health.json()["status"] in {"ok", "degraded"}
     assert "workers" in health.json()
 

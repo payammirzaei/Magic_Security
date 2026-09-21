@@ -17,6 +17,7 @@ from magic_security.persistence import Persistence
 from magic_security.reporting import build_report
 from magic_security.reporting_html import render_html_report
 from magic_security.target_registry import TargetRegistry
+from magic_security.version import SCANNER_VERSION
 
 WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
 
@@ -313,7 +314,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/health")
     def health() -> dict[str, Any]:
         workers = [worker for worker in getattr(app.state, "scan_workers", []) if not worker.done()]
-        return {"status": "ok" if workers else "degraded", "service": "magic-security-api", "version": "1.0", "workers": len(workers), "queued": scan_queue.qsize()}
+        return {"status": "ok" if workers else "degraded", "service": "magic-security-api", "version": SCANNER_VERSION, "workers": len(workers), "queued": scan_queue.qsize()}
 
     @api.get("/workspace")
     def workspace(workspace_id: str = Query(default="default")) -> dict[str, str]:
