@@ -329,6 +329,10 @@ class Persistence:
                 return payload
         return None
 
+    def get_finding(self, identifier: str, *, workspace_id: str = "default") -> dict[str, Any] | None:
+        items = self.list_findings(limit=1000, workspace_id=workspace_id)
+        return next((item for item in items if item.get("fingerprint") == identifier or item.get("check_id") == identifier), None)
+
     def set_baseline(self, target_id: str, snapshot: dict[str, Any]) -> None:
         with self.connect() as conn:
             conn.execute(

@@ -164,6 +164,13 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     ) -> list[dict[str, Any]]:
         return persistence.list_findings(limit=limit, workspace_id=workspace_id)
 
+    @api.get("/findings/{finding_id}")
+    def get_finding(finding_id: str, workspace_id: str = Query(default="default")) -> dict[str, Any]:
+        finding = persistence.get_finding(finding_id, workspace_id=workspace_id)
+        if finding is None:
+            raise HTTPException(status_code=404, detail="finding not found")
+        return finding
+
     @api.patch("/findings/{finding_id}/status")
     def update_finding_status(finding_id: str, body: dict[str, Any] = Body(...), workspace_id: str = Query(default="default")) -> dict[str, Any]:
         status = str(body.get("status", "")).lower()

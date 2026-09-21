@@ -8,7 +8,7 @@ export function FindingDetailPage() {
   const [finding, setFinding] = useState<Finding | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  useEffect(() => { api.listFindings().then((items) => setFinding(items.find((item) => (item.fingerprint || item.check_id) === findingId) || null)).catch((err: Error) => setError(err.message)) }, [findingId])
+  useEffect(() => { api.getFinding(findingId).then(setFinding).catch((err: Error) => setError(err.message)) }, [findingId])
   if (error) return <div className="empty-state"><h1>Finding unavailable</h1><p>{error}</p><Link to="/findings">Back to findings</Link></div>
   if (!finding) return <div className="empty-state"><h1>Finding not found</h1><p>This finding may be resolved or outside the active workspace.</p><Link to="/findings">Back to findings</Link></div>
   const severity = finding.severity || 'Low'

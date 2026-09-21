@@ -33,6 +33,7 @@ export const api = {
   workspaces: () => request<{ id: string; name: string; created_at: string }[]>('/api/workspaces'),
   me: () => request<{ id: string; name: string; role: string; authenticated: boolean }>('/api/me'),
   listFindings: () => request<import('./types').Finding[]>('/api/findings'),
+  getFinding: (id: string) => request<import('./types').Finding>(`/api/findings/${encodeURIComponent(id)}`),
   updateFindingStatus: (id: string, status: 'open' | 'triaged' | 'ignored') => request<import('./types').Finding>(`/api/findings/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   listTargets: () => request<import('./types').Target[]>('/api/targets'),
   addTarget: (body: {
