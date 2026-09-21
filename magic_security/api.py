@@ -300,6 +300,16 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
             raise HTTPException(status_code=404, detail="report not ready")
         return HTMLResponse(render_html_report(report))
 
+    @api.get("/scans/{scan_id}/report.json")
+    def get_report_json(scan_id: str, workspace_id: str = Query(default="default")) -> JSONResponse:
+        row = persistence.get_scan(scan_id)
+        if row is None or row.get("workspace_id", "default") != workspace_id:
+            raise HTTPException(status_code=404, detail="scan not found")
+        report = row.get("report") or {}
+        if not report:
+            raise HTTPException(status_code=404, detail="report not ready")
+        return JSONResponse(report, headers={"Content-Disposition": f'attachment; filename="magic-security-{scan_id}.json"'})
+
     @api.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}

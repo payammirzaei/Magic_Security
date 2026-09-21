@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { api, reportHtmlUrl } from '../api'
+import { api, reportHtmlUrl, reportJsonUrl } from '../api'
 import type { Finding, ScanDetail } from '../types'
 
 type Tab = 'decision' | 'findings' | 'coverage' | 'surface' | 'diff'
@@ -146,6 +146,9 @@ export function ScanDetailPage() {
       <div className="toolbar">
         <a className="btn ghost" href={reportHtmlUrl(scan.id)} target="_blank" rel="noreferrer">
           Open HTML report
+        </a>
+        <a className="btn ghost" href={reportJsonUrl(scan.id)} download={`magic-security-${scan.id}.json`}>
+          Download JSON
         </a>
         <button className="btn ghost" type="button" disabled={busy} onClick={setBaseline}>
           Set as baseline

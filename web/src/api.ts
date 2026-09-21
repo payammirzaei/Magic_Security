@@ -90,6 +90,10 @@ export function reportHtmlUrl(scanId: string): string {
   return `/api/scans/${scanId}/report.html`
 }
 
+export function reportJsonUrl(scanId: string): string {
+  return `/api/scans/${scanId}/report.json`
+}
+
 export async function pollScan(
   id: string,
   onUpdate?: (scan: import('./types').ScanDetail) => void,
