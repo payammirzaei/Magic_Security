@@ -163,9 +163,10 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     def list_scans(
         target_id: str | None = Query(default=None),
         limit: int = Query(default=50, ge=1, le=200),
+        offset: int = Query(default=0, ge=0),
         workspace_id: str = Query(default="default"),
     ) -> list[dict[str, Any]]:
-        return persistence.list_scans(target_id=target_id, limit=limit, workspace_id=workspace_id)
+        return persistence.list_scans(target_id=target_id, limit=limit, offset=offset, workspace_id=workspace_id)
 
     @api.get("/findings")
     def get_all_findings(

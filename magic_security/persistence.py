@@ -277,6 +277,7 @@ class Persistence:
         *,
         target_id: str | None = None,
         limit: int = 50,
+        offset: int = 0,
         workspace_id: str = "default",
     ) -> list[dict[str, Any]]:
         query = """
@@ -287,8 +288,8 @@ class Persistence:
         if target_id:
             query += " AND target_id=?"
             params.append(target_id)
-        query += " ORDER BY created_at DESC LIMIT ?"
-        params.append(limit)
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
         with self.connect() as conn:
             rows = conn.execute(query, params).fetchall()
         results: list[dict[str, Any]] = []

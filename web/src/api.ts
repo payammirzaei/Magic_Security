@@ -47,9 +47,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  listScans: (targetId?: string) => {
+  listScans: (targetId?: string, options?: { limit?: number; offset?: number }) => {
     const q = targetId ? `?target_id=${encodeURIComponent(targetId)}` : ''
-    return request<import('./types').ScanListItem[]>(`/api/scans${q}`)
+    const join = q ? '&' : '?'
+    return request<import('./types').ScanListItem[]>(`/api/scans${q}${join}limit=${options?.limit ?? 50}&offset=${options?.offset ?? 0}`)
   },
   getScan: (id: string) =>
     request<import('./types').ScanDetail>(`/api/scans/${id}`),
