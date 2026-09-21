@@ -92,6 +92,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return {"expires_in": session_ttl}
     persistence = Persistence(Path(db_path))
     persistence.init_schema()
+    persistence.purge_expired_sessions(time.time())
     registry = TargetRegistry()
     scan_queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
     cancelled_scans: set[str] = set()

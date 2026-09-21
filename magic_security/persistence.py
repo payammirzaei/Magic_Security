@@ -100,6 +100,11 @@ class Persistence:
         with self.connect() as conn:
             conn.execute("DELETE FROM sessions WHERE token=?", (token,))
 
+    def purge_expired_sessions(self, now: float) -> int:
+        with self.connect() as conn:
+            result = conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (now,))
+        return result.rowcount
+
     def upsert_target(
         self,
         target_id: str,
