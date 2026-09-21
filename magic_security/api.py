@@ -32,6 +32,8 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     persistence = Persistence(Path(db_path))
     persistence.init_schema()
     registry = TargetRegistry()
+    scan_queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
+    cancelled_scans: set[str] = set()
 
     async def _run_scan_job(scan_id: str, body: dict[str, Any]) -> None:
         from magic_security.auth import load_auth_contexts
@@ -57,6 +59,9 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
             crawl, findings = await ScannerEngine(
                 max_pages=int(body.get("max_pages", 50))
             ).scan(config=config)
+            if scan_id in cancelled_scans:
+                persistence.update_scan_status(scan_id, "cancelled")
+                return
             completed_stages = ["preflight", "discovery"]
             persistence.update_scan_stage(scan_id, "security_checks", progress=62, completed=completed_stages)
             report = build_report(
@@ -87,6 +92,26 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
                 "failed",
                 error=str(exc),
             )
+
+    async def _scan_worker() -> None:
+        while True:
+            scan_id, body = await scan_queue.get()
+            try:
+                await _run_scan_job(scan_id, body)
+            finally:
+                scan_queue.task_done()
+
+    @app.on_event("startup")
+    async def start_scan_worker() -> None:
+        app.state.scan_workers = [asyncio.create_task(_scan_worker()) for _ in range(2)]
+
+    @app.on_event("shutdown")
+    async def stop_scan_worker() -> None:
+        workers = getattr(app.state, "scan_workers", [])
+        for worker in workers:
+            worker.cancel()
+        if workers:
+            await asyncio.gather(*workers, return_exceptions=True)
 
     @api.post("/targets")
     def post_target(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
@@ -142,8 +167,8 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
                 )
         tid = target_id_for(target)
         persistence.upsert_target(tid, target)
-        scan_id = persistence.create_scan(target_id=tid, status="queued")
-        asyncio.create_task(_run_scan_job(scan_id, payload))
+        scan_id = persistence.create_scan(target_id=tid, status="queued", config=payload)
+        await scan_queue.put((scan_id, payload))
         return {
             "id": scan_id,
             "target_id": tid,
@@ -209,6 +234,33 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @api.get("/queue")
+    def queue_status() -> dict[str, int]:
+        return {"queued": scan_queue.qsize(), "workers": 2}
+
+    @api.post("/scans/{scan_id}/cancel")
+    async def cancel_scan(scan_id: str) -> dict[str, str]:
+        row = persistence.get_scan(scan_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="scan not found")
+        if row["status"] not in {"queued", "running"}:
+            raise HTTPException(status_code=409, detail="scan is not active")
+        cancelled_scans.add(scan_id)
+        persistence.update_scan_status(scan_id, "cancelled")
+        return {"id": scan_id, "status": "cancelled"}
+
+    @api.post("/scans/{scan_id}/retry")
+    async def retry_scan(scan_id: str) -> dict[str, str]:
+        row = persistence.get_scan(scan_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="scan not found")
+        if row["status"] not in {"failed", "cancelled"}:
+            raise HTTPException(status_code=409, detail="only failed or cancelled scans can be retried")
+        config = row.get("config") or {"target": row["target_id"]}
+        new_id = persistence.create_scan(target_id=row["target_id"], status="queued", config=config)
+        await scan_queue.put((new_id, config))
+        return {"id": new_id, "status": "queued"}
 
     app.include_router(api)
 

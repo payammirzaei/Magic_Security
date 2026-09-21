@@ -40,6 +40,7 @@ class Persistence:
                   snapshot_json TEXT,
                   error_text TEXT
                   ,stage_json TEXT
+                  ,config_json TEXT
                 );
                 CREATE TABLE IF NOT EXISTS findings (
                   id TEXT PRIMARY KEY,
@@ -61,6 +62,8 @@ class Persistence:
                 conn.execute("ALTER TABLE scans ADD COLUMN error_text TEXT")
             if "stage_json" not in cols:
                 conn.execute("ALTER TABLE scans ADD COLUMN stage_json TEXT")
+            if "config_json" not in cols:
+                conn.execute("ALTER TABLE scans ADD COLUMN config_json TEXT")
 
     def upsert_target(
         self,
@@ -99,6 +102,7 @@ class Persistence:
         target_id: str,
         status: str = "queued",
         scan_id: str | None = None,
+        config: dict[str, Any] | None = None,
     ) -> str:
         sid = scan_id or uuid.uuid4().hex
         created = datetime.now(timezone.utc).isoformat()
@@ -106,11 +110,11 @@ class Persistence:
             conn.execute(
                 """
                 INSERT INTO scans(
-                  id, target_id, created_at, status, report_json, snapshot_json, error_text, stage_json
+                  id, target_id, created_at, status, report_json, snapshot_json, error_text, stage_json, config_json
                 )
-                VALUES(?,?,?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?,?)
                 """,
-                (sid, target_id, created, status, "{}", "{}", None, json.dumps({"current": "queued", "completed": [], "progress": 0})),
+                (sid, target_id, created, status, "{}", "{}", None, json.dumps({"current": "queued", "completed": [], "progress": 0}), json.dumps(config or {})),
             )
         return sid
 
@@ -233,6 +237,7 @@ class Persistence:
         data["report"] = json.loads(data.pop("report_json") or "{}")
         data["snapshot"] = json.loads(data.pop("snapshot_json") or "{}")
         data["stage"] = json.loads(data.pop("stage_json") or "{}")
+        data["config"] = json.loads(data.pop("config_json") or "{}")
         data["error"] = data.pop("error_text", None)
         data["summary"] = (data["report"] or {}).get("summary")
         return data

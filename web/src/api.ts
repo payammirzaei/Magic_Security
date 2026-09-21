@@ -58,6 +58,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  cancelScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/cancel`, { method: 'POST' }),
+  retryScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/retry`, { method: 'POST' }),
+  queue: () => request<{ queued: number; workers: number }>('/api/queue'),
 }
 
 export function reportHtmlUrl(scanId: string): string {
