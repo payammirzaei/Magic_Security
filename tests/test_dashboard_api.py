@@ -166,9 +166,11 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     html = client.get(f"/api/scans/{scan_id}/report.html")
     assert html.status_code == 200
     assert "Magic Security" in html.text or "Demo finding" in html.text
+    assert html.headers["cache-control"] == "no-store"
     report_json = client.get(f"/api/scans/{scan_id}/report.json")
     assert report_json.status_code == 200
     assert report_json.headers["content-disposition"].startswith("attachment;")
+    assert report_json.headers["cache-control"] == "no-store"
     assert report_json.json()["summary"]["findings"] >= 1
     assert client.get(f"/api/scans/{scan_id}/report.json?workspace_id=other").status_code == 404
 
