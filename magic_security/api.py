@@ -305,8 +305,11 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return {"status": "ok"}
 
     @api.get("/workspace")
-    def workspace() -> dict[str, str]:
-        return {"id": "default", "name": "Acme Labs"}
+    def workspace(workspace_id: str = Query(default="default")) -> dict[str, str]:
+        item = next((entry for entry in persistence.list_workspaces() if entry["id"] == workspace_id), None)
+        if item is None:
+            raise HTTPException(status_code=404, detail="workspace not found")
+        return {"id": item["id"], "name": item["name"]}
 
     @api.get("/workspaces")
     def workspaces() -> list[dict[str, Any]]:
