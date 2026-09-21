@@ -360,7 +360,8 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
 
     @api.get("/queue")
     def queue_status() -> dict[str, int]:
-        return {"queued": scan_queue.qsize(), "workers": 2}
+        workers = [worker for worker in getattr(app.state, "scan_workers", []) if not worker.done()]
+        return {"queued": scan_queue.qsize(), "workers": len(workers)}
 
     @api.post("/scans/{scan_id}/cancel")
     async def cancel_scan(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, str]:
