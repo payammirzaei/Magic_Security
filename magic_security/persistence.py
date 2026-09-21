@@ -61,7 +61,8 @@ class Persistence:
                 );
                 CREATE TABLE IF NOT EXISTS sessions (
                   token TEXT PRIMARY KEY,
-                  expires_at REAL NOT NULL
+                  expires_at REAL NOT NULL,
+                  role TEXT NOT NULL DEFAULT 'owner'
                 );
                 CREATE TABLE IF NOT EXISTS workspace_members (
                   workspace_id TEXT NOT NULL,
@@ -83,15 +84,18 @@ class Persistence:
                 conn.execute("ALTER TABLE scans ADD COLUMN stage_json TEXT")
             if "config_json" not in cols:
                 conn.execute("ALTER TABLE scans ADD COLUMN config_json TEXT")
+            session_cols = {row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
+            if session_cols and "role" not in session_cols:
+                conn.execute("ALTER TABLE sessions ADD COLUMN role TEXT NOT NULL DEFAULT 'owner'")
             target_cols = {row[1] for row in conn.execute("PRAGMA table_info(targets)").fetchall()}
             if "workspace_id" not in target_cols:
                 conn.execute("ALTER TABLE targets ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'")
             if "workspace_id" not in cols:
                 conn.execute("ALTER TABLE scans ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'")
 
-    def create_session(self, token: str, expires_at: float) -> None:
+    def create_session(self, token: str, expires_at: float, role: str = "owner") -> None:
         with self.connect() as conn:
-            conn.execute("INSERT INTO sessions(token, expires_at) VALUES(?, ?)", (token, expires_at))
+            conn.execute("INSERT INTO sessions(token, expires_at, role) VALUES(?, ?, ?)", (token, expires_at, role))
 
     def get_session_expiry(self, token: str) -> float | None:
         with self.connect() as conn:
