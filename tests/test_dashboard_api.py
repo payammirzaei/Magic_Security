@@ -135,6 +135,7 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     assert health.headers["x-content-type-options"] == "nosniff"
     assert health.headers["referrer-policy"] == "no-referrer"
     assert health.headers["permissions-policy"] == "camera=(), microphone=(), geolocation=()"
+    assert "default-src 'self'" in health.headers["content-security-policy"]
     assert health.headers["x-request-id"]
     assert health.headers["server-timing"].startswith("app;dur=")
     traced = client.get("/api/health", headers={"X-Request-ID": "trace-test-123"})
