@@ -90,8 +90,10 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         if expiry is None or expiry <= time.time():
             persistence.revoke_session(request_token)
             raise HTTPException(status_code=401, detail="session expired")
-        persistence.refresh_session(request_token, time.time() + session_ttl)
-        return {"expires_in": session_ttl}
+        persistence.revoke_session(request_token)
+        token = secrets.token_urlsafe(32)
+        persistence.create_session(token, time.time() + session_ttl)
+        return {"token": token, "expires_in": session_ttl}
     persistence = Persistence(Path(db_path))
     persistence.init_schema()
     persistence.purge_expired_sessions(time.time())

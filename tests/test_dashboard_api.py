@@ -106,7 +106,9 @@ def test_session_lifecycle(tmp_path: Path, monkeypatch):
         token = created.json()["token"]
         assert client.get("/api/me", headers={"Authorization": f"Bearer {token}"}).status_code == 200
         auth = {"Authorization": f"Bearer {token}"}
-        assert client.post("/api/session/refresh", headers=auth).status_code == 200
+        refreshed = client.post("/api/session/refresh", headers=auth)
+        assert refreshed.status_code == 200
+        auth = {"Authorization": f"Bearer {refreshed.json()['token']}"}
         assert client.delete("/api/session", headers=auth).status_code == 200
         assert client.get("/api/me", headers=auth).status_code == 401
 
