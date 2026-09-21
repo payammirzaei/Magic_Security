@@ -109,14 +109,23 @@ class Persistence:
     def list_targets(self, *, workspace_id: str = "default") -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute("SELECT * FROM targets WHERE workspace_id=? ORDER BY base_url", (workspace_id,)).fetchall()
-            scans = conn.execute("SELECT target_id, created_at, status, report_json FROM scans WHERE workspace_id=? ORDER BY created_at DESC", (workspace_id,)).fetchall()
+            scans = conn.execute("SELECT id, target_id, created_at, status, report_json FROM scans WHERE workspace_id=? ORDER BY created_at DESC", (workspace_id,)).fetchall()
+            finding_rows = conn.execute("SELECT scan_id, payload_json FROM findings JOIN scans ON scans.id=findings.scan_id WHERE scans.workspace_id=?", (workspace_id,)).fetchall()
         latest: dict[str, dict[str, Any]] = {}
+        open_counts: dict[str, int] = {}
+        for finding in finding_rows:
+            payload = json.loads(finding["payload_json"] or "{}")
+            if payload.get("status", "open") == "open":
+                open_counts[str(finding["scan_id"])] = open_counts.get(str(finding["scan_id"]), 0) + 1
         for scan in scans:
             target_id = str(scan["target_id"])
             if target_id in latest:
                 continue
             report = json.loads(scan["report_json"] or "{}")
-            latest[target_id] = {"last_scan_at": scan["created_at"], "last_scan_status": scan["status"], "last_scan_summary": report.get("summary") or {}}
+            summary = dict(report.get("summary") or {})
+            if scan["status"] == "completed":
+                summary["findings"] = open_counts.get(str(scan["id"]), 0)
+            latest[target_id] = {"last_scan_at": scan["created_at"], "last_scan_status": scan["status"], "last_scan_summary": summary}
         result = []
         for row in rows:
             item = dict(row)
