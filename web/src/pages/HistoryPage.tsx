@@ -13,7 +13,7 @@ export function HistoryPage() {
   const [target, setTarget] = useState('All targets')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  useEffect(() => { api.listScans().then(setItems).catch((err: Error) => setError(err.message)).finally(() => setLoading(false)) }, [])
+  useEffect(() => { let disposed = false; const refresh = () => api.listScans().then((scans) => { if (!disposed) { setItems(scans); setError(null) } }).catch((err: Error) => { if (!disposed) setError(err.message) }).finally(() => { if (!disposed) setLoading(false) }); refresh(); const timer = window.setInterval(refresh, 15000); return () => { disposed = true; window.clearInterval(timer) } }, [])
   const targets = useMemo(() => Array.from(new Set(items.map((item) => item.target_id))), [items])
   const visible = items.filter((run) => { const runStatus = label(run.status); return (status === 'All statuses' || status === runStatus) && (target === 'All targets' || target === run.target_id) && `${run.target_id} ${run.id}`.toLowerCase().includes(query.toLowerCase()) })
   const completed = items.filter((item) => item.status === 'completed')
