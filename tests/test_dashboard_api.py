@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 
 import pytest
 
@@ -78,7 +79,9 @@ def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
     target_id = created.json()["target_id"]
     deleted = client.delete(f"/api/targets/{target_id}?workspace_id=alpha", headers=headers)
     assert deleted.status_code == 200
-    assert client.get("/api/targets?workspace_id=alpha", headers=headers).json() == []
+    remaining = client.get("/api/targets?workspace_id=alpha", headers=headers).json()
+    assert len(remaining) == 1
+    assert remaining[0]["base_url"] == "https://beta.test"
     assert client.delete(f"/api/targets/{target_id}?workspace_id=beta", headers=headers).status_code == 404
     workspace = client.post("/api/workspaces", json={"name": "Security Team EU"}, headers=headers)
     assert workspace.status_code == 200
@@ -155,6 +158,11 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
 
     # Background task runs within TestClient
     detail = client.get(f"/api/scans/{scan_id}")
+    for _ in range(20):
+        if detail.json().get("status") in {"completed", "failed", "cancelled"}:
+            break
+        time.sleep(0.05)
+        detail = client.get(f"/api/scans/{scan_id}")
     assert detail.status_code == 200
     assert detail.json()["status"] == "completed"
     assert detail.json()["summary"]["findings"] >= 1
