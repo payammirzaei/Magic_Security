@@ -68,6 +68,10 @@ def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
     created = client.post("/api/targets?workspace_id=alpha", json={"base_url": "https://alpha.test"}, headers=headers)
     assert created.status_code == 200
     assert len(client.get("/api/targets?workspace_id=alpha", headers=headers).json()) == 1
+    second = client.post("/api/targets?workspace_id=alpha", json={"base_url": "https://beta.test"}, headers=headers)
+    assert second.status_code == 200
+    assert len(client.get("/api/targets?workspace_id=alpha&limit=1&offset=0", headers=headers).json()) == 1
+    assert len(client.get("/api/targets?workspace_id=alpha&limit=1&offset=1", headers=headers).json()) == 1
     assert client.get("/api/targets?workspace_id=beta", headers=headers).json() == []
 
     deleted = client.delete(f"/api/targets/{created.json()['id']}?workspace_id=alpha", headers=headers)
