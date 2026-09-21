@@ -70,6 +70,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  deleteTarget: (id: string) => request<{ ok: boolean; id: string }>(`/api/targets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   cancelScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/cancel`, { method: 'POST' }),
   retryScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/retry`, { method: 'POST' }),
   queue: () => request<{ queued: number; workers: number }>('/api/queue'),

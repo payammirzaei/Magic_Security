@@ -173,6 +173,14 @@ class Persistence:
                 (status, error, scan_id),
             )
 
+    def delete_target(self, target_id: str, *, workspace_id: str = "default") -> bool:
+        with self.connect() as conn:
+            active = conn.execute("SELECT 1 FROM scans WHERE target_id=? AND workspace_id=? AND status IN ('queued','running') LIMIT 1", (target_id, workspace_id)).fetchone()
+            if active:
+                return False
+            result = conn.execute("DELETE FROM targets WHERE id=? AND workspace_id=?", (target_id, workspace_id))
+            return result.rowcount > 0
+
     def list_workspaces(self) -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute("SELECT id, name, created_at FROM workspaces ORDER BY name").fetchall()

@@ -149,6 +149,14 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     def get_targets(workspace_id: str = Query(default="default")) -> list[dict[str, Any]]:
         return persistence.list_targets(workspace_id=workspace_id)
 
+    @api.delete("/targets/{target_id}")
+    def delete_target(target_id: str, workspace_id: str = Query(default="default")) -> dict[str, Any]:
+        if persistence.get_target(target_id, workspace_id=workspace_id) is None:
+            raise HTTPException(status_code=404, detail="target not found")
+        if not persistence.delete_target(target_id, workspace_id=workspace_id):
+            raise HTTPException(status_code=409, detail="target has an active scan")
+        return {"ok": True, "id": target_id}
+
     @api.get("/scans")
     def list_scans(
         target_id: str | None = Query(default=None),
