@@ -16,7 +16,9 @@ export function AppLayout() {
   const [userName, setUserName] = useState('Payam')
   const [role, setRole] = useState('Owner')
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
+  const [queue, setQueue] = useState({ queued: 0, workers: 0 })
   useEffect(() => { Promise.all([api.workspace(), api.me(), api.workspaces()]).then(([workspace, user, all]) => { setWorkspaceName(workspace.name); setUserName(user.name); setRole(user.role); setWorkspaces(all) }).catch(() => undefined) }, [])
+  useEffect(() => { let disposed = false; const refresh = () => api.queue().then((value) => { if (!disposed) setQueue(value) }).catch(() => undefined); refresh(); const timer = window.setInterval(refresh, 15000); return () => { disposed = true; window.clearInterval(timer) } }, [])
   const logout = () => { clearApiToken(); window.location.assign('/login') }
   const createWorkspace = async () => { const name = window.prompt('Workspace name'); if (!name?.trim()) return; try { const created = await api.createWorkspace(name.trim()); setWorkspaces((current) => [...current, created]); window.localStorage.setItem('magic_security_workspace', created.id); window.location.reload() } catch (err) { window.alert(err instanceof Error ? err.message : String(err)) } }
   const renameWorkspace = async () => { const active = window.localStorage.getItem('magic_security_workspace') || 'default'; const name = window.prompt('New workspace name', workspaceName); if (!name?.trim()) return; try { await api.renameWorkspace(active, name.trim()); window.location.reload() } catch (err) { window.alert(err instanceof Error ? err.message : String(err)) } }
@@ -48,7 +50,7 @@ export function AppLayout() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <div className="status-dot"><span /> Scanner online</div>
+          <div className={`status-dot ${queue.workers > 0 ? '' : 'danger-text'}`}><span /> {queue.workers > 0 ? `Scanner online · ${queue.queued} queued` : 'Scanner unavailable'}</div>
           <button className="user-chip" type="button" onClick={logout}><span className="avatar">{userName.slice(0, 2).toUpperCase()}</span><span><strong>{userName}</strong><small>{role} · Sign out</small></span><span className="more">↗</span></button>
         </div>
       </aside>
