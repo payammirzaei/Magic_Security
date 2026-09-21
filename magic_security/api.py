@@ -339,7 +339,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         summary = report.get("summary") or {}
         lines = [f"# Magic Security audit: {row['target_id']}", "", f"- Scan: `{scan_id}`", f"- Findings: **{summary.get('findings', 0)}**", "", "## Findings"]
         for finding in report.get("findings", []):
-            lines.extend([f"### [{str(finding.get('severity', 'unknown')).upper()}] {finding.get('title', 'Untitled')}", finding.get("description", ""), f"- URL: `{finding.get('url', '')}`", f"- Remediation: {finding.get('remediation', 'Review and remediate the finding.')}", ""])
+            lines.extend([f"### [{str(finding.get('severity', 'unknown')).upper()}] {finding.get('title', 'Untitled')}", finding.get("description", ""), f"- URL: `{finding.get('url', '')}`", f"- Remediation: {finding.get('remediation', 'Review and remediate the finding.')}", "", "**Evidence**", "```text", str(finding.get('evidence', '')).strip(), "```", ""])
         return PlainTextResponse("\n".join(lines), media_type="text/markdown", headers={"Content-Disposition": f'attachment; filename="magic-security-{scan_id}.md"', "Cache-Control": "no-store"})
 
     @api.get("/health")
