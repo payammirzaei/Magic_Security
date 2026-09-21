@@ -106,8 +106,8 @@ def test_session_lifecycle(tmp_path: Path, monkeypatch):
         token = created.json()["token"]
         assert client.get("/api/me", headers={"Authorization": f"Bearer {token}"}).status_code == 200
         auth = {"Authorization": f"Bearer {token}"}
-        assert client.post(f"/api/session/refresh?request_token={token}", headers=auth).status_code == 200
-        assert client.delete(f"/api/session?request_token={token}", headers=auth).status_code == 200
+        assert client.post("/api/session/refresh", headers=auth).status_code == 200
+        assert client.delete("/api/session", headers=auth).status_code == 200
         assert client.get("/api/me", headers=auth).status_code == 401
 
 
@@ -123,7 +123,7 @@ def test_session_survives_app_restart(tmp_path: Path, monkeypatch):
     with TestClient(create_app(db)) as second:
         auth = {"Authorization": f"Bearer {token}"}
         assert second.get("/api/me", headers=auth).status_code == 200
-        assert second.delete(f"/api/session?request_token={token}", headers=auth).status_code == 200
+        assert second.delete("/api/session", headers=auth).status_code == 200
 
 
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):

@@ -27,7 +27,7 @@ WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
 
 def create_app(db_path: str | Path = ".magic-security/magic.db"):
     try:
-        from fastapi import APIRouter, Body, FastAPI, HTTPException, Query
+        from fastapi import APIRouter, Body, FastAPI, Header, HTTPException, Query
         from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
         from fastapi.staticfiles import StaticFiles
     except ImportError as exc:  # pragma: no cover
@@ -78,12 +78,14 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return {"token": token, "expires_in": session_ttl}
 
     @api.delete("/session")
-    def delete_session(request_token: str = Query(default="")) -> dict[str, bool]:
+    def delete_session(authorization: str = Header(default="")) -> dict[str, bool]:
+        request_token = authorization.removeprefix("Bearer ").strip()
         persistence.revoke_session(request_token)
         return {"ok": True}
 
     @api.post("/session/refresh")
-    def refresh_session(request_token: str = Query(default="")) -> dict[str, Any]:
+    def refresh_session(authorization: str = Header(default="")) -> dict[str, Any]:
+        request_token = authorization.removeprefix("Bearer ").strip()
         expiry = persistence.get_session_expiry(request_token)
         if expiry is None or expiry <= time.time():
             persistence.revoke_session(request_token)
