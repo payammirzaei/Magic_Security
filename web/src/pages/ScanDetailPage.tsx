@@ -40,6 +40,14 @@ export function ScanDetailPage() {
   }, [scanId])
 
   useEffect(() => {
+    if (!scanId || !scan || (scan.status !== 'queued' && scan.status !== 'running')) return
+    const workspace = window.localStorage.getItem('magic_security_workspace') || 'default'
+    const events = new EventSource(`/api/scans/${scanId}/events?workspace_id=${encodeURIComponent(workspace)}`)
+    events.addEventListener('scan', (event) => { const update = JSON.parse((event as MessageEvent).data) as { status: string; stage: ScanDetail['stage'] }; setScan((current) => current ? { ...current, status: update.status, stage: update.stage } : current) })
+    return () => events.close()
+  }, [scanId, scan?.status])
+
+  useEffect(() => {
     if (tab !== 'diff' || !scanId) return
     setDiffError(null)
     api

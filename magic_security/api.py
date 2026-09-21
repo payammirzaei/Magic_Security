@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,7 @@ WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
 def create_app(db_path: str | Path = ".magic-security/magic.db"):
     try:
         from fastapi import APIRouter, Body, FastAPI, HTTPException, Query
-        from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+        from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
         from fastapi.staticfiles import StaticFiles
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -206,6 +207,29 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         return persistence.get_findings(scan_id)
+
+    @api.get("/scans/{scan_id}/events")
+    async def scan_events(scan_id: str, workspace_id: str = Query(default="default")) -> StreamingResponse:
+        row = persistence.get_scan(scan_id)
+        if row is None or row.get("workspace_id", "default") != workspace_id:
+            raise HTTPException(status_code=404, detail="scan not found")
+
+        async def stream():
+            last = None
+            for _ in range(240):
+                current = persistence.get_scan(scan_id)
+                if current is None:
+                    break
+                payload = {"id": scan_id, "status": current["status"], "stage": current.get("stage") or {}}
+                marker = repr(payload)
+                if marker != last:
+                    last = marker
+                    yield f"event: scan\ndata: {json.dumps(payload)}\n\n"
+                if current["status"] in {"completed", "failed", "cancelled"}:
+                    break
+                await asyncio.sleep(1)
+
+        return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     @api.get("/scans/{scan_id}/coverage")
     def get_coverage(scan_id: str) -> dict[str, Any]:
