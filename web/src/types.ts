@@ -52,6 +52,7 @@ export type Finding = {
   check_id?: string
   target_id?: string
   detected_at?: string
+  status?: 'open' | 'triaged' | 'ignored'
 }
 
 export type ScanDetail = ScanListItem & {

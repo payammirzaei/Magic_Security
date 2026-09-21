@@ -314,6 +314,21 @@ class Persistence:
             result.append(item)
         return result
 
+    def update_finding_status(self, identifier: str, status: str, *, workspace_id: str = "default") -> dict[str, Any] | None:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT f.id, f.payload_json FROM findings f JOIN scans s ON s.id=f.scan_id WHERE s.workspace_id=?",
+                (workspace_id,),
+            ).fetchall()
+            for row in rows:
+                payload = json.loads(row["payload_json"] or "{}")
+                if payload.get("fingerprint") != identifier and payload.get("check_id") != identifier:
+                    continue
+                payload["status"] = status
+                conn.execute("UPDATE findings SET payload_json=? WHERE id=?", (json.dumps(payload), row["id"]))
+                return payload
+        return None
+
     def set_baseline(self, target_id: str, snapshot: dict[str, Any]) -> None:
         with self.connect() as conn:
             conn.execute(
