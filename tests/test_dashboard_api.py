@@ -190,6 +190,8 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     assert report_json.headers["cache-control"] == "no-store"
     assert report_json.json()["summary"]["findings"] >= 1
     assert client.get(f"/api/scans/{scan_id}/report.json?workspace_id=other").status_code == 404
+    assert client.post(f"/api/scans/{scan_id}/cancel").status_code == 409
+    assert client.post(f"/api/scans/{scan_id}/cancel?workspace_id=other").status_code == 404
 
     targets = client.post(
         "/api/targets",
