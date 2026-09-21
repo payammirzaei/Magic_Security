@@ -84,6 +84,10 @@ def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
     assert workspace.json()["id"] == "security-team-eu"
     assert client.post("/api/workspaces", json={"name": "Security Team EU"}, headers=headers).status_code == 409
     assert client.get("/api/targets?workspace_id=security-team-eu", headers=headers).json() == []
+    me = client.get("/api/me?workspace_id=security-team-eu", headers=headers)
+    assert me.status_code == 200
+    assert me.json()["workspace"]["id"] == "security-team-eu"
+    assert client.get("/api/me?workspace_id=missing", headers=headers).status_code == 404
 
 
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
