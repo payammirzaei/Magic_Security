@@ -21,7 +21,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+    const requestId = res.headers.get('x-request-id')
+    const message = typeof detail === 'string' ? detail : JSON.stringify(detail)
+    throw new Error(requestId ? `${message} (request ${requestId})` : message)
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
