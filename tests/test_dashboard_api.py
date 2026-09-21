@@ -131,6 +131,7 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
 
     app = api_mod.create_app(tmp_path / "api.db")
     client = TestClient(app)
+    client.__enter__()
 
     health = client.get("/api/health")
     assert health.status_code == 200
