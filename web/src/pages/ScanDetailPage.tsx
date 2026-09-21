@@ -42,9 +42,21 @@ export function ScanDetailPage() {
   useEffect(() => {
     if (!scanId || !scan || (scan.status !== 'queued' && scan.status !== 'running')) return
     const workspace = window.localStorage.getItem('magic_security_workspace') || 'default'
-    const events = new EventSource(`/api/scans/${scanId}/events?workspace_id=${encodeURIComponent(workspace)}`)
-    events.addEventListener('scan', (event) => { const update = JSON.parse((event as MessageEvent).data) as { status: string; stage: ScanDetail['stage'] }; setScan((current) => current ? { ...current, status: update.status, stage: update.stage } : current) })
-    return () => events.close()
+    const token = window.localStorage.getItem('magic_security_api_key') || import.meta.env.VITE_MAGIC_SECURITY_API_KEY
+    const controller = new AbortController()
+    const consume = async () => {
+      const response = await fetch(`/api/scans/${scanId}/events?workspace_id=${encodeURIComponent(workspace)}`, { signal: controller.signal, headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!response.ok || !response.body) return
+      const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''
+      while (!controller.signal.aborted) {
+        const chunk = await reader.read(); if (chunk.done) break
+        buffer += decoder.decode(chunk.value, { stream: true })
+        const parts = buffer.split('\n\n'); buffer = parts.pop() || ''
+        for (const part of parts) { const data = part.split('\n').find((line) => line.startsWith('data:'))?.slice(5).trim(); if (!data) continue; const update = JSON.parse(data) as { status: string; stage: ScanDetail['stage'] }; setScan((current) => current ? { ...current, status: update.status, stage: update.stage } : current) }
+      }
+    }
+    consume().catch(() => undefined)
+    return () => controller.abort()
   }, [scanId, scan?.status])
 
   useEffect(() => {
