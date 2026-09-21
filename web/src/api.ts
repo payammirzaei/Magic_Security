@@ -32,6 +32,7 @@ export const api = {
   workspace: () => request<{ id: string; name: string }>('/api/workspace'),
   workspaces: () => request<{ id: string; name: string; created_at: string }[]>('/api/workspaces'),
   createWorkspace: (name: string) => request<{ id: string; name: string; created_at: string }>('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) }),
+  renameWorkspace: (id: string, name: string) => request<{ id: string; name: string; created_at: string }>(`/api/workspaces/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
   me: () => request<{ id: string; name: string; role: string; authenticated: boolean }>('/api/me'),
   listFindings: () => request<import('./types').Finding[]>('/api/findings'),
   getFinding: (id: string) => request<import('./types').Finding>(`/api/findings/${encodeURIComponent(id)}`),

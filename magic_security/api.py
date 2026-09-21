@@ -327,6 +327,16 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
             raise HTTPException(status_code=409, detail="workspace already exists")
         return persistence.create_workspace(workspace_id, name)
 
+    @api.patch("/workspaces/{workspace_id}")
+    def rename_workspace(workspace_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        name = str(body.get("name", "")).strip()
+        if not name or len(name) > 80:
+            raise HTTPException(status_code=422, detail="workspace name must be 1-80 characters")
+        updated = persistence.rename_workspace(workspace_id, name)
+        if updated is None:
+            raise HTTPException(status_code=404, detail="workspace not found")
+        return updated
+
     @api.get("/me")
     def current_user() -> dict[str, Any]:
         return {

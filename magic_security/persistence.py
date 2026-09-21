@@ -192,6 +192,14 @@ class Persistence:
             conn.execute("INSERT INTO workspaces(id, name, created_at) VALUES(?,?,?)", (workspace_id, name, created))
         return {"id": workspace_id, "name": name, "created_at": created}
 
+    def rename_workspace(self, workspace_id: str, name: str) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            result = conn.execute("UPDATE workspaces SET name=? WHERE id=?", (name, workspace_id))
+            if result.rowcount == 0:
+                return None
+            row = conn.execute("SELECT id, name, created_at FROM workspaces WHERE id=?", (workspace_id,)).fetchone()
+        return dict(row) if row else None
+
     def update_scan_stage(self, scan_id: str, stage: str, *, progress: int, completed: list[str] | None = None) -> None:
         payload = {"current": stage, "completed": completed or [], "progress": max(0, min(100, progress))}
         with self.connect() as conn:

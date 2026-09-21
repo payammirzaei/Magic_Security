@@ -19,6 +19,7 @@ export function AppLayout() {
   useEffect(() => { Promise.all([api.workspace(), api.me(), api.workspaces()]).then(([workspace, user, all]) => { setWorkspaceName(workspace.name); setUserName(user.name); setRole(user.role); setWorkspaces(all) }).catch(() => undefined) }, [])
   const logout = () => { clearApiToken(); window.location.assign('/login') }
   const createWorkspace = async () => { const name = window.prompt('Workspace name'); if (!name?.trim()) return; try { const created = await api.createWorkspace(name.trim()); setWorkspaces((current) => [...current, created]); window.localStorage.setItem('magic_security_workspace', created.id); window.location.reload() } catch (err) { window.alert(err instanceof Error ? err.message : String(err)) } }
+  const renameWorkspace = async () => { const active = window.localStorage.getItem('magic_security_workspace') || 'default'; const name = window.prompt('New workspace name', workspaceName); if (!name?.trim()) return; try { await api.renameWorkspace(active, name.trim()); window.location.reload() } catch (err) { window.alert(err instanceof Error ? err.message : String(err)) } }
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -31,6 +32,7 @@ export function AppLayout() {
           <select className="workspace-select" value={window.localStorage.getItem('magic_security_workspace') || 'default'} onChange={(event) => { window.localStorage.setItem('magic_security_workspace', event.target.value); window.location.reload() }} aria-label="Active workspace">{(workspaces.length ? workspaces : [{ id: 'default', name: workspaceName }]).map((workspace) => <option value={workspace.id} key={workspace.id}>{workspace.name}</option>)}</select>
           <span className="chevron">⌄</span>
           <button className="workspace-add" type="button" onClick={createWorkspace}>+ New workspace</button>
+          <button className="workspace-add" type="button" onClick={renameWorkspace}>Rename workspace</button>
         </div>
         <div className="nav-section-label">Monitor</div>
         <nav className="nav">
