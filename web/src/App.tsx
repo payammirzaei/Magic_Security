@@ -8,10 +8,10 @@ import { FindingDetailPage } from './pages/FindingDetailPage'
 import { LoginPage } from './pages/LoginPage'
 
 function ProtectedLayout() {
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => !window.localStorage.getItem('magic_security_api_key') && !import.meta.env.VITE_MAGIC_SECURITY_API_KEY)
   useEffect(() => {
     const token = window.localStorage.getItem('magic_security_api_key') || import.meta.env.VITE_MAGIC_SECURITY_API_KEY
-    if (!token) { setReady(true); return }
+    if (!token) return
     api.me().then(() => setReady(true)).catch(() => window.location.assign('/login'))
   }, [])
   if (!ready) return <div className="auth-loading">Checking workspace access…</div>
