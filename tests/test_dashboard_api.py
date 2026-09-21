@@ -148,6 +148,9 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     assert operations.status_code == 200
     assert operations.json()["workspace_id"] == "default"
     assert isinstance(operations.json()["active"], list)
+    isolated = client.get("/api/operations?workspace_id=missing", headers=headers)
+    assert isolated.status_code == 200
+    assert isolated.json()["active"] == []
 
     created = client.post(
         "/api/scans",
