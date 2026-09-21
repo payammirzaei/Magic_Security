@@ -40,7 +40,8 @@ export function ScanDetailPage() {
   }, [scanId])
 
   useEffect(() => {
-    if (!scanId || !scan || (scan.status !== 'queued' && scan.status !== 'running')) return
+    const status = scan?.status
+    if (!scanId || (status !== 'queued' && status !== 'running')) return
     const workspace = window.localStorage.getItem('magic_security_workspace') || 'default'
     const token = window.localStorage.getItem('magic_security_api_key') || import.meta.env.VITE_MAGIC_SECURITY_API_KEY
     const controller = new AbortController()
@@ -57,11 +58,10 @@ export function ScanDetailPage() {
     }
     consume().catch(() => undefined)
     return () => controller.abort()
-  }, [scanId, scan?.status])
+  }, [scanId, scan])
 
   useEffect(() => {
     if (tab !== 'diff' || !scanId) return
-    setDiffError(null)
     api
       .getDiff(scanId)
       .then(setDiff)
