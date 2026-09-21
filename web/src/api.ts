@@ -4,11 +4,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const shouldScope = path.startsWith('/api/targets') || path.startsWith('/api/scans') || path.startsWith('/api/findings') || path.startsWith('/api/workspace') || path.startsWith('/api/me')
   const separator = path.includes('?') ? '&' : '?'
   const scopedPath = shouldScope ? `${path}${separator}workspace_id=${encodeURIComponent(activeWorkspace)}` : path
+  const requestId = window.crypto?.randomUUID?.() || `req-${Date.now()}-${Math.random().toString(16).slice(2)}`
   const res = await fetch(scopedPath, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'X-Request-ID': requestId,
       ...(init?.headers || {}),
     },
   })
