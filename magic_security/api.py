@@ -54,6 +54,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         response.headers.setdefault("Server-Timing", f"app;dur={(time.perf_counter() - started) * 1000:.1f}")
         return response
     api = APIRouter(prefix="/api")
