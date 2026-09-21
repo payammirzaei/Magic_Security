@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import time
 import uuid
 from pathlib import Path
@@ -36,13 +37,20 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
 
     app = FastAPI(title="Magic Security Local API", version="1.0")
     api_key = os.environ.get("MAGIC_SECURITY_API_KEY")
+    sessions: dict[str, float] = {}
+    session_ttl = 3600
 
     @app.middleware("http")
     async def api_auth_guard(request, call_next):
-        if api_key and request.url.path.startswith("/api/") and request.url.path != "/api/health":
+        if api_key and request.url.path.startswith("/api/") and request.url.path not in {"/api/health", "/api/session"}:
             supplied = request.headers.get("authorization", "")
             expected = f"Bearer {api_key}"
-            if not hmac.compare_digest(supplied, expected):
+            token = supplied.removeprefix("Bearer ").strip()
+            now = time.time()
+            valid_session = token in sessions and sessions[token] > now
+            if token in sessions and sessions[token] <= now:
+                sessions.pop(token, None)
+            if not hmac.compare_digest(supplied, expected) and not valid_session:
                 return JSONResponse({"detail": "authentication required"}, status_code=401)
         return await call_next(request)
 
@@ -59,6 +67,20 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         response.headers.setdefault("Server-Timing", f"app;dur={(time.perf_counter() - started) * 1000:.1f}")
         return response
     api = APIRouter(prefix="/api")
+
+    @api.post("/session")
+    def create_session(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        supplied = str(body.get("api_key", ""))
+        if not api_key or not hmac.compare_digest(supplied, api_key):
+            raise HTTPException(status_code=401, detail="invalid credentials")
+        token = secrets.token_urlsafe(32)
+        sessions[token] = time.time() + session_ttl
+        return {"token": token, "expires_in": session_ttl}
+
+    @api.delete("/session")
+    def delete_session(request_token: str = Query(default="")) -> dict[str, bool]:
+        sessions.pop(request_token, None)
+        return {"ok": True}
     persistence = Persistence(Path(db_path))
     persistence.init_schema()
     registry = TargetRegistry()
