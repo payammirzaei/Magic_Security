@@ -313,7 +313,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/health")
     def health() -> dict[str, Any]:
         workers = [worker for worker in getattr(app.state, "scan_workers", []) if not worker.done()]
-        return {"status": "ok", "service": "magic-security-api", "version": "1.0", "workers": len(workers), "queued": scan_queue.qsize()}
+        return {"status": "ok" if workers else "degraded", "service": "magic-security-api", "version": "1.0", "workers": len(workers), "queued": scan_queue.qsize()}
 
     @api.get("/workspace")
     def workspace(workspace_id: str = Query(default="default")) -> dict[str, str]:
