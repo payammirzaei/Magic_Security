@@ -63,9 +63,16 @@ class Persistence:
                   token TEXT PRIMARY KEY,
                   expires_at REAL NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS workspace_members (
+                  workspace_id TEXT NOT NULL,
+                  user_id TEXT NOT NULL,
+                  role TEXT NOT NULL DEFAULT 'viewer',
+                  PRIMARY KEY(workspace_id, user_id)
+                );
                 """
             )
             conn.execute("INSERT OR IGNORE INTO workspaces(id, name, created_at) VALUES('default', 'Acme Labs', ?)", (datetime.now(timezone.utc).isoformat(),))
+            conn.execute("INSERT OR IGNORE INTO workspace_members(workspace_id, user_id, role) VALUES('default', 'local-owner', 'owner')")
             cols = {
                 row[1]
                 for row in conn.execute("PRAGMA table_info(scans)").fetchall()
@@ -104,6 +111,11 @@ class Persistence:
         with self.connect() as conn:
             result = conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (now,))
         return result.rowcount
+
+    def list_workspace_members(self, workspace_id: str) -> list[dict[str, str]]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT user_id, role FROM workspace_members WHERE workspace_id=? ORDER BY user_id", (workspace_id,)).fetchall()
+        return [{"user_id": row[0], "role": row[1]} for row in rows]
 
     def upsert_target(
         self,
