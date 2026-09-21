@@ -37,7 +37,6 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
 
     app = FastAPI(title="Magic Security Local API", version="1.0")
     api_key = os.environ.get("MAGIC_SECURITY_API_KEY")
-    sessions: dict[str, float] = {}
     session_ttl = 3600
 
     @app.middleware("http")
@@ -47,9 +46,10 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
             expected = f"Bearer {api_key}"
             token = supplied.removeprefix("Bearer ").strip()
             now = time.time()
-            valid_session = token in sessions and sessions[token] > now
-            if token in sessions and sessions[token] <= now:
-                sessions.pop(token, None)
+            expiry = persistence.get_session_expiry(token)
+            valid_session = expiry is not None and expiry > now
+            if expiry is not None and expiry <= now:
+                persistence.revoke_session(token)
             if not hmac.compare_digest(supplied, expected) and not valid_session:
                 return JSONResponse({"detail": "authentication required"}, status_code=401)
         return await call_next(request)
@@ -74,20 +74,21 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         if not api_key or not hmac.compare_digest(supplied, api_key):
             raise HTTPException(status_code=401, detail="invalid credentials")
         token = secrets.token_urlsafe(32)
-        sessions[token] = time.time() + session_ttl
+        persistence.create_session(token, time.time() + session_ttl)
         return {"token": token, "expires_in": session_ttl}
 
     @api.delete("/session")
     def delete_session(request_token: str = Query(default="")) -> dict[str, bool]:
-        sessions.pop(request_token, None)
+        persistence.revoke_session(request_token)
         return {"ok": True}
 
     @api.post("/session/refresh")
     def refresh_session(request_token: str = Query(default="")) -> dict[str, Any]:
-        if request_token not in sessions or sessions[request_token] <= time.time():
-            sessions.pop(request_token, None)
+        expiry = persistence.get_session_expiry(request_token)
+        if expiry is None or expiry <= time.time():
+            persistence.revoke_session(request_token)
             raise HTTPException(status_code=401, detail="session expired")
-        sessions[request_token] = time.time() + session_ttl
+        persistence.refresh_session(request_token, time.time() + session_ttl)
         return {"expires_in": session_ttl}
     persistence = Persistence(Path(db_path))
     persistence.init_schema()

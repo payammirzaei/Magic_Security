@@ -59,6 +59,10 @@ class Persistence:
                   target_id TEXT PRIMARY KEY,
                   snapshot_json TEXT
                 );
+                CREATE TABLE IF NOT EXISTS sessions (
+                  token TEXT PRIMARY KEY,
+                  expires_at REAL NOT NULL
+                );
                 """
             )
             conn.execute("INSERT OR IGNORE INTO workspaces(id, name, created_at) VALUES('default', 'Acme Labs', ?)", (datetime.now(timezone.utc).isoformat(),))
@@ -77,6 +81,24 @@ class Persistence:
                 conn.execute("ALTER TABLE targets ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'")
             if "workspace_id" not in cols:
                 conn.execute("ALTER TABLE scans ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'")
+
+    def create_session(self, token: str, expires_at: float) -> None:
+        with self.connect() as conn:
+            conn.execute("INSERT INTO sessions(token, expires_at) VALUES(?, ?)", (token, expires_at))
+
+    def get_session_expiry(self, token: str) -> float | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT expires_at FROM sessions WHERE token=?", (token,)).fetchone()
+        return float(row[0]) if row else None
+
+    def refresh_session(self, token: str, expires_at: float) -> bool:
+        with self.connect() as conn:
+            result = conn.execute("UPDATE sessions SET expires_at=? WHERE token=?", (expires_at, token))
+        return result.rowcount > 0
+
+    def revoke_session(self, token: str) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM sessions WHERE token=?", (token,))
 
     def upsert_target(
         self,
