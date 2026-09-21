@@ -87,6 +87,21 @@ def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
     assert workspace.status_code == 200
     assert workspace.json()["id"] == "security-team-eu"
     assert client.post("/api/workspaces", json={"name": "Security Team EU"}, headers=headers).status_code == 409
+
+
+def test_session_lifecycle(tmp_path: Path, monkeypatch):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from magic_security.api import create_app
+    monkeypatch.setenv("MAGIC_SECURITY_API_KEY", "session-secret")
+    with TestClient(create_app(tmp_path / "session.db")) as client:
+        created = client.post("/api/session", json={"api_key": "session-secret"})
+        assert created.status_code == 200
+        token = created.json()["token"]
+        assert client.get("/api/me", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+        assert client.post(f"/api/session/refresh?request_token={token}").status_code == 200
+        assert client.delete(f"/api/session?request_token={token}").status_code == 200
+        assert client.get("/api/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
     assert client.get("/api/targets?workspace_id=security-team-eu", headers=headers).json() == []
     me = client.get("/api/me?workspace_id=security-team-eu", headers=headers)
     assert me.status_code == 200
