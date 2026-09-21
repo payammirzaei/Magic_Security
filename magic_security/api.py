@@ -27,7 +27,7 @@ WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
 def create_app(db_path: str | Path = ".magic-security/magic.db"):
     try:
         from fastapi import APIRouter, Body, FastAPI, HTTPException, Query
-        from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+        from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
         from fastapi.staticfiles import StaticFiles
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -327,6 +327,20 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         if not report:
             raise HTTPException(status_code=404, detail="report not ready")
         return JSONResponse(report, headers={"Content-Disposition": f'attachment; filename="magic-security-{scan_id}.json"', "Cache-Control": "no-store"})
+
+    @api.get("/scans/{scan_id}/report.md")
+    def get_report_markdown(scan_id: str, workspace_id: str = Query(default="default")) -> PlainTextResponse:
+        row = persistence.get_scan(scan_id)
+        if row is None or row.get("workspace_id", "default") != workspace_id:
+            raise HTTPException(status_code=404, detail="scan not found")
+        report = row.get("report") or {}
+        if not report:
+            raise HTTPException(status_code=404, detail="report not ready")
+        summary = report.get("summary") or {}
+        lines = [f"# Magic Security audit: {row['target_id']}", "", f"- Scan: `{scan_id}`", f"- Findings: **{summary.get('findings', 0)}**", "", "## Findings"]
+        for finding in report.get("findings", []):
+            lines.extend([f"### [{str(finding.get('severity', 'unknown')).upper()}] {finding.get('title', 'Untitled')}", finding.get("description", ""), f"- URL: `{finding.get('url', '')}`", ""])
+        return PlainTextResponse("\n".join(lines), headers={"Content-Disposition": f'attachment; filename="magic-security-{scan_id}.md"', "Cache-Control": "no-store"})
 
     @api.get("/health")
     def health() -> dict[str, Any]:
