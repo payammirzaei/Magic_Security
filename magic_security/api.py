@@ -302,9 +302,9 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return {"queued": scan_queue.qsize(), "workers": 2}
 
     @api.post("/scans/{scan_id}/cancel")
-    async def cancel_scan(scan_id: str) -> dict[str, str]:
+    async def cancel_scan(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, str]:
         row = persistence.get_scan(scan_id)
-        if row is None:
+        if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         if row["status"] not in {"queued", "running"}:
             raise HTTPException(status_code=409, detail="scan is not active")
@@ -313,14 +313,14 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return {"id": scan_id, "status": "cancelled"}
 
     @api.post("/scans/{scan_id}/retry")
-    async def retry_scan(scan_id: str) -> dict[str, str]:
+    async def retry_scan(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, str]:
         row = persistence.get_scan(scan_id)
-        if row is None:
+        if row is None or row.get("workspace_id", "default") != workspace_id:
             raise HTTPException(status_code=404, detail="scan not found")
         if row["status"] not in {"failed", "cancelled"}:
             raise HTTPException(status_code=409, detail="only failed or cancelled scans can be retried")
         config = row.get("config") or {"target": row["target_id"]}
-        new_id = persistence.create_scan(target_id=row["target_id"], status="queued", config=config)
+        new_id = persistence.create_scan(target_id=row["target_id"], status="queued", config=config, workspace_id=workspace_id)
         await scan_queue.put((new_id, config))
         return {"id": new_id, "status": "queued"}
 
