@@ -22,6 +22,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<{ status: string }>('/api/health'),
+  listFindings: () => request<import('./types').Finding[]>('/api/findings'),
   listTargets: () => request<import('./types').Target[]>('/api/targets'),
   addTarget: (body: {
     base_url: string

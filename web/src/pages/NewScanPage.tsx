@@ -1,146 +1,15 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { api, pollScan } from '../api'
+import { useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { api } from '../api'
+
+const stages = [['01', 'Surface discovery', 'Routes, subdomains, APIs and client assets'], ['02', 'Security checks', 'Browser, API, headers and configuration'], ['03', 'Evidence validation', 'Confirm signals and remove false positives'], ['04', 'Report & baseline', 'Prioritized findings and regression snapshot']]
 
 export function NewScanPage() {
-  const [params] = useSearchParams()
-  const navigate = useNavigate()
-  const initialTarget = params.get('target') || 'http://127.0.0.1:8000'
-
-  const [target, setTarget] = useState(initialTarget)
-  const [maxPages, setMaxPages] = useState(50)
-  const [active, setActive] = useState(true)
-  const [browser, setBrowser] = useState(false)
-  const [authPath, setAuthPath] = useState(
-    'examples/auth_contexts.example.json',
-  )
-  const [useAuth, setUseAuth] = useState(false)
-  const [status, setStatus] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  const hint = useMemo(
-    () =>
-      browser
-        ? 'Browser mode needs Playwright Chromium installed.'
-        : 'Passive + optional active verification against localhost.',
-    [browser],
-  )
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    setStatus('queued')
-    try {
-      const started = await api.startScan({
-        target,
-        max_pages: maxPages,
-        active,
-        browser,
-        auth_contexts_path: useAuth ? authPath : null,
-      })
-      setStatus(started.status)
-      const finished = await pollScan(started.id, (scan) => {
-        setStatus(scan.status)
-      })
-      if (finished.status === 'failed') {
-        setError(finished.error || 'Scan failed')
-        return
-      }
-      navigate(`/scans/${finished.id}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div>
-      <header className="page-header">
-        <h1>New scan</h1>
-        <p>{hint}</p>
-      </header>
-
-      {error && <div className="callout danger">{error}</div>}
-      {busy && status && (
-        <div className="callout">
-          Scan status: <span className={`badge ${status}`}>{status}</span>
-          <span className="muted"> — polling until complete…</span>
-        </div>
-      )}
-
-      <div className="panel">
-        <form className="form" onSubmit={onSubmit}>
-          <label>
-            Target URL
-            <input
-              type="url"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Max pages
-            <input
-              type="number"
-              min={1}
-              max={500}
-              value={maxPages}
-              onChange={(e) => setMaxPages(Number(e.target.value))}
-            />
-          </label>
-          <div className="row">
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={active}
-                onChange={(e) => setActive(e.target.checked)}
-              />
-              Active verification
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={browser}
-                onChange={(e) => setBrowser(e.target.checked)}
-              />
-              Browser discovery
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={useAuth}
-                onChange={(e) => setUseAuth(e.target.checked)}
-              />
-              Auth contexts
-            </label>
-          </div>
-          {useAuth && (
-            <label>
-              Auth contexts path (server-local)
-              <input
-                type="text"
-                value={authPath}
-                onChange={(e) => setAuthPath(e.target.value)}
-              />
-            </label>
-          )}
-          <button className="btn" type="submit" disabled={busy}>
-            {busy ? 'Scanning…' : 'Start scan'}
-          </button>
-        </form>
-      </div>
-
-      <p className="muted">
-        Prefer the CLI for heavy runs?{' '}
-        <span className="mono">
-          magic-security http://127.0.0.1:8000 --active
-        </span>{' '}
-        then refresh <Link to="/history">History</Link>.
-      </p>
-    </div>
-  )
+  const navigate = useNavigate(); const [target, setTarget] = useState('https://storefront.acme.dev'); const [profile, setProfile] = useState('Standard audit'); const [browser, setBrowser] = useState(true); const [active, setActive] = useState(true); const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null)
+  async function submit(event: FormEvent) { event.preventDefault(); setBusy(true); setError(null); try { const started = await api.startScan({ target, browser, active, max_pages: 50 }); navigate(`/scans/${started.id}`) } catch (err) { setError(err instanceof Error ? err.message : String(err)); setBusy(false) } }
+  return <div className="new-audit-page"><header className="page-header"><span className="eyebrow">Monitor / New audit</span><h1>Run a security audit</h1><p>Configure an audit for an authorized website or API. You can review the scope before anything runs.</p></header>
+    {error && <div className="callout danger">{error}</div>}
+    <div className="audit-layout"><form className="panel audit-form" onSubmit={submit}><div className="form-step"><span className="step-number">01</span><div><h2>Choose a target</h2><p className="muted">Select an existing target or enter a new URL.</p></div></div><label>Target URL<select value={target} onChange={(event) => setTarget(event.target.value)}><option>https://storefront.acme.dev</option><option>https://acme.com</option><option>https://api.acme.dev</option><option>https://docs.acme.dev</option></select></label><Link className="inline-link" to="/targets">+ Add a new target</Link><div className="form-divider" /><div className="form-step"><span className="step-number">02</span><div><h2>Audit profile</h2><p className="muted">Start with a profile, then customize its checks.</p></div></div><div className="profile-options"><label className={`profile-option ${profile === 'Standard audit' ? 'selected' : ''}`}><input type="radio" name="profile" value="Standard audit" checked={profile === 'Standard audit'} onChange={(event) => setProfile(event.target.value)} /><span><strong>Standard audit</strong><small>Balanced coverage for web apps and APIs</small></span><b>Recommended</b></label><label className={`profile-option ${profile === 'Quick check' ? 'selected' : ''}`}><input type="radio" name="profile" value="Quick check" checked={profile === 'Quick check'} onChange={(event) => setProfile(event.target.value)} /><span><strong>Quick check</strong><small>Fast passive scan for an initial signal</small></span></label></div><div className="form-divider" /><div className="form-step"><span className="step-number">03</span><div><h2>Coverage options</h2><p className="muted">Active checks are rate-limited and scope-aware.</p></div></div><label className="toggle-row"><span><strong>Browser discovery</strong><small>Crawl rendered routes, storage and runtime requests</small></span><input type="checkbox" checked={browser} onChange={(event) => setBrowser(event.target.checked)} /><i /></label><label className="toggle-row"><span><strong>Active verification</strong><small>Safely validate reflected inputs and security controls</small></span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} /><i /></label><button className="btn audit-submit" type="submit" disabled={busy}>{busy ? 'Starting audit…' : 'Start audit →'}</button></form>
+      <aside className="audit-aside"><div className="panel pipeline-preview"><span className="eyebrow">Pipeline preview</span><h2>{profile}</h2><p className="muted">Estimated runtime <strong className="estimate">3–7 min</strong></p><div className="stage-list">{stages.map(([number, title, description], index) => <div className="stage-preview" key={number}><span className={`stage-icon ${index === 0 ? 'active' : ''}`}>{index === 0 ? '◉' : index + 1}</span><div><strong>{title}</strong><small>{description}</small></div></div>)}</div></div><div className="callout safety-note"><strong>Safe by default</strong><p>Audits stay within the target scope and never store raw credentials or secret values in reports.</p></div></aside></div>
+  </div>
 }

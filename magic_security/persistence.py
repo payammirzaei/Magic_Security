@@ -39,6 +39,7 @@ class Persistence:
                   report_json TEXT,
                   snapshot_json TEXT,
                   error_text TEXT
+                  ,stage_json TEXT
                 );
                 CREATE TABLE IF NOT EXISTS findings (
                   id TEXT PRIMARY KEY,
@@ -58,6 +59,8 @@ class Persistence:
             }
             if "error_text" not in cols:
                 conn.execute("ALTER TABLE scans ADD COLUMN error_text TEXT")
+            if "stage_json" not in cols:
+                conn.execute("ALTER TABLE scans ADD COLUMN stage_json TEXT")
 
     def upsert_target(
         self,
@@ -103,11 +106,11 @@ class Persistence:
             conn.execute(
                 """
                 INSERT INTO scans(
-                  id, target_id, created_at, status, report_json, snapshot_json, error_text
+                  id, target_id, created_at, status, report_json, snapshot_json, error_text, stage_json
                 )
-                VALUES(?,?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?)
                 """,
-                (sid, target_id, created, status, "{}", "{}", None),
+                (sid, target_id, created, status, "{}", "{}", None, json.dumps({"current": "queued", "completed": [], "progress": 0})),
             )
         return sid
 
@@ -127,6 +130,11 @@ class Persistence:
                 """,
                 (status, error, scan_id),
             )
+
+    def update_scan_stage(self, scan_id: str, stage: str, *, progress: int, completed: list[str] | None = None) -> None:
+        payload = {"current": stage, "completed": completed or [], "progress": max(0, min(100, progress))}
+        with self.connect() as conn:
+            conn.execute("UPDATE scans SET stage_json=? WHERE id=?", (json.dumps(payload), scan_id))
 
     def complete_scan(
         self,
@@ -191,7 +199,7 @@ class Persistence:
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         query = """
-            SELECT id, target_id, created_at, status, error_text, report_json
+            SELECT id, target_id, created_at, status, error_text, report_json, stage_json
             FROM scans
         """
         params: list[Any] = []
@@ -206,6 +214,7 @@ class Persistence:
         for row in rows:
             data = dict(row)
             report = json.loads(data.pop("report_json") or "{}")
+            data["stage"] = json.loads(data.pop("stage_json") or "{}")
             data["summary"] = report.get("summary")
             data["scan_validity"] = report.get("scan_validity")
             data["error"] = data.pop("error_text", None)
@@ -223,6 +232,7 @@ class Persistence:
         data = dict(row)
         data["report"] = json.loads(data.pop("report_json") or "{}")
         data["snapshot"] = json.loads(data.pop("snapshot_json") or "{}")
+        data["stage"] = json.loads(data.pop("stage_json") or "{}")
         data["error"] = data.pop("error_text", None)
         data["summary"] = (data["report"] or {}).get("summary")
         return data
@@ -234,6 +244,24 @@ class Persistence:
                 (scan_id,),
             ).fetchall()
         return [json.loads(row["payload_json"]) for row in rows]
+
+    def list_findings(self, *, limit: int = 200) -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT f.payload_json, s.target_id, s.created_at
+                FROM findings f JOIN scans s ON s.id = f.scan_id
+                ORDER BY s.created_at DESC LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            item = json.loads(row["payload_json"] or "{}")
+            item["target_id"] = row["target_id"]
+            item["detected_at"] = row["created_at"]
+            result.append(item)
+        return result
 
     def set_baseline(self, target_id: str, snapshot: dict[str, Any]) -> None:
         with self.connect() as conn:

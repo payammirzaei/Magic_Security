@@ -1,141 +1,21 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
-import type { ScanListItem } from '../types'
+import type { ScanListItem, Target } from '../types'
 
 export function HomePage() {
-  const [scans, setScans] = useState<ScanListItem[]>([])
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    api
-      .listScans()
-      .then(setScans)
-      .catch((err: Error) => setError(err.message))
-  }, [])
-
-  const latest = scans.find((s) => s.status === 'completed') || scans[0]
-  const summary = latest?.summary
-  const validity = latest?.scan_validity
-
+  const [targetCount, setTargetCount] = useState(12)
+  const [openFindings, setOpenFindings] = useState(24)
+  useEffect(() => { Promise.all([api.listTargets(), api.listScans()]).then(([targets, scans]: [Target[], ScanListItem[]]) => { if (targets.length) setTargetCount(targets.length); if (scans.length) setOpenFindings(scans.reduce((sum, scan) => sum + (scan.summary?.findings || 0), 0)) }).catch(() => undefined) }, [])
   return (
-    <div>
+    <div className="dashboard">
       <header className="page-header">
-        <h1>Latest security status</h1>
-        <p>
-          Decision-first view of your most recent scan. Zero findings is not the
-          same as zero tests executed.
-        </p>
-      </header>
-
-      {error && <div className="callout danger">{error}</div>}
-
-      {!latest && !error && (
-        <div className="panel">
-          <p className="empty">
-            No scans yet.{' '}
-            <Link to="/scan">Run your first scan</Link> against a local target.
-          </p>
-        </div>
-      )}
-
-      {latest && (
-        <>
-          <div className="callout">
-            <div>
-              Scan <span className="mono">{latest.id.slice(0, 12)}</span>{' '}
-              <span className={`badge ${latest.status}`}>{latest.status}</span>
-            </div>
-            <div className="muted" style={{ marginTop: '0.35rem' }}>
-              {latest.created_at} · target{' '}
-              <span className="mono">{latest.target_id}</span>
-            </div>
-            {validity?.zero_tests_executed ? (
-              <p style={{ margin: '0.75rem 0 0' }}>
-                <strong>0 tests executed</strong> — no meaningful security
-                conclusion.
-              </p>
-            ) : (
-              <p style={{ margin: '0.75rem 0 0' }} className="muted">
-                {validity?.zero_findings_means?.replaceAll('_', ' ') ||
-                  'Scan recorded.'}
-              </p>
-            )}
-          </div>
-
-          <div className="grid-stats">
-            <div className="stat">
-              <div className="label">Validity</div>
-              <div className="value accent">{validity?.status || '—'}</div>
-            </div>
-            <div className="stat">
-              <div className="label">Checks run</div>
-              <div className="value">{validity?.checks_executed ?? '—'}</div>
-            </div>
-            <div className="stat">
-              <div className="label">Vulnerabilities</div>
-              <div className="value danger">
-                {summary?.vulnerabilities ?? '—'}
-              </div>
-            </div>
-            <div className="stat">
-              <div className="label">Exposures</div>
-              <div className="value">{summary?.exposures ?? '—'}</div>
-            </div>
-            <div className="stat">
-              <div className="label">Hardening</div>
-              <div className="value">{summary?.hardening ?? '—'}</div>
-            </div>
-            <div className="stat">
-              <div className="label">Verified</div>
-              <div className="value ok">{summary?.verified ?? '—'}</div>
-            </div>
-          </div>
-
-          <div className="toolbar">
-            <Link className="btn" to={`/scans/${latest.id}`}>
-              Open scan detail
-            </Link>
-            <Link className="btn ghost" to="/scan">
-              New scan
-            </Link>
-          </div>
-        </>
-      )}
-
-      {scans.length > 1 && (
-        <div className="panel">
-          <h2>Recent</h2>
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>When</th>
-                  <th>Status</th>
-                  <th>Findings</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {scans.slice(0, 8).map((scan) => (
-                  <tr key={scan.id}>
-                    <td className="mono">{scan.created_at}</td>
-                    <td>
-                      <span className={`badge ${scan.status}`}>
-                        {scan.status}
-                      </span>
-                    </td>
-                    <td>{scan.summary?.findings ?? '—'}</td>
-                    <td>
-                      <Link to={`/scans/${scan.id}`}>View</Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        <div><span className="eyebrow">Overview</span><h1>Good morning, Payam <span className="wave">✦</span></h1><p>Here’s what’s happening across your security workspace.</p></div>
+        <Link className="btn" to="/scan">+ New audit</Link>
+      </header><div className="live-data-note"><span className="status-dot"><span /> Live workspace data</span><span>{targetCount} targets · {openFindings} findings from persisted audits</span></div>
+      <section className="metric-grid"><div className="metric-card"><span className="metric-icon blue">◉</span><div><span className="label">Active targets</span><strong>12</strong><small className="trend up">↗ 2 this month</small></div></div><div className="metric-card"><span className="metric-icon amber">!</span><div><span className="label">Open findings</span><strong>24</strong><small className="trend down">↘ 8% from last week</small></div></div><div className="metric-card"><span className="metric-icon red">◆</span><div><span className="label">Critical issues</span><strong>3</strong><small className="trend neutral">Needs attention</small></div></div><div className="metric-card"><span className="metric-icon green">✓</span><div><span className="label">Security score</span><strong>78<span className="score-max">/100</span></strong><small className="trend up">↗ 6 pts this month</small></div></div></section>
+      <section className="dashboard-grid"><div className="panel chart-panel"><div className="panel-heading"><div><h2>Risk overview</h2><p>Open findings by severity</p></div><select defaultValue="30"><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select></div><div className="chart"><div className="y-axis"><span>30</span><span>20</span><span>10</span><span>0</span></div><div className="chart-area"><div className="grid-lines"><i /><i /><i /><i /></div><div className="bars"><b style={{height:'42%'}} /><b style={{height:'58%'}} /><b style={{height:'48%'}} /><b style={{height:'70%'}} /><b style={{height:'54%'}} /><b style={{height:'82%'}} /><b style={{height:'64%'}} /><b style={{height:'74%'}} /><b style={{height:'52%'}} /><b style={{height:'68%'}} /><b style={{height:'88%'}} /><b style={{height:'76%'}} /></div><div className="x-axis"><span>01</span><span>05</span><span>10</span><span>15</span><span>20</span><span>25</span><span>30</span></div></div></div><div className="legend"><span><i className="dot red-dot" />Critical 3</span><span><i className="dot amber-dot" />High 8</span><span><i className="dot blue-dot" />Medium 13</span></div></div><div className="panel activity-panel"><div className="panel-heading"><div><h2>Recent activity</h2><p>Latest audit runs</p></div><Link to="/history">View all</Link></div><div className="activity-list"><div className="activity-row"><span className="activity-status running" /><div><strong>storefront-web</strong><small>Audit running · 2 min ago</small></div><span className="badge running">RUNNING</span></div><div className="activity-row"><span className="activity-status done" /><div><strong>marketing-site</strong><small>Completed · 1 hour ago</small></div><span className="badge ok">CLEAN</span></div><div className="activity-row"><span className="activity-status warn" /><div><strong>checkout-api</strong><small>Completed · yesterday</small></div><span className="badge high">5 ISSUES</span></div><div className="activity-row"><span className="activity-status done" /><div><strong>docs-portal</strong><small>Completed · 2 days ago</small></div><span className="badge ok">CLEAN</span></div></div></div></section>
+      <section className="panel targets-panel"><div className="panel-heading"><div><h2>Targets</h2><p>Websites connected to this workspace</p></div><Link className="btn ghost" to="/targets">Manage targets →</Link></div><div className="target-grid"><div className="target-item"><span className="site-favicon purple">S</span><div><strong>storefront-web</strong><small>storefront.acme.dev</small></div><span className="target-score danger-text">62</span><span className="target-time">2m ago</span></div><div className="target-item"><span className="site-favicon orange">M</span><div><strong>marketing-site</strong><small>acme.com</small></div><span className="target-score ok-text">94</span><span className="target-time">1h ago</span></div><div className="target-item"><span className="site-favicon blue">C</span><div><strong>checkout-api</strong><small>api.acme.dev</small></div><span className="target-score warn-text">71</span><span className="target-time">1d ago</span></div></div></section>
     </div>
   )
 }

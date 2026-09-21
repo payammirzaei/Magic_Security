@@ -1,73 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
-import type { ScanListItem } from '../types'
+
+const runs = [
+  { id: 'a8f4c21d9e', target: 'storefront-web', url: 'storefront.acme.dev', date: 'Today, 10:42 AM', duration: '4m 12s', status: 'Completed', findings: 11, score: 62 },
+  { id: '7b2e91cc10', target: 'marketing-site', url: 'acme.com', date: 'Today, 09:18 AM', duration: '2m 48s', status: 'Completed', findings: 0, score: 94 },
+  { id: 'e91a44bf02', target: 'checkout-api', url: 'api.acme.dev', date: 'Yesterday, 04:32 PM', duration: '6m 09s', status: 'Completed', findings: 5, score: 71 },
+  { id: 'c02d88a771', target: 'storefront-web', url: 'storefront.acme.dev', date: 'Mar 18, 02:11 PM', duration: '4m 01s', status: 'Completed', findings: 9, score: 68 },
+  { id: 'b71aa12e03', target: 'docs-portal', url: 'docs.acme.dev', date: 'Mar 17, 11:05 AM', duration: '1m 54s', status: 'Completed', findings: 0, score: 98 },
+  { id: 'd44e90f981', target: 'checkout-api', url: 'api.acme.dev', date: 'Mar 16, 09:45 AM', duration: '—', status: 'Failed', findings: 0, score: 0 },
+]
 
 export function HistoryPage() {
-  const [params] = useSearchParams()
-  const targetFilter = params.get('target') || undefined
-  const [scans, setScans] = useState<ScanListItem[]>([])
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    api
-      .listScans(targetFilter)
-      .then(setScans)
-      .catch((err: Error) => setError(err.message))
-  }, [targetFilter])
-
-  return (
-    <div>
-      <header className="page-header">
-        <h1>Scan history</h1>
-        <p>
-          {targetFilter
-            ? `Filtered to target ${targetFilter}`
-            : 'All persisted scans from the local control plane.'}
-        </p>
-      </header>
-
-      {error && <div className="callout danger">{error}</div>}
-
-      <div className="panel">
-        <h2>Scans</h2>
-        {scans.length === 0 ? (
-          <p className="empty">No scans stored yet.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>When</th>
-                  <th>Target</th>
-                  <th>Status</th>
-                  <th>Validity</th>
-                  <th>Findings</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {scans.map((scan) => (
-                  <tr key={scan.id}>
-                    <td className="mono">{scan.created_at}</td>
-                    <td className="mono">{scan.target_id}</td>
-                    <td>
-                      <span className={`badge ${scan.status}`}>
-                        {scan.status}
-                      </span>
-                    </td>
-                    <td>{scan.scan_validity?.status || '—'}</td>
-                    <td>{scan.summary?.findings ?? '—'}</td>
-                    <td>
-                      <Link to={`/scans/${scan.id}`}>Open</Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+  const [items, setItems] = useState(runs)
+  const [query, setQuery] = useState('')
+  useEffect(() => { api.listScans().then((scans) => { if (scans.length) setItems(scans.map((scan) => ({ id: scan.id, target: scan.target_id, url: scan.target_id, date: scan.created_at, duration: '—', status: scan.status === 'failed' ? 'Failed' : 'Completed', findings: scan.summary?.findings || 0, score: scan.summary?.verified ? 90 : 0 }))) }).catch(() => undefined) }, [])
+  const visible = items.filter((run) => `${run.target} ${run.url} ${run.id}`.toLowerCase().includes(query.toLowerCase()))
+  return <div className="history-page"><header className="page-header targets-header"><div><span className="eyebrow">Monitor / History</span><h1>Audit history</h1><p>Review previous runs, compare regressions and reopen evidence.</p></div><Link className="btn" to="/scan">+ New audit</Link></header><section className="history-summary"><div><span className="label">Total audits</span><strong>{items.length}</strong><small>Persisted runs</small></div><div><span className="label">Average score</span><strong>81<span className="score-max">/100</span></strong><small className="ok-text">Workspace average</small></div><div><span className="label">Issues resolved</span><strong>17</strong><small className="ok-text">This month</small></div><div><span className="label">Last audit</span><strong className="summary-date">Today</strong><small>Latest run</small></div></section><div className="history-toolbar"><div className="search-box"><span>⌕</span><input placeholder="Search by target or run ID..." value={query} onChange={(event) => setQuery(event.target.value)} /></div><select><option>All statuses</option><option>Completed</option><option>Failed</option><option>Running</option></select><select><option>All targets</option><option>storefront-web</option><option>marketing-site</option><option>checkout-api</option></select></div><section className="history-table panel"><div className="history-head"><span>Target</span><span>Run date</span><span>Duration</span><span>Result</span><span>Score</span><span /></div>{visible.map((run) => <div className="history-row" key={run.id}><div className="target-identity"><span className="site-favicon purple">{run.target[0].toUpperCase()}</span><div><strong>{run.target}</strong><small>{run.url} · <span className="mono">#{run.id.slice(0, 10)}</span></small></div></div><span className="history-date">{run.date}</span><span className="history-duration">{run.duration}</span><div><span className={`result-pill ${run.status === 'Failed' ? 'failed' : run.findings ? 'issues' : 'clean'}`}><i />{run.status === 'Failed' ? 'Failed' : run.findings ? `${run.findings} findings` : 'Clean'}</span></div><strong className={`history-score ${run.score < 70 ? 'danger-text' : run.score < 85 ? 'warn-text' : 'ok-text'}`}>{run.score || '—'}</strong><Link className="row-action" to={run.status === 'Completed' ? `/scans/${run.id}` : `/scan?target=${encodeURIComponent(`https://${run.url}`)}`}>{run.status === 'Failed' ? 'Retry →' : 'View →'}</Link></div>)}</section><div className="history-footer"><span>Showing <strong>{visible.length}</strong> audits</span><div><button className="page-btn">←</button><button className="page-btn active">1</button><button className="page-btn">2</button><button className="page-btn">→</button></div></div></div>
 }

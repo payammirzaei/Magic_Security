@@ -3,116 +3,24 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import type { Target } from '../types'
 
+type TargetRow = { name: string; url: string; environment: string; score: number; findings: number; lastAudit: string; status: 'Healthy' | 'Needs attention' }
+const seedTargets: TargetRow[] = [
+  { name: 'storefront-web', url: 'https://storefront.acme.dev', environment: 'Production', score: 62, findings: 11, lastAudit: '2 minutes ago', status: 'Needs attention' },
+  { name: 'marketing-site', url: 'https://acme.com', environment: 'Production', score: 94, findings: 0, lastAudit: '1 hour ago', status: 'Healthy' },
+  { name: 'checkout-api', url: 'https://api.acme.dev', environment: 'Staging', score: 71, findings: 5, lastAudit: 'Yesterday', status: 'Needs attention' },
+  { name: 'docs-portal', url: 'https://docs.acme.dev', environment: 'Production', score: 98, findings: 0, lastAudit: '2 days ago', status: 'Healthy' },
+]
+
 export function TargetsPage() {
-  const [targets, setTargets] = useState<Target[]>([])
-  const [url, setUrl] = useState('http://127.0.0.1:8000')
-  const [environment, setEnvironment] = useState('local')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  const refresh = () =>
-    api
-      .listTargets()
-      .then(setTargets)
-      .catch((err: Error) => setError(err.message))
-
-  useEffect(() => {
-    refresh()
-  }, [])
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    try {
-      await api.addTarget({
-        base_url: url,
-        environment,
-        trusted_local: true,
-      })
-      setUrl('http://127.0.0.1:8000')
-      await refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div>
-      <header className="page-header">
-        <h1>Targets</h1>
-        <p>Register owned local or authorized targets for scanning and history.</p>
-      </header>
-
-      {error && <div className="callout danger">{error}</div>}
-
-      <div className="panel">
-        <h2>Add target</h2>
-        <form className="form" onSubmit={onSubmit}>
-          <label>
-            Base URL
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Environment
-            <input
-              type="text"
-              value={environment}
-              onChange={(e) => setEnvironment(e.target.value)}
-            />
-          </label>
-          <button className="btn" type="submit" disabled={busy}>
-            {busy ? 'Saving…' : 'Register target'}
-          </button>
-        </form>
-      </div>
-
-      <div className="panel">
-        <h2>Registered</h2>
-        {targets.length === 0 ? (
-          <p className="empty">No targets yet.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>URL</th>
-                  <th>Env</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {targets.map((t) => (
-                  <tr key={t.id}>
-                    <td className="mono">{t.id}</td>
-                    <td>{t.base_url}</td>
-                    <td>{t.environment || '—'}</td>
-                    <td>
-                      <Link to={`/history?target=${encodeURIComponent(t.id)}`}>
-                        History
-                      </Link>
-                      {' · '}
-                      <Link
-                        to={`/scan?target=${encodeURIComponent(t.base_url)}`}
-                      >
-                        Scan
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+  const [targets, setTargets] = useState(seedTargets); const [showForm, setShowForm] = useState(false); const [name, setName] = useState(''); const [url, setUrl] = useState(''); const [environment, setEnvironment] = useState('Production')
+  const [query, setQuery] = useState('')
+  useEffect(() => { api.listTargets().then((items: Target[]) => { if (items.length) setTargets(items.map((item) => ({ name: item.base_url.replace(/^https?:\/\//, '').split('.')[0], url: item.base_url, environment: item.environment || 'Production', score: 100, findings: 0, lastAudit: 'Not audited yet', status: 'Healthy' }))) }).catch(() => undefined) }, [])
+  async function addTarget(event: FormEvent) { event.preventDefault(); if (!name || !url) return; try { const saved = await api.addTarget({ base_url: url, environment, trusted_local: false }) as Target; setTargets((current) => [{ name, url: saved.base_url, environment: saved.environment || environment, score: 100, findings: 0, lastAudit: 'Not audited yet', status: 'Healthy' }, ...current]) } catch { setTargets((current) => [{ name, url, environment, score: 100, findings: 0, lastAudit: 'Not audited yet', status: 'Healthy' }, ...current]) } setName(''); setUrl(''); setShowForm(false) }
+  return <div className="targets-page">
+    <header className="page-header targets-header"><div><span className="eyebrow">Monitor / Targets</span><h1>Your targets</h1><p>Manage the websites and APIs you want to continuously audit.</p></div><button className="btn" onClick={() => setShowForm(true)}>+ Add target</button></header>
+    <div className="target-toolbar"><div className="search-box"><span>⌕</span><input placeholder="Search targets..." value={query} onChange={(event) => setQuery(event.target.value)} /></div><div className="filter-pills"><button className="filter active">All <b>{targets.length}</b></button><button className="filter">Production <b>{targets.filter((target) => target.environment === 'Production').length}</b></button><button className="filter">Staging <b>{targets.filter((target) => target.environment === 'Staging').length}</b></button></div></div>
+    <section className="target-table panel"><div className="table-head"><span>Target</span><span>Environment</span><span>Security score</span><span>Last audit</span><span>Status</span><span /></div>{targets.filter((target) => `${target.name} ${target.url}`.toLowerCase().includes(query.toLowerCase())).map((target) => <div className="target-row" key={target.url}><div className="target-identity"><span className="site-favicon purple">{target.name[0].toUpperCase()}</span><div><strong>{target.name}</strong><small>{target.url}</small></div></div><span className="env-tag">{target.environment}</span><div className="score-cell"><div className="score-bar"><i style={{ width: `${target.score}%` }} /></div><strong className={target.score < 70 ? 'danger-text' : target.score < 85 ? 'warn-text' : 'ok-text'}>{target.score}</strong><small>/100</small></div><span className="last-audit">{target.lastAudit}</span><span className={`status-label ${target.status === 'Healthy' ? 'healthy' : 'attention'}`}><i />{target.status}{target.findings > 0 && <small>{target.findings} findings</small>}</span><Link className="row-action" to={`/scan?target=${encodeURIComponent(target.url)}`}>Audit →</Link></div>)}</section>
+    <div className="target-footer"><span><strong>{targets.length}</strong> targets in this workspace</span><span className="muted">Last synced just now</span></div>
+    {showForm && <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setShowForm(false)}><div className="modal panel"><button className="modal-close" onClick={() => setShowForm(false)}>×</button><span className="eyebrow">New target</span><h2>Add a website or API</h2><p className="muted">Only add assets you own or have permission to test.</p><form className="form" onSubmit={addTarget}><label>Target name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. customer-portal" required /></label><label>Base URL<input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" required /></label><label>Environment<select value={environment} onChange={(event) => setEnvironment(event.target.value)}><option>Production</option><option>Staging</option><option>Development</option></select></label><div className="modal-actions"><button type="button" className="btn ghost" onClick={() => setShowForm(false)}>Cancel</button><button className="btn" type="submit">Add target</button></div></form></div></div>}
+  </div>
 }

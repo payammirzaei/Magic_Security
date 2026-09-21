@@ -22,12 +22,21 @@ export function ScanDetailPage() {
 
   useEffect(() => {
     if (!scanId) return
-    Promise.all([api.getScan(scanId), api.getFindings(scanId)])
-      .then(([s, f]) => {
-        setScan(s)
-        setFindings(f.length ? f : s.report?.findings || [])
-      })
+    let active = true
+    const load = async () => {
+      const s = await api.getScan(scanId)
+      if (!active) return
+      setScan(s)
+      if (s.status === 'queued' || s.status === 'running') {
+        window.setTimeout(load, 1500)
+        return
+      }
+      const f = await api.getFindings(scanId)
+      if (active) setFindings(f.length ? f : s.report?.findings || [])
+    }
+    load()
       .catch((err: Error) => setError(err.message))
+    return () => { active = false }
   }, [scanId])
 
   useEffect(() => {
@@ -69,6 +78,18 @@ export function ScanDetailPage() {
   }
   if (!scan) {
     return <p className="muted">Loading scan…</p>
+  }
+
+  if (scan.status === 'queued' || scan.status === 'running') {
+    const running = scan.status === 'running'
+    const stages = ['Surface discovery', 'Security checks', 'Evidence validation', 'Report & baseline']
+    const stageNames = ['discovery', 'security_checks', 'validation', 'report']
+    const activeStage = Math.max(0, stageNames.indexOf(scan.stage?.current || (running ? 'security_checks' : 'queued')))
+    const progress = scan.stage?.progress ?? (running ? 38 : 0)
+    return <div className="run-progress-page">
+      <header className="page-header"><span className="eyebrow">Audit run</span><h1>{running ? 'Audit in progress' : 'Preparing your audit'}</h1><p>We’re checking <span className="mono">{scan.target_id}</span>. You can leave this page open; progress is saved automatically.</p></header>
+      <div className="run-progress-layout"><section className="panel run-card"><div className="run-card-top"><div><span className={`badge ${scan.status}`}>{scan.status}</span><h2>{running ? (scan.stage?.current === 'discovery' ? 'Discovering attack surface' : 'Running security checks') : 'Waiting for a scanner worker'}</h2><p className="muted">Started just now · audit ID <span className="mono">{scan.id.slice(0, 12)}</span></p></div><div className="progress-ring"><strong>{progress}%</strong><small>complete</small></div></div><div className="overall-progress"><i style={{ width: `${progress}%` }} /></div><div className="run-stages">{stages.map((stage, index) => <div className={`run-stage ${index < activeStage ? 'done' : index === activeStage ? 'current' : ''}`} key={stage}><span>{index < activeStage ? '✓' : index === activeStage ? '●' : index + 1}</span><div><strong>{stage}</strong><small>{index < activeStage ? 'Completed' : index === activeStage ? 'Working now' : 'Waiting'}</small></div></div>)}</div></section><aside className="panel run-side"><span className="eyebrow">What happens next</span><p>Results will appear as each stage completes. Findings are only shown after evidence validation.</p><div className="run-fact"><span>Scope</span><strong>Single target</strong></div><div className="run-fact"><span>Browser checks</span><strong>Enabled</strong></div><Link className="btn ghost" to="/history">View history</Link></aside></div>
+    </div>
   }
 
   const report = scan.report || {}

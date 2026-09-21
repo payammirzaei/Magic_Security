@@ -38,7 +38,9 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         from magic_security.config import scan_config_from_flags
 
         persistence.update_scan_status(scan_id, "running")
+        completed_stages: list[str] = []
         try:
+            persistence.update_scan_stage(scan_id, "preflight", progress=8)
             auth = (
                 load_auth_contexts(body["auth_contexts_path"])
                 if body.get("auth_contexts_path")
@@ -51,9 +53,12 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
                 active=bool(body.get("active", False)),
                 auth_contexts=auth,
             )
+            persistence.update_scan_stage(scan_id, "discovery", progress=20, completed=["preflight"])
             crawl, findings = await ScannerEngine(
                 max_pages=int(body.get("max_pages", 50))
             ).scan(config=config)
+            completed_stages = ["preflight", "discovery"]
+            persistence.update_scan_stage(scan_id, "security_checks", progress=62, completed=completed_stages)
             report = build_report(
                 crawl,
                 findings,
@@ -68,12 +73,14 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
                 findings,
                 modes=report["modes"],
             )
+            persistence.update_scan_stage(scan_id, "report", progress=88, completed=["preflight", "discovery", "security_checks"])
             persistence.complete_scan(
                 scan_id,
                 report=report,
                 snapshot=snapshot,
                 status="completed",
             )
+            persistence.update_scan_stage(scan_id, "complete", progress=100, completed=["preflight", "discovery", "security_checks", "report"])
         except Exception as exc:  # noqa: BLE001
             persistence.update_scan_status(
                 scan_id,
@@ -106,6 +113,12 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         limit: int = Query(default=50, ge=1, le=200),
     ) -> list[dict[str, Any]]:
         return persistence.list_scans(target_id=target_id, limit=limit)
+
+    @api.get("/findings")
+    def get_all_findings(
+        limit: int = Query(default=200, ge=1, le=1000),
+    ) -> list[dict[str, Any]]:
+        return persistence.list_findings(limit=limit)
 
     @api.post("/scans")
     async def post_scan(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:

@@ -31,6 +31,7 @@ export type ScanListItem = {
   error?: string | null
   summary?: ScanSummary | null
   scan_validity?: ScanValidity | null
+  stage?: { current?: string; completed?: string[]; progress?: number } | null
 }
 
 export type Finding = {
