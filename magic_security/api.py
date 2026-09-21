@@ -170,9 +170,10 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/findings")
     def get_all_findings(
         limit: int = Query(default=200, ge=1, le=1000),
+        offset: int = Query(default=0, ge=0),
         workspace_id: str = Query(default="default"),
     ) -> list[dict[str, Any]]:
-        return persistence.list_findings(limit=limit, workspace_id=workspace_id)
+        return persistence.list_findings(limit=limit, offset=offset, workspace_id=workspace_id)
 
     @api.get("/findings/{finding_id}")
     def get_finding(finding_id: str, workspace_id: str = Query(default="default")) -> dict[str, Any]:

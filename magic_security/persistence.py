@@ -327,15 +327,15 @@ class Persistence:
             ).fetchall()
         return [json.loads(row["payload_json"]) for row in rows]
 
-    def list_findings(self, *, limit: int = 200, workspace_id: str = "default") -> list[dict[str, Any]]:
+    def list_findings(self, *, limit: int = 200, offset: int = 0, workspace_id: str = "default") -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute(
                 """
                 SELECT f.payload_json, s.target_id, s.created_at
                 FROM findings f JOIN scans s ON s.id = f.scan_id
-                WHERE s.workspace_id=? ORDER BY s.created_at DESC LIMIT ?
+                WHERE s.workspace_id=? ORDER BY s.created_at DESC LIMIT ? OFFSET ?
                 """,
-                (workspace_id, limit),
+                (workspace_id, limit, offset),
             ).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:

@@ -34,7 +34,7 @@ export const api = {
   createWorkspace: (name: string) => request<{ id: string; name: string; created_at: string }>('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) }),
   renameWorkspace: (id: string, name: string) => request<{ id: string; name: string; created_at: string }>(`/api/workspaces/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
   me: () => request<{ id: string; name: string; role: string; authenticated: boolean }>('/api/me'),
-  listFindings: () => request<import('./types').Finding[]>('/api/findings'),
+  listFindings: (options?: { limit?: number; offset?: number }) => request<import('./types').Finding[]>(`/api/findings?limit=${options?.limit ?? 200}&offset=${options?.offset ?? 0}`),
   getFinding: (id: string) => request<import('./types').Finding>(`/api/findings/${encodeURIComponent(id)}`),
   updateFindingStatus: (id: string, status: 'open' | 'triaged' | 'ignored') => request<import('./types').Finding>(`/api/findings/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   listTargets: () => request<import('./types').Target[]>('/api/targets'),
