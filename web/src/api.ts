@@ -106,7 +106,7 @@ export async function openAuthenticatedReport(scanId: string, format: 'html' | '
   const workspace = window.localStorage.getItem('magic_security_workspace') || 'default'
   const token = window.localStorage.getItem('magic_security_api_key') || import.meta.env.VITE_MAGIC_SECURITY_API_KEY
   const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/report.${format}?workspace_id=${encodeURIComponent(workspace)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-  if (!response.ok) throw new Error(`Report request failed (${response.status})`)
+  if (!response.ok) { const requestId = response.headers.get('x-request-id'); throw new Error(`Report request failed (${response.status})${requestId ? ` (request ${requestId})` : ''}`) }
   const blob = await response.blob(); const url = URL.createObjectURL(blob)
   if (format === 'html') window.open(url, '_blank', 'noopener,noreferrer')
   else { const anchor = document.createElement('a'); anchor.href = url; anchor.download = `magic-security-${scanId}.${format}`; anchor.click() }
