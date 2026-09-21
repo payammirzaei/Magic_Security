@@ -134,6 +134,7 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     assert health.json()["version"] == "1.3.0"
     assert health.headers["x-content-type-options"] == "nosniff"
     assert health.headers["referrer-policy"] == "no-referrer"
+    assert health.headers["x-request-id"]
     assert health.json()["status"] in {"ok", "degraded"}
     assert "workers" in health.json()
 

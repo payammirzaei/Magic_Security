@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 import re
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +48,7 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @app.middleware("http")
     async def security_headers(request, call_next):
         response = await call_next(request)
+        response.headers.setdefault("X-Request-ID", request.headers.get("X-Request-ID", uuid.uuid4().hex))
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("X-Frame-Options", "DENY")
