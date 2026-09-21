@@ -34,6 +34,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   createSession: (apiKey: string) => request<{ token: string; expires_in: number }>('/api/session', { method: 'POST', body: JSON.stringify({ api_key: apiKey }) }),
   deleteSession: () => { const token = window.localStorage.getItem('magic_security_api_key') || ''; return request<{ ok: boolean }>(`/api/session?request_token=${encodeURIComponent(token)}`, { method: 'DELETE' }) },
+  refreshSession: () => { const token = window.localStorage.getItem('magic_security_api_key') || ''; return request<{ expires_in: number }>(`/api/session/refresh?request_token=${encodeURIComponent(token)}`, { method: 'POST' }) },
   health: () => request<{ status: string; workers: number; queued: number; active_scans: number; failed_scans: number }>('/api/health'),
   workspace: () => request<{ id: string; name: string }>('/api/workspace'),
   workspaces: () => request<{ id: string; name: string; created_at: string }[]>('/api/workspaces'),

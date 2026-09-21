@@ -81,6 +81,14 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     def delete_session(request_token: str = Query(default="")) -> dict[str, bool]:
         sessions.pop(request_token, None)
         return {"ok": True}
+
+    @api.post("/session/refresh")
+    def refresh_session(request_token: str = Query(default="")) -> dict[str, Any]:
+        if request_token not in sessions or sessions[request_token] <= time.time():
+            sessions.pop(request_token, None)
+            raise HTTPException(status_code=401, detail="session expired")
+        sessions[request_token] = time.time() + session_ttl
+        return {"expires_in": session_ttl}
     persistence = Persistence(Path(db_path))
     persistence.init_schema()
     registry = TargetRegistry()
