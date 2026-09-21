@@ -81,6 +81,7 @@ export const api = {
   cancelScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/cancel`, { method: 'POST' }),
   retryScan: (id: string) => request<{ id: string; status: string }>(`/api/scans/${id}/retry`, { method: 'POST' }),
   queue: () => request<{ queued: number; workers: number; active_scans: number; failed_scans: number }>('/api/queue'),
+  operations: () => request<{ workspace_id: string; queued: number; workers: number; active: import('./types').ScanListItem[]; recent_failures: import('./types').ScanListItem[] }>('/api/operations'),
 }
 
 export function setApiToken(token: string) {

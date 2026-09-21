@@ -144,6 +144,10 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     assert "workers" in health.json()
     assert health.json()["active_scans"] >= 0
     assert health.json()["failed_scans"] >= 0
+    operations = client.get("/api/operations?workspace_id=default", headers=headers)
+    assert operations.status_code == 200
+    assert operations.json()["workspace_id"] == "default"
+    assert isinstance(operations.json()["active"], list)
 
     created = client.post(
         "/api/scans",

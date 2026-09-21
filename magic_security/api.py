@@ -389,6 +389,17 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         scans = persistence.list_scans(limit=100, offset=0)
         return {"queued": scan_queue.qsize(), "workers": len(workers), "active_scans": sum(1 for scan in scans if scan.get("status") in {"queued", "running"}), "failed_scans": sum(1 for scan in scans if scan.get("status") == "failed")}
 
+    @api.get("/operations")
+    def operations_status(workspace_id: str = Query(default="default")) -> dict[str, Any]:
+        scans = [scan for scan in persistence.list_scans(limit=100, offset=0) if scan.get("workspace_id", "default") == workspace_id]
+        return {
+            "workspace_id": workspace_id,
+            "queued": scan_queue.qsize(),
+            "workers": len([worker for worker in getattr(app.state, "scan_workers", []) if not worker.done()]),
+            "active": [scan for scan in scans if scan.get("status") in {"queued", "running"}],
+            "recent_failures": [scan for scan in scans if scan.get("status") == "failed"][:10],
+        }
+
     @api.post("/scans/{scan_id}/cancel")
     async def cancel_scan(scan_id: str, workspace_id: str = Query(default="default")) -> dict[str, str]:
         row = persistence.get_scan(scan_id)
