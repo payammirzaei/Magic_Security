@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
+import os
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +22,7 @@ WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
 def create_app(db_path: str | Path = ".magic-security/magic.db"):
     try:
         from fastapi import APIRouter, Body, FastAPI, HTTPException, Query
-        from fastapi.responses import FileResponse, HTMLResponse
+        from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
         from fastapi.staticfiles import StaticFiles
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -28,6 +30,16 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         ) from exc
 
     app = FastAPI(title="Magic Security Local API", version="1.0")
+    api_key = os.environ.get("MAGIC_SECURITY_API_KEY")
+
+    @app.middleware("http")
+    async def api_auth_guard(request, call_next):
+        if api_key and request.url.path.startswith("/api/") and request.url.path != "/api/health":
+            supplied = request.headers.get("authorization", "")
+            expected = f"Bearer {api_key}"
+            if not hmac.compare_digest(supplied, expected):
+                return JSONResponse({"detail": "authentication required"}, status_code=401)
+        return await call_next(request)
     api = APIRouter(prefix="/api")
     persistence = Persistence(Path(db_path))
     persistence.init_schema()
@@ -240,6 +252,17 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/workspace")
     def workspace() -> dict[str, str]:
         return {"id": "default", "name": "Acme Labs"}
+
+    @api.get("/me")
+    def current_user() -> dict[str, Any]:
+        return {
+            "id": "local-owner",
+            "name": "Payam",
+            "email": None,
+            "role": "owner",
+            "workspace": {"id": "default", "name": "Acme Labs"},
+            "authenticated": False,
+        }
 
     @api.get("/queue")
     def queue_status() -> dict[str, int]:
