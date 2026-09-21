@@ -106,9 +106,9 @@ class Persistence:
                 ),
             )
 
-    def list_targets(self, *, workspace_id: str = "default") -> list[dict[str, Any]]:
+    def list_targets(self, *, limit: int = 200, offset: int = 0, workspace_id: str = "default") -> list[dict[str, Any]]:
         with self.connect() as conn:
-            rows = conn.execute("SELECT * FROM targets WHERE workspace_id=? ORDER BY base_url", (workspace_id,)).fetchall()
+            rows = conn.execute("SELECT * FROM targets WHERE workspace_id=? ORDER BY base_url LIMIT ? OFFSET ?", (workspace_id, limit, offset)).fetchall()
             scans = conn.execute("SELECT id, target_id, created_at, status, report_json FROM scans WHERE workspace_id=? ORDER BY created_at DESC", (workspace_id,)).fetchall()
             finding_rows = conn.execute("SELECT scan_id, payload_json FROM findings JOIN scans ON scans.id=findings.scan_id WHERE scans.workspace_id=?", (workspace_id,)).fetchall()
         latest: dict[str, dict[str, Any]] = {}

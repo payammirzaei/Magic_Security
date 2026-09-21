@@ -148,8 +148,8 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return item.to_dict()
 
     @api.get("/targets")
-    def get_targets(workspace_id: str = Query(default="default")) -> list[dict[str, Any]]:
-        return persistence.list_targets(workspace_id=workspace_id)
+    def get_targets(limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), workspace_id: str = Query(default="default")) -> list[dict[str, Any]]:
+        return persistence.list_targets(limit=limit, offset=offset, workspace_id=workspace_id)
 
     @api.delete("/targets/{target_id}")
     def delete_target(target_id: str, workspace_id: str = Query(default="default")) -> dict[str, Any]:

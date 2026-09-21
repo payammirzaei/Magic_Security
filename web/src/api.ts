@@ -37,7 +37,7 @@ export const api = {
   listFindings: (options?: { limit?: number; offset?: number }) => request<import('./types').Finding[]>(`/api/findings?limit=${options?.limit ?? 200}&offset=${options?.offset ?? 0}`),
   getFinding: (id: string) => request<import('./types').Finding>(`/api/findings/${encodeURIComponent(id)}`),
   updateFindingStatus: (id: string, status: 'open' | 'triaged' | 'ignored') => request<import('./types').Finding>(`/api/findings/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  listTargets: () => request<import('./types').Target[]>('/api/targets'),
+  listTargets: (options?: { limit?: number; offset?: number }) => request<import('./types').Target[]>(`/api/targets?limit=${options?.limit ?? 200}&offset=${options?.offset ?? 0}`),
   addTarget: (body: {
     base_url: string
     environment?: string
