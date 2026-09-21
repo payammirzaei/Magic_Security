@@ -52,6 +52,7 @@ export type Finding = {
 }
 
 export type ScanDetail = ScanListItem & {
+  config?: { browser?: boolean; active?: boolean; max_pages?: number }
   report?: {
     summary?: ScanSummary
     scan_validity?: ScanValidity
