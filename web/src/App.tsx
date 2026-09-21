@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { api } from './api'
 import { AppLayout } from './components/AppLayout'
 import { HistoryPage } from './pages/HistoryPage'
@@ -28,6 +28,7 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
   componentDidCatch(_error: Error, _info: ErrorInfo) { /* surface a recoverable shell */ }
   render() { return this.state.hasError ? <div className="auth-loading"><h1>Something went wrong</h1><p>Reload the workspace to continue.</p><button className="btn" type="button" onClick={() => window.location.reload()}>Reload workspace</button></div> : this.props.children }
 }
+function NotFoundPage() { return <div className="auth-loading"><h1>Page not found</h1><p>This workspace route does not exist.</p><a className="btn" href="/">Back to overview</a></div> }
 
 export default function App() {
   return (
@@ -42,7 +43,7 @@ export default function App() {
           <Route path="findings" element={<FindingsPage />} />
           <Route path="findings/:findingId" element={<FindingDetailPage />} />
           <Route path="scans/:scanId" element={<ScanDetailPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </BrowserRouter></AppErrorBoundary>
