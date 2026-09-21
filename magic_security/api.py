@@ -43,6 +43,14 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
             if not hmac.compare_digest(supplied, expected):
                 return JSONResponse({"detail": "authentication required"}, status_code=401)
         return await call_next(request)
+
+    @app.middleware("http")
+    async def security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        return response
     api = APIRouter(prefix="/api")
     persistence = Persistence(Path(db_path))
     persistence.init_schema()
