@@ -195,6 +195,7 @@ def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
     assert report_md.text.startswith("# Magic Security audit:")
     assert "Remediation:" in report_md.text
     assert "**Evidence**" in report_md.text
+    assert "- Check:" in report_md.text
     assert report_md.headers["content-type"].startswith("text/markdown")
     assert client.get(f"/api/scans/{scan_id}/report.md?workspace_id=other").status_code == 404
     assert report_md.headers["content-disposition"].endswith(".md\"")
