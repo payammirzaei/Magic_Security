@@ -49,6 +49,9 @@ def test_workspace_scope_hides_targets_and_scans(tmp_path: Path):
     assert store.get_scan(default_scan)["workspace_id"] == "default"
     pending = store.list_pending_scans(workspace_id="default")
     assert pending and pending[0]["id"] == default_scan
+    assert store.delete_target("default-target", workspace_id="default") is False
+    store.update_scan_status(default_scan, "failed")
+    assert store.delete_target("default-target", workspace_id="default") is True
 
 
 def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
@@ -66,6 +69,11 @@ def test_api_key_guard_and_workspace_detail_scope(tmp_path: Path, monkeypatch):
     assert created.status_code == 200
     assert len(client.get("/api/targets?workspace_id=alpha", headers=headers).json()) == 1
     assert client.get("/api/targets?workspace_id=beta", headers=headers).json() == []
+
+    deleted = client.delete(f"/api/targets/{created.json()['id']}?workspace_id=alpha", headers=headers)
+    assert deleted.status_code == 200
+    assert client.get("/api/targets?workspace_id=alpha", headers=headers).json() == []
+    assert client.delete(f"/api/targets/{created.json()['id']}?workspace_id=beta", headers=headers).status_code == 404
 
 
 def test_api_async_scan_list_baseline_html(tmp_path: Path, monkeypatch):
