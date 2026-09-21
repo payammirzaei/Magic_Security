@@ -129,21 +129,23 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
         return item.to_dict()
 
     @api.get("/targets")
-    def get_targets() -> list[dict[str, Any]]:
-        return persistence.list_targets()
+    def get_targets(workspace_id: str = Query(default="default")) -> list[dict[str, Any]]:
+        return persistence.list_targets(workspace_id=workspace_id)
 
     @api.get("/scans")
     def list_scans(
         target_id: str | None = Query(default=None),
         limit: int = Query(default=50, ge=1, le=200),
+        workspace_id: str = Query(default="default"),
     ) -> list[dict[str, Any]]:
-        return persistence.list_scans(target_id=target_id, limit=limit)
+        return persistence.list_scans(target_id=target_id, limit=limit, workspace_id=workspace_id)
 
     @api.get("/findings")
     def get_all_findings(
         limit: int = Query(default=200, ge=1, le=1000),
+        workspace_id: str = Query(default="default"),
     ) -> list[dict[str, Any]]:
-        return persistence.list_findings(limit=limit)
+        return persistence.list_findings(limit=limit, workspace_id=workspace_id)
 
     @api.post("/scans")
     async def post_scan(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
@@ -234,6 +236,10 @@ def create_app(db_path: str | Path = ".magic-security/magic.db"):
     @api.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @api.get("/workspace")
+    def workspace() -> dict[str, str]:
+        return {"id": "default", "name": "Acme Labs"}
 
     @api.get("/queue")
     def queue_status() -> dict[str, int]:

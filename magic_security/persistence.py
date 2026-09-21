@@ -25,11 +25,17 @@ class Persistence:
         with self.connect() as conn:
             conn.executescript(
                 """
+                CREATE TABLE IF NOT EXISTS workspaces (
+                  id TEXT PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS targets (
                   id TEXT PRIMARY KEY,
                   base_url TEXT NOT NULL,
                   environment TEXT,
-                  metadata_json TEXT
+                  metadata_json TEXT,
+                  workspace_id TEXT NOT NULL DEFAULT 'default'
                 );
                 CREATE TABLE IF NOT EXISTS scans (
                   id TEXT PRIMARY KEY,
@@ -39,7 +45,8 @@ class Persistence:
                   report_json TEXT,
                   snapshot_json TEXT,
                   error_text TEXT
-                  ,stage_json TEXT
+                  ,stage_json TEXT,
+                  workspace_id TEXT NOT NULL DEFAULT 'default'
                   ,config_json TEXT
                 );
                 CREATE TABLE IF NOT EXISTS findings (
@@ -64,6 +71,11 @@ class Persistence:
                 conn.execute("ALTER TABLE scans ADD COLUMN stage_json TEXT")
             if "config_json" not in cols:
                 conn.execute("ALTER TABLE scans ADD COLUMN config_json TEXT")
+            target_cols = {row[1] for row in conn.execute("PRAGMA table_info(targets)").fetchall()}
+            if "workspace_id" not in target_cols:
+                conn.execute("ALTER TABLE targets ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'")
+            if "workspace_id" not in cols:
+                conn.execute("ALTER TABLE scans ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'")
 
     def upsert_target(
         self,
@@ -91,9 +103,9 @@ class Persistence:
                 ),
             )
 
-    def list_targets(self) -> list[dict[str, Any]]:
+    def list_targets(self, *, workspace_id: str = "default") -> list[dict[str, Any]]:
         with self.connect() as conn:
-            rows = conn.execute("SELECT * FROM targets ORDER BY base_url").fetchall()
+            rows = conn.execute("SELECT * FROM targets WHERE workspace_id=? ORDER BY base_url", (workspace_id,)).fetchall()
         return [dict(row) for row in rows]
 
     def create_scan(
@@ -134,6 +146,7 @@ class Persistence:
                 """,
                 (status, error, scan_id),
             )
+            conn.execute("INSERT OR IGNORE INTO workspaces(id, name, created_at) VALUES('default', 'Acme Labs', ?)", (datetime.now(timezone.utc).isoformat(),))
 
     def update_scan_stage(self, scan_id: str, stage: str, *, progress: int, completed: list[str] | None = None) -> None:
         payload = {"current": stage, "completed": completed or [], "progress": max(0, min(100, progress))}
@@ -201,14 +214,15 @@ class Persistence:
         *,
         target_id: str | None = None,
         limit: int = 50,
+        workspace_id: str = "default",
     ) -> list[dict[str, Any]]:
         query = """
             SELECT id, target_id, created_at, status, error_text, report_json, stage_json
-            FROM scans
+            FROM scans WHERE workspace_id=?
         """
-        params: list[Any] = []
+        params: list[Any] = [workspace_id]
         if target_id:
-            query += " WHERE target_id=?"
+            query += " AND target_id=?"
             params.append(target_id)
         query += " ORDER BY created_at DESC LIMIT ?"
         params.append(limit)
@@ -250,15 +264,15 @@ class Persistence:
             ).fetchall()
         return [json.loads(row["payload_json"]) for row in rows]
 
-    def list_findings(self, *, limit: int = 200) -> list[dict[str, Any]]:
+    def list_findings(self, *, limit: int = 200, workspace_id: str = "default") -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute(
                 """
                 SELECT f.payload_json, s.target_id, s.created_at
                 FROM findings f JOIN scans s ON s.id = f.scan_id
-                ORDER BY s.created_at DESC LIMIT ?
+                WHERE s.workspace_id=? ORDER BY s.created_at DESC LIMIT ?
                 """,
-                (limit,),
+                (workspace_id, limit),
             ).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:
